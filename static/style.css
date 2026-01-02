@@ -1,0 +1,9 @@
+.bg-soft {
+  background: radial-gradient(1200px 600px at 10% 10%, rgba(13,110,253,.10), transparent 60%),
+              radial-gradient(900px 500px at 90% 20%, rgba(25,135,84,.10), transparent 55%),
+              #f7f9fc;
+}
+
+.header-grad {
+  background: linear-gradient(135deg, #0d6efd 0%, #20c997 100%);
+}
