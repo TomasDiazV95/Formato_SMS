@@ -5,7 +5,7 @@ import io
 import zipfile
 
 app = Flask(__name__)
-app.secret_key = "cambia-esto-por-una-clave-segura"
+app.secret_key = "123456"
 
 REQUIRED_COLUMNS = {"RUT", "OP", "FONO"}
 
