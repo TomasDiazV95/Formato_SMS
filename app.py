@@ -74,6 +74,7 @@ def build_outputs(df: pd.DataFrame, mensaje: str, usuario: str):
     return cargaCRM_df, cargaAthenas_df
 
 
+
 @app.route("/", methods=["GET"])
 def index():
     return render_template("main.html")
@@ -146,5 +147,122 @@ def process():
 def gm_page():
     return render_template("cargagm.html")
 
+
+# --- Sinónimos flexibles de columnas (case-insensitive) ---
+POSSIBLE_NAMES = {
+    "TELEFONO": {"telefono", "teléfono", "fono", "celular", "movil", "móvil"},
+    "RUT": {"rut", "id_cliente", "id cliente", "id_cliente (rut)", "id cliente (rut)"},
+    "OP": {"op", "operacion", "operación", "nro_documento", "nro documento", "documento"},
+    "NOMBRE": {"nombre", "name", "cliente", "contacto"}
+}
+
+def _pick_col(df: pd.DataFrame, logical_name: str) -> str | None:
+    """Devuelve el nombre real de la columna que matchea el logical_name usando sinónimos."""
+    targets = {s.lower().strip() for s in POSSIBLE_NAMES.get(logical_name, set())}
+    for col in df.columns:
+        key = str(col).lower().strip()
+        if key in targets:
+            return col
+    return None
+
+def build_ivr_output(df: pd.DataFrame, campo1_value: str) -> pd.DataFrame:
+    base = df.copy()
+
+    # Localizar columnas (tolerante)
+    tel_col = _pick_col(base, "TELEFONO")
+    rut_col = _pick_col(base, "RUT")
+    op_col  = _pick_col(base, "OP")
+    nom_col = _pick_col(base, "NOMBRE")
+
+    # Validación mínima: al menos debe venir el teléfono
+    if not tel_col:
+        raise ValueError("Falta columna de TELEFONO (acepta: Telefono, Teléfono, Fono, Celular, Móvil).")
+
+    # Normalizar a texto para evitar '... .0' y espacios sobrantes
+    def _as_text(series):
+        return series.astype(str).str.replace(r"\\.0$", "", regex=True).str.strip()
+
+    telefono = _as_text(base[tel_col])
+
+    # Si faltan RUT/OP/NOMBRE, se crean series vacías de la misma longitud
+    nombre = _as_text(base[nom_col]) if nom_col else pd.Series([""] * len(base), index=base.index)
+    rut    = _as_text(base[rut_col]) if rut_col else pd.Series([""] * len(base), index=base.index)
+    oper   = _as_text(base[op_col])  if op_col  else pd.Series([""] * len(base), index=base.index)
+
+    # Armar DataFrame final con encabezados EXACTOS (incluye uno vacío)
+    final_cols = ["TELEFONO", "MENSAJE", "ID_CLIENTE", "", "OPCIONAL", "CAMPO1", "CAMPO2"]
+    out = pd.DataFrame(columns=final_cols)
+
+    out["TELEFONO"]   = telefono
+    out["MENSAJE"]    = nombre            # NOMBRE si existe; sino blanco
+    out["ID_CLIENTE"] = rut               # RUT si existe; sino blanco
+    out[""]           = ""                # Columna sin encabezado, en blanco
+    out["OPCIONAL"]   = oper              # OPERACIÓN si existe; sino blanco
+    out["CAMPO1"]     = campo1_value      # Valor desde desplegable
+    out["CAMPO2"]     = ""                # Blanco
+
+    return out
+
+
+
+@app.route("/ivr", methods=["GET"])
+def ivr_page():
+    # Opciones del desplegable CAMPO1
+    campo1_options = [
+        "PHOENIXIVRITAUVENCIDA",
+        "PHOENIXIVRITAUCASTIGO",
+        "PHOENIXIVRCAJA18_3",
+        "PHOENIX_BINTERNACIONAL",
+        "PHOENIXIVRSANTANDERHIPO",
+        "PHOENIXSC_ICOMERCIAL",
+        "PHOENIXGMPREJUDICIAL",
+    ]
+    return render_template("ivr.html", campo1_options=campo1_options)
+
+@app.route("/ivr/process", methods=["POST"])
+def ivr_process():
+    file = request.files.get("file")
+    campo1 = (request.form.get("campo1") or "").strip()
+
+    if not file or file.filename == "":
+        flash("Debes subir un archivo Excel.", "danger")
+        return redirect(url_for("ivr_page"))
+
+    if not campo1:
+        flash("Debes seleccionar un valor para CAMPO1.", "danger")
+        return redirect(url_for("ivr_page"))
+
+    try:
+        # Lee Excel base
+        df = pd.read_excel(file, engine="openpyxl")
+
+        # Construye salida IVR
+        salida = build_ivr_output(df, campo1_value=campo1)
+
+        # Nombre de archivo
+        fecha_actual = datetime.now().strftime("%d-%m")
+        name = f"cargaIVR_{fecha_actual}_.xlsx"
+
+        # Escribe a memoria y descarga
+        buf = io.BytesIO()
+        with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+            # Nombre de hoja igual al ejemplo: Hoja1
+            salida.to_excel(writer, index=False, sheet_name="Hoja1")
+        buf.seek(0)
+
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name=name,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    except ValueError as e:
+        flash(str(e), "danger")
+        return redirect(url_for("ivr_page"))
+    except Exception as e:
+        flash(f"Ocurrió un error procesando el archivo: {e}", "danger")
+        return redirect(url_for("ivr_page"))
+    
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5013)
