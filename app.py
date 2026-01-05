@@ -142,6 +142,9 @@ def process():
         flash(f"Ocurrió un error procesando el archivo: {e}", "danger")
         return redirect(url_for("sms_page"))
 
+@app.route("/cargaGM", methods=["GET"])
+def gm_page():
+    return render_template("cargagm.html")
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5013)
