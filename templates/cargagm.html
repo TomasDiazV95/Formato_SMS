@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>General Motors Sin Campaña</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #004b8d, #0074d9);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            padding: 30px 40px;
+            border-radius: 12px;
+            width: 380px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        label {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        input[type="file"] {
+            margin-top: 10px;
+            margin-bottom: 25px;
+        }
+
+        button {
+            background-color: #ffc107;
+            border: none;
+            padding: 12px 20px;
+            color: #000;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #e5ac06;
+            transform: scale(1.03);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Sube tu archivo GM sin Campañas</h2>
+        <form method="POST" enctype="multipart/form-data">
+            <label>Archivo Collection:</label><br>
+            <input type="file" name="archivo" required><br>
+            <button type="submit">Procesar Archivo</button>
+        </form>
+    </div>
+</body>
+</html>
