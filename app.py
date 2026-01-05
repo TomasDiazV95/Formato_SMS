@@ -76,10 +76,14 @@ def build_outputs(df: pd.DataFrame, mensaje: str, usuario: str):
 
 @app.route("/", methods=["GET"])
 def index():
+    return render_template("main.html")
+
+@app.route("/sms", methods=["GET"])
+def sms_page():
+    # Tu página actual (index.html)
     return render_template("index.html")
 
-
-@app.route("/process", methods=["POST"])
+@app.route("/sms/process", methods=["POST"])
 def process():
     file = request.files.get("file")
     mensaje = (request.form.get("mensaje") or "").strip()
@@ -87,15 +91,15 @@ def process():
 
     if not file or file.filename == "":
         flash("Debes subir un archivo Excel.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("sms_page"))
 
     if not mensaje:
         flash("Debes ingresar un Mensaje.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("sms_page"))
 
     if not usuario:
         flash("Debes ingresar un Usuario.", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("sms_page"))
 
     try:
         # Lee Excel
@@ -133,10 +137,10 @@ def process():
 
     except ValueError as e:
         flash(str(e), "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("sms_page"))
     except Exception as e:
         flash(f"Ocurrió un error procesando el archivo: {e}", "danger")
-        return redirect(url_for("index"))
+        return redirect(url_for("sms_page"))
 
 
 if __name__ == "__main__":
