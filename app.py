@@ -3,6 +3,8 @@ import pandas as pd
 from datetime import datetime, date, time
 import io
 import zipfile
+import tempfile
+
 
 app = Flask(__name__)
 app.secret_key = "123456"
@@ -73,6 +75,10 @@ def build_outputs(df: pd.DataFrame, mensaje: str, usuario: str):
 
     return cargaCRM_df, cargaAthenas_df
 
+def reemplazarComa(nombreColumna, dataFrame):
+  for i in range(len(dataFrame)):
+    if "," in dataFrame.loc[i, nombreColumna]:
+      dataFrame.loc[i, nombreColumna]=dataFrame.loc[i, nombreColumna].replace(',','.')
 
 
 @app.route("/", methods=["GET"])
@@ -143,9 +149,45 @@ def process():
         flash(f"Ocurrió un error procesando el archivo: {e}", "danger")
         return redirect(url_for("sms_page"))
 
-@app.route("/cargaGM", methods=["GET"])
+@app.route("/cargaGM", methods=['GET', 'POST'])
 def gm_page():
-    return render_template("cargagm.html")
+    if request.method == 'POST':
+        archivo = request.files['archivo']
+        df = pd.read_excel(archivo)
+
+        columnas_requeridas = ["campana_1", "campana_2", "campana_3", "campana_4", "campana_5"]
+        for col in columnas_requeridas:
+            if col not in df.columns:
+                df[col] = ""
+
+
+
+        df['POS/Curr. Acc. Bal.* ']=df['POS/Curr. Acc. Bal.* '].astype(str)
+        df['EMI']=df['EMI'].astype(str)
+        df['POS/Curr. Acc. Bal.* '] = df['POS/Curr. Acc. Bal.* '].apply(lambda x: '{:,.0f}'.format(float(x.replace(',', ''))))
+        df['EMI'] = df['EMI'].apply(lambda x: '{:,.0f}'.format(float(x.replace(',', ''))))
+
+        reemplazarComa('EMI', df)
+        reemplazarComa('POS/Curr. Acc. Bal.* ', df)
+
+
+        fecha_actual = datetime.now().strftime("%d-%m")
+
+        # Guardar el DataFrame en un archivo Excel
+        archivo_excel = f"ARCHIVO COLLECTION {fecha_actual}.xlsx"
+        df.to_excel(archivo_excel, index=False)
+
+        # Crear y enviar ZIP directamente dentro del mismo bloque
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_zip:
+            with zipfile.ZipFile(temp_zip.name, 'w') as zipf:
+                zipf.write(archivo_excel)
+                    
+            return send_file(
+                temp_zip.name,
+                as_attachment=True,
+                download_name=f"Procesamiento_GM_{fecha_actual}.zip"
+            )
+    return render_template('cargagm.html') 
 
 
 # --- Sinónimos flexibles de columnas (case-insensitive) ---
