@@ -12,6 +12,9 @@
 </head>
 
 <body class="bg-soft">
+<a href="{{ url_for('index') }}" class="btn btn-primary btn-sm position-fixed top-0 end-0 m-3 shadow">
+  🏠 Inicio
+</a>
   <div class="container py-5">
     <div class="mx-auto" style="max-width: 820px;">
       <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
@@ -88,7 +91,7 @@
   </div>
 
   <script>
-    // Bootstrap-like client validation
+    // Validación tipo Bootstrap
     (() => {
       'use strict'
       const forms = document.querySelectorAll('.needs-validation')
