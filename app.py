@@ -235,7 +235,7 @@ def build_ivr_output(df: pd.DataFrame, campo1_value: str) -> pd.DataFrame:
     final_cols = ["TELEFONO", "MENSAJE", "ID_CLIENTE", "", "OPCIONAL", "CAMPO1", "CAMPO2"]
     out = pd.DataFrame(columns=final_cols)
 
-    out["TELEFONO"]   = telefono
+    out["TELEFONO"]   = "56" + telefono
     out["MENSAJE"]    = nombre            # NOMBRE si existe; sino blanco
     out["ID_CLIENTE"] = rut               # RUT si existe; sino blanco
     out[""]           = ""                # Columna sin encabezado, en blanco
