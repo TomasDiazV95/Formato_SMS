@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, send_file, flash, redirect, url_for
 import pandas as pd
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 import io
 import zipfile
 import tempfile
@@ -190,7 +190,13 @@ def gm_page():
     return render_template('cargagm.html') 
 
 
-# --- Sinónimos flexibles de columnas (case-insensitive) ---
+
+
+
+# =========================
+# FUNCIONALIDADES IVR + CRM
+# =========================
+
 POSSIBLE_NAMES = {
     "TELEFONO": {"telefono", "teléfono", "fono", "celular", "movil", "móvil"},
     "RUT": {"rut", "id_cliente", "id cliente", "id_cliente (rut)", "id cliente (rut)"},
@@ -207,49 +213,110 @@ def _pick_col(df: pd.DataFrame, logical_name: str) -> str | None:
             return col
     return None
 
+def _as_text(series: pd.Series) -> pd.Series:
+    """Normaliza a texto, quita sufijo '.0' y espacios laterales."""
+    return series.astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+
+def _parse_hora(s: str) -> time:
+    """Parsea hora HH:MM o HH:MM:SS."""
+    s = (s or "").strip()
+    for fmt in ("%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.strptime(s, fmt).time()
+        except ValueError:
+            pass
+    raise ValueError("Formato de hora inválido (usa HH:MM o HH:MM:SS).")
+
+def _generate_schedule(n: int, fecha: date, hora_inicio: str, hora_fin: str, intervalo_segundos: int | None) -> list[str]:
+    """
+    Genera una lista de timestamps 'YYYY-MM-DD HH:MM:SS' para n registros,
+    dentro del rango [inicio, fin]. Si intervalo es None, se auto-ajusta para que quepan todos.
+    """
+    t_ini = _parse_hora(hora_inicio)
+    t_fin = _parse_hora(hora_fin)
+    dt_ini = datetime.combine(fecha, t_ini)
+    dt_fin = datetime.combine(fecha, t_fin)
+    if dt_fin <= dt_ini:
+        raise ValueError("La hora fin debe ser mayor a la hora inicio.")
+    rango_seg = int((dt_fin - dt_ini).total_seconds())
+    if n <= 0:
+        return []
+    if intervalo_segundos is not None and intervalo_segundos > 0:
+        capacidad = rango_seg // intervalo_segundos + 1  # incluye el inicio
+        if n > capacidad:
+            raise ValueError(
+                f"El rango {hora_inicio}–{hora_fin} no alcanza para {n} registros con intervalo de {intervalo_segundos}s "
+                f"(capacidad: {capacidad}). Ajusta el intervalo o amplía el rango."
+            )
+        step = intervalo_segundos
+    else:
+        # Auto-ajuste: distribución homogénea para que entren todos
+        step = 1 if n == 1 else max(1, rango_seg // (n - 1))
+    schedule = [dt_ini + timedelta(seconds=i * step) for i in range(n)]
+    schedule = [min(dt, dt_fin) for dt in schedule]  # no pasar la hora fin
+    return [dt.strftime("%Y-%m-%d %H:%M:%S") for dt in schedule]
+
+# ---------------------------
+# Construcción archivo IVR (Athenas)
+# ---------------------------
 def build_ivr_output(df: pd.DataFrame, campo1_value: str) -> pd.DataFrame:
     base = df.copy()
-
-    # Localizar columnas (tolerante)
     tel_col = _pick_col(base, "TELEFONO")
     rut_col = _pick_col(base, "RUT")
     op_col  = _pick_col(base, "OP")
     nom_col = _pick_col(base, "NOMBRE")
-
-    # Validación mínima: al menos debe venir el teléfono
     if not tel_col:
         raise ValueError("Falta columna de TELEFONO (acepta: Telefono, Teléfono, Fono, Celular, Móvil).")
-
-    # Normalizar a texto para evitar '... .0' y espacios sobrantes
-    def _as_text(series):
-        return series.astype(str).str.replace(r"\\.0$", "", regex=True).str.strip()
-
     telefono = _as_text(base[tel_col])
-
-    # Si faltan RUT/OP/NOMBRE, se crean series vacías de la misma longitud
     nombre = _as_text(base[nom_col]) if nom_col else pd.Series([""] * len(base), index=base.index)
     rut    = _as_text(base[rut_col]) if rut_col else pd.Series([""] * len(base), index=base.index)
     oper   = _as_text(base[op_col])  if op_col  else pd.Series([""] * len(base), index=base.index)
-
-    # Armar DataFrame final con encabezados EXACTOS (incluye uno vacío)
     final_cols = ["TELEFONO", "MENSAJE", "ID_CLIENTE", "", "OPCIONAL", "CAMPO1", "CAMPO2"]
     out = pd.DataFrame(columns=final_cols)
-
     out["TELEFONO"]   = "56" + telefono
-    out["MENSAJE"]    = nombre            # NOMBRE si existe; sino blanco
-    out["ID_CLIENTE"] = rut               # RUT si existe; sino blanco
-    out[""]           = ""                # Columna sin encabezado, en blanco
-    out["OPCIONAL"]   = oper              # OPERACIÓN si existe; sino blanco
-    out["CAMPO1"]     = campo1_value      # Valor desde desplegable
-    out["CAMPO2"]     = ""                # Blanco
-
+    out["MENSAJE"]    = nombre
+    out["ID_CLIENTE"] = rut
+    out[""]           = ""
+    out["OPCIONAL"]   = oper
+    out["CAMPO1"]     = campo1_value
+    out["CAMPO2"]     = ""
     return out
 
+# ---------------------------
+# Construcción archivo CRM (nuevo)
+# ---------------------------
+def build_crm_output(df: pd.DataFrame, fecha: date, hora_inicio: str, hora_fin: str, usuario_value: str, intervalo_segundos: int | None) -> pd.DataFrame:
+    base = df.copy()
+    tel_col = _pick_col(base, "TELEFONO")
+    rut_col = _pick_col(base, "RUT")
+    op_col  = _pick_col(base, "OP")  # NRO_DOCUMENTO
+    faltantes = []
+    if not rut_col: faltantes.append("RUT")
+    if not op_col:  faltantes.append("NRO_DOCUMENTO/OP")
+    if not tel_col: faltantes.append("TELEFONO")
+    if faltantes:
+        raise ValueError("Faltan columnas requeridas en el Excel base: " + ", ".join(faltantes))
+    rut      = _as_text(base[rut_col])
+    nro_doc  = _as_text(base[op_col])
+    telefono = _as_text(base[tel_col])
+    n = len(base)
+    fechas = _generate_schedule(n, fecha, hora_inicio, hora_fin, intervalo_segundos)
+    out_cols = ["RUT", "NRO_DOCUMENTO", "FECHA_GESTION", "TELEFONO", "OBSERVACION", "USUARIO", "CORREO"]
+    out = pd.DataFrame(columns=out_cols, index=base.index)
+    out["RUT"]            = rut
+    out["NRO_DOCUMENTO"]  = nro_doc
+    out["FECHA_GESTION"]  = fechas
+    out["TELEFONO"]       = telefono       # tal cual origen (sin 56)
+    out["OBSERVACION"]    = "IVR"
+    out["USUARIO"]        = usuario_value
+    out["CORREO"]         = " "            # espacio para no vacío
+    return out
 
-
+# ---------------------------
+# ÚNICA página GET: envia opciones para ambos formularios (Athenas + CRM)
+# ---------------------------
 @app.route("/ivr", methods=["GET"])
 def ivr_page():
-    # Opciones del desplegable CAMPO1
     campo1_options = [
         "PHOENIXIVRITAUVENCIDA",
         "PHOENIXIVRITAUCASTIGO",
@@ -259,52 +326,117 @@ def ivr_page():
         "PHOENIXSC_ICOMERCIAL",
         "PHOENIXGMPREJUDICIAL",
     ]
-    return render_template("ivr.html", campo1_options=campo1_options)
+    usuarios = ["dlopez", "jriveros", "VDA", "Docupa"]
+    return render_template("ivr.html", campo1_options=campo1_options, usuarios=usuarios)
 
+# ---------------------------
+# Procesa Athenas (usa CAMPO1)
+# ---------------------------
 @app.route("/ivr/process", methods=["POST"])
 def ivr_process():
     file = request.files.get("file")
     campo1 = (request.form.get("campo1") or "").strip()
-
     if not file or file.filename == "":
         flash("Debes subir un archivo Excel.", "danger")
         return redirect(url_for("ivr_page"))
-
     if not campo1:
         flash("Debes seleccionar un valor para CAMPO1.", "danger")
         return redirect(url_for("ivr_page"))
-
     try:
-        # Lee Excel base
         df = pd.read_excel(file, engine="openpyxl")
-
-        # Construye salida IVR
         salida = build_ivr_output(df, campo1_value=campo1)
-
-        # Nombre de archivo
         fecha_actual = datetime.now().strftime("%d-%m")
         name = f"cargaIVR_{fecha_actual}_.xlsx"
-
-        # Escribe a memoria y descarga
         buf = io.BytesIO()
         with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-            # Nombre de hoja igual al ejemplo: Hoja1
             salida.to_excel(writer, index=False, sheet_name="Hoja1")
         buf.seek(0)
-
         return send_file(
             buf,
             as_attachment=True,
             download_name=name,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-
     except ValueError as e:
         flash(str(e), "danger")
         return redirect(url_for("ivr_page"))
     except Exception as e:
         flash(f"Ocurrió un error procesando el archivo: {e}", "danger")
         return redirect(url_for("ivr_page"))
-    
+
+# ---------------------------
+# Procesa CRM (usa fecha/rango/intervalo/usuario)
+# ---------------------------
+@app.route("/ivr_crm/process", methods=["POST"])
+def ivr_crm_process():
+    file          = request.files.get("file")
+    usuario       = (request.form.get("usuario") or "").strip()
+    fecha_str     = (request.form.get("fecha") or "").strip()
+    hora_inicio   = (request.form.get("hora_inicio") or "").strip()
+    hora_fin      = (request.form.get("hora_fin") or "").strip()
+    intervalo_str = (request.form.get("intervalo") or "").strip()
+
+    intervalo = None
+    if intervalo_str:
+        try:
+            intervalo_val = int(intervalo_str)
+            if intervalo_val > 0:
+                intervalo = intervalo_val
+            else:
+                flash("El intervalo debe ser un entero positivo en segundos.", "danger")
+                return redirect(url_for("ivr_page"))
+        except Exception:
+            flash("Intervalo inválido. Usa un entero en segundos.", "danger")
+            return redirect(url_for("ivr_page"))
+
+    if not file or file.filename == "":
+        flash("Debes subir un archivo Excel.", "danger")
+        return redirect(url_for("ivr_page"))
+    if not usuario:
+        flash("Debes seleccionar un USUARIO.", "danger")
+        return redirect(url_for("ivr_page"))
+    if not fecha_str or not hora_inicio or not hora_fin:
+        flash("Debes indicar FECHA DE GESTIÓN y el RANGO HORARIO.", "danger")
+        return redirect(url_for("ivr_page"))
+
+    try:
+        fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
+    except ValueError:
+        flash("Formato de fecha inválido (usa AAAA-MM-DD).", "danger")
+        return redirect(url_for("ivr_page"))
+
+    try:
+        df = pd.read_excel(file, engine="openpyxl")
+        salida = build_crm_output(
+            df=df,
+            fecha=fecha,
+            hora_inicio=hora_inicio,
+            hora_fin=hora_fin,
+            usuario_value=usuario,
+            intervalo_segundos=intervalo
+        )
+        fecha_actual = datetime.now().strftime("%d-%m")
+        name = f"cargaIVR_CRM_{fecha_actual}.xlsx"
+        buf = io.BytesIO()
+        with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+            salida.to_excel(writer, index=False, sheet_name="Hoja1")
+        buf.seek(0)
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name=name,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except ValueError as e:
+        flash(str(e), "danger")
+        return redirect(url_for("ivr_page"))
+    except Exception as e:
+        flash(f"Ocurrió un error procesando el archivo: {e}", "danger")
+        return redirect(url_for("ivr_page"))
+
+# ---------------------------
+# Main (si lo usas)
+# ---------------------------
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5013)
+

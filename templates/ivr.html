@@ -1,5 +1,5 @@
 
-<!doctype html>
+!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -12,14 +12,17 @@
 </head>
 
 <body class="bg-soft">
-<a href="{{ url_for('index') }}" class="btn btn-primary btn-sm position-fixed top-0 end-0 m-3 shadow">
-  🏠 Inicio
-</a>
+  <a href="{{ url_for('index') }}" class="btn btn-primary btn-sm position-fixed top-0 end-0 m-3 shadow">
+    🏠 Inicio
+  </a>
+
   <div class="container py-5">
     <div class="mx-auto" style="max-width: 820px;">
-      <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+
+      <!-- ====== CARD: Carga IVR (Athenas) ====== -->
+      <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
         <div class="p-4 p-md-5 header-grad text-black">
-          <h1 class="h3 mb-1">Generador de Carga IVR</h1>
+          <h1 class="h3 mb-1">Generador de Carga IVR (Athenas)</h1>
           <p class="mb-0 opacity-75">Sube tu Excel base y elige CAMPO1; descarga el Excel final idéntico al formato requerido.</p>
         </div>
 
@@ -39,17 +42,17 @@
               <div class="col-12">
                 <label class="form-label fw-semibold">Archivo Excel Base</label>
                 <input class="form-control" type="file" name="file" accept=".xlsx,.xls" required>
-                
                 <div class="form-text">
-                Debe contener columnas:
-                <span class="badge text-bg-secondary">TELEFONO</span>
-                <span class="badge text-bg-secondary">RUT</span> (o)
-                <span class="badge text-bg-secondary">OPERACIÓN/OP</span>
-                <span class="badge text-bg-secondary">NOMBRE</span> (opcional)
+                  Debe contener columnas:
+                  <span class="badge text-bg-secondary">TELEFONO</span>
+                  <span class="badge text-bg-secondary">RUT</span> (o)
+                  <span class="badge text-bg-secondary">OPERACIÓN/OP</span>
+                  <span class="badge text-bg-secondary">NOMBRE</span> (opcional)
                 </div>
                 <div class="invalid-feedback">Sube un archivo Excel válido.</div>
               </div>
 
+              <!-- CAMPO1 (¡desplegable visible!) -->
               <div class="col-md-6">
                 <label class="form-label fw-semibold">CAMPO1</label>
                 <select class="form-select" name="campo1" required>
@@ -62,10 +65,10 @@
 
               <div class="col-12 d-flex gap-2 align-items-center mt-2">
                 <button class="btn btn-primary btn-lg rounded-3 px-4" type="submit">
-                  Generar y Descargar Excel
+                  Generar y Descargar Excel (Athenas)
                 </button>
                 <div class="text-muted small">
-                  Se generará la carga IVR con columnas en el mismo orden del formato de salida.
+                  Se generará la carga IVR con columnas en el orden del formato de salida.
                 </div>
               </div>
             </div>
@@ -76,9 +79,103 @@
           <div class="small text-muted">
             <div class="fw-semibold mb-1">Notas</div>
             <ul class="mb-0">
-              <li>La columna <b>MENSAJE</b> se toma desde <b>OPCIONAL</b> del archivo base (según ejemplo compartido).</li>
-              <li>Las columnas <b>ID_CLIENTE</b>, <b>OPCIONAL</b> (de salida), <b>CAMPO2</b> y la columna con <b>encabezado vacío</b> se dejan en blanco.</li>
-              <li>La hoja se llamará <b>Hoja1</b> para coincidir con el ejemplo.</li>
+              <li>La columna <b>MENSAJE</b> se toma desde <b>NOMBRE</b> si existe; de lo contrario, blanco.</li>
+              <li>Las columnas <b>ID_CLIENTE</b>, <b>OPCIONAL</b> (de salida), <b>CAMPO2</b> y la columna con <b>encabezado vacío</b> se dejan en blanco cuando corresponda.</li>
+              <li>La hoja se llamará <b>Hoja1</b>.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== CARD: Carga IVR CRM ====== -->
+      <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+        <div class="p-4 p-md-5 header-grad text-black">
+          <h2 class="h5 mb-1">Generador de Carga IVR CRM</h2>
+          <p class="mb-0 opacity-75">Sube tu Excel base y configura fecha/rango horario; descarga el Excel final con el formato CRM.</p>
+        </div>
+
+        <div class="p-4 p-md-5">
+          <form action="{{ url_for('ivr_crm_process') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+            <div class="row g-3">
+
+              <!-- Archivo base -->
+              <div class="col-12">
+                <label class="form-label fw-semibold">Archivo Excel Base</label>
+                <input class="form-control" type="file" name="file" accept=".xlsx,.xls" required>
+                <div class="form-text">
+                  Debe contener columnas:
+                  <span class="badge text-bg-secondary">RUT</span>
+                  <span class="badge text-bg-secondary">NRO_DOCUMENTO/OP</span>
+                  <span class="badge text-bg-secondary">TELEFONO</span>
+                </div>
+                <div class="invalid-feedback">Sube un archivo Excel válido.</div>
+              </div>
+
+              <!-- Fecha de gestión -->
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Fecha de gestión</label>
+                <input class="form-control" type="date" name="fecha" required>
+                <div class="form-text">Formato: AAAA-MM-DD</div>
+                <div class="invalid-feedback">Indica la fecha de gestión.</div>
+              </div>
+
+              <!-- Rango horario -->
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Hora inicio</label>
+                <input class="form-control" type="time" name="hora_inicio" step="1" required>
+                <div class="form-text">Ej.: 09:00 o 09:00:00</div>
+                <div class="invalid-feedback">Indica la hora de inicio.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Hora fin</label>
+                <input class="form-control" type="time" name="hora_fin" step="1" required>
+                <div class="form-text">Ej.: 13:00 o 13:00:00</div>
+                <div class="invalid-feedback">Indica la hora de fin (mayor que inicio).</div>
+              </div>
+
+              <!-- Intervalo opcional -->
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Intervalo (segundos)</label>
+                <input class="form-control" type="number" name="intervalo" min="1" placeholder="Opcional: p.ej. 5, 10, 15...">
+                <div class="form-text">
+                  Si lo dejas vacío, se auto-ajusta para que todos los registros quepan dentro del rango.
+                </div>
+              </div>
+
+              <!-- Usuario -->
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">USUARIO</label>
+                <select class="form-select" name="usuario" required>
+                  {% for u in usuarios %}
+                    <option value="{{ u }}" {% if loop.first %}selected{% endif %}>{{ u }}</option>
+                  {% endfor %}
+                </select>
+                <div class="invalid-feedback">Selecciona un USUARIO.</div>
+              </div>
+
+              <!-- Botón -->
+              <div class="col-12 d-flex gap-2 align-items-center mt-2">
+                <button class="btn btn-primary btn-lg rounded-3 px-4" type="submit">
+                  Generar y Descargar Excel CRM
+                </button>
+                <div class="text-muted small">
+                  Orden de columnas: <b>RUT | NRO_DOCUMENTO | FECHA_GESTION | TELEFONO | OBSERVACION | USUARIO | CORREO</b>.
+                </div>
+              </div>
+
+            </div>
+          </form>
+
+          <hr class="my-4">
+          <div class="small text-muted">
+            <div class="fw-semibold mb-1">Notas</div>
+            <ul class="mb-0">
+              <li>Las columnas <b>RUT</b>, <b>NRO_DOCUMENTO</b> (detectado como <b>OP/Operación/Nro Documento</b>) y <b>TELEFONO</b> se toman tal cual del Excel origen.</li>
+              <li><b>OBSERVACION</b> se establece como <b>IVR</b> para todos los registros.</li>
+              <li><b>USUARIO</b> será el seleccionado; <b>CORREO</b> se completa con un espacio (" ").</li>
+              <li>Si defines un intervalo, no se sobrepasará la hora fin. Si el intervalo no alcanza para todos, se te avisará.</li>
+              <li>La hoja se llamará <b>Hoja1</b> y el archivo <b>cargaIVR_CRM_dd-mm.xlsx</b>.</li>
             </ul>
           </div>
         </div>
