@@ -1,5 +1,6 @@
 
-!doctype html>
+
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -52,12 +53,12 @@
                 <div class="invalid-feedback">Sube un archivo Excel válido.</div>
               </div>
 
-              <!-- CAMPO1 (¡desplegable visible!) -->
+              <!-- CAMPO1 (desplegable con label visible y value real) -->
               <div class="col-md-6">
                 <label class="form-label fw-semibold">CAMPO1</label>
                 <select class="form-select" name="campo1" required>
                   {% for opt in campo1_options %}
-                    <option value="{{ opt }}" {% if loop.first %}selected{% endif %}>{{ opt }}</option>
+                    <option value="{{ opt.value }}" {% if loop.first %}selected{% endif %}>{{ opt.label }}</option>
                   {% endfor %}
                 </select>
                 <div class="invalid-feedback">Selecciona un valor para CAMPO1.</div>
@@ -79,7 +80,7 @@
           <div class="small text-muted">
             <div class="fw-semibold mb-1">Notas</div>
             <ul class="mb-0">
-              <li>La columna <b>MENSAJE</b> se toma desde <b>NOMBRE</b> si existe; de lo contrario, blanco.</li>
+              <li>La columna <b>MENSAJE</b> se toma desde <b>NOMBRE</b> si existe; si no existe o viene vacía por fila, se usará el <b>RUT</b>.</li>
               <li>Las columnas <b>ID_CLIENTE</b>, <b>OPCIONAL</b> (de salida), <b>CAMPO2</b> y la columna con <b>encabezado vacío</b> se dejan en blanco cuando corresponda.</li>
               <li>La hoja se llamará <b>Hoja1</b>.</li>
             </ul>
@@ -205,3 +206,4 @@
   </script>
 </body>
 </html>
+
