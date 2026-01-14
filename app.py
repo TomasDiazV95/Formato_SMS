@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, request, send_file, flash, redirect, url_for
 import pandas as pd
 from datetime import datetime, date, time, timedelta
@@ -76,9 +77,9 @@ def build_outputs(df: pd.DataFrame, mensaje: str, usuario: str):
     return cargaCRM_df, cargaAthenas_df
 
 def reemplazarComa(nombreColumna, dataFrame):
-  for i in range(len(dataFrame)):
-    if "," in dataFrame.loc[i, nombreColumna]:
-      dataFrame.loc[i, nombreColumna]=dataFrame.loc[i, nombreColumna].replace(',','.')
+    for i in range(len(dataFrame)):
+        if "," in dataFrame.loc[i, nombreColumna]:
+            dataFrame.loc[i, nombreColumna] = dataFrame.loc[i, nombreColumna].replace(',', '.')
 
 
 @app.route("/", methods=["GET"])
@@ -160,16 +161,13 @@ def gm_page():
             if col not in df.columns:
                 df[col] = ""
 
-
-
-        df['POS/Curr. Acc. Bal.* ']=df['POS/Curr. Acc. Bal.* '].astype(str)
-        df['EMI']=df['EMI'].astype(str)
+        df['POS/Curr. Acc. Bal.* '] = df['POS/Curr. Acc. Bal.* '].astype(str)
+        df['EMI'] = df['EMI'].astype(str)
         df['POS/Curr. Acc. Bal.* '] = df['POS/Curr. Acc. Bal.* '].apply(lambda x: '{:,.0f}'.format(float(x.replace(',', ''))))
         df['EMI'] = df['EMI'].apply(lambda x: '{:,.0f}'.format(float(x.replace(',', ''))))
 
         reemplazarComa('EMI', df)
         reemplazarComa('POS/Curr. Acc. Bal.* ', df)
-
 
         fecha_actual = datetime.now().strftime("%d-%m")
 
@@ -181,16 +179,12 @@ def gm_page():
         with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_zip:
             with zipfile.ZipFile(temp_zip.name, 'w') as zipf:
                 zipf.write(archivo_excel)
-                    
             return send_file(
                 temp_zip.name,
                 as_attachment=True,
                 download_name=f"Procesamiento_GM_{fecha_actual}.zip"
             )
-    return render_template('cargagm.html') 
-
-
-
+    return render_template('cargagm.html')
 
 
 # =========================
@@ -198,9 +192,9 @@ def gm_page():
 # =========================
 
 POSSIBLE_NAMES = {
-    "TELEFONO": {"telefono", "teléfono", "fono", "celular", "movil", "móvil"},
+    "TELEFONO": {"telefono", "teléfono", "fono", "celular", "movil", "móvil", "telefono1"},
     "RUT": {"rut", "id_cliente", "id cliente", "id_cliente (rut)", "id cliente (rut)"},
-    "OP": {"op", "operacion", "operación", "nro_documento", "nro documento", "documento"},
+    "OP": {"op", "operacion", "operación", "nro_documento", "nro documento", "documento", "operacion1"},
     "NOMBRE": {"nombre", "name", "cliente", "contacto"}
 }
 
@@ -256,6 +250,7 @@ def _generate_schedule(n: int, fecha: date, hora_inicio: str, hora_fin: str, int
     schedule = [min(dt, dt_fin) for dt in schedule]  # no pasar la hora fin
     return [dt.strftime("%Y-%m-%d %H:%M:%S") for dt in schedule]
 
+
 # ---------------------------
 # Construcción archivo IVR (Athenas)
 # ---------------------------
@@ -267,10 +262,20 @@ def build_ivr_output(df: pd.DataFrame, campo1_value: str) -> pd.DataFrame:
     nom_col = _pick_col(base, "NOMBRE")
     if not tel_col:
         raise ValueError("Falta columna de TELEFONO (acepta: Telefono, Teléfono, Fono, Celular, Móvil).")
+
     telefono = _as_text(base[tel_col])
-    nombre = _as_text(base[nom_col]) if nom_col else pd.Series([""] * len(base), index=base.index)
-    rut    = _as_text(base[rut_col]) if rut_col else pd.Series([""] * len(base), index=base.index)
-    oper   = _as_text(base[op_col])  if op_col  else pd.Series([""] * len(base), index=base.index)
+    rut      = _as_text(base[rut_col]) if rut_col else pd.Series([""] * len(base), index=base.index)
+    oper     = _as_text(base[op_col])  if op_col  else pd.Series([""] * len(base), index=base.index)
+
+    # ---- Cambio solicitado: MENSAJE = nombre si existe; si no existe o viene vacío por fila, usar RUT ----
+    if nom_col:
+        nombre = _as_text(base[nom_col])
+        # Fallback por fila: si nombre queda vacío, usar RUT
+        nombre = nombre.where(nombre.str.len() > 0, rut)
+    else:
+        # Si no existe columna de nombre, usar directamente el RUT
+        nombre = rut
+
     final_cols = ["TELEFONO", "MENSAJE", "ID_CLIENTE", "", "OPCIONAL", "CAMPO1", "CAMPO2"]
     out = pd.DataFrame(columns=final_cols)
     out["TELEFONO"]   = "56" + telefono
@@ -281,6 +286,7 @@ def build_ivr_output(df: pd.DataFrame, campo1_value: str) -> pd.DataFrame:
     out["CAMPO1"]     = campo1_value
     out["CAMPO2"]     = ""
     return out
+
 
 # ---------------------------
 # Construcción archivo CRM (nuevo)
@@ -312,21 +318,27 @@ def build_crm_output(df: pd.DataFrame, fecha: date, hora_inicio: str, hora_fin: 
     out["CORREO"]         = " "            # espacio para no vacío
     return out
 
+
 # ---------------------------
 # ÚNICA página GET: envia opciones para ambos formularios (Athenas + CRM)
 # ---------------------------
+
+# ---- Cambio solicitado: mostrar nombres amigables pero enviar los códigos CAMPO1 reales ----
+CAMPO1_CHOICES = [
+    ("ITAÚ VENCIDA",         "PHOENIXIVRITAUVENCIDA"),
+    ("ITAÚ CASTIGO",         "PHOENIXIVRITAUCASTIGO"),
+    ("CAJA 18",              "PHOENIXIVRCAJA18_3"),
+    ("BANCO INTERNACIONAL",  "PHOENIX_BINTERNACIONAL"),
+    ("SANTANDER HIPOTECARIO","PHOENIXIVRSANTANDERHIPO"),
+    ("SANTANDER CONSUMER",   "PHOENIXSC_ICOMERCIAL"),
+    ("GENERAL MOTORS",       "PHOENIXGMPREJUDICIAL"),
+]
+
 @app.route("/ivr", methods=["GET"])
 def ivr_page():
-    campo1_options = [
-        "PHOENIXIVRITAUVENCIDA",
-        "PHOENIXIVRITAUCASTIGO",
-        "PHOENIXIVRCAJA18_3",
-        "PHOENIX_BINTERNACIONAL",
-        "PHOENIXIVRSANTANDERHIPO",
-        "PHOENIXSC_ICOMERCIAL",
-        "PHOENIXGMPREJUDICIAL",
-    ]
-    usuarios = ["dlopez", "jriveros", "VDA", "Docupa"]
+    # Transformamos a pares label/value para el <option>
+    campo1_options = [{"label": label, "value": value} for label, value in CAMPO1_CHOICES]
+    usuarios = ["dlopez", "jriveros", "VDAD"]
     return render_template("ivr.html", campo1_options=campo1_options, usuarios=usuarios)
 
 # ---------------------------
@@ -439,4 +451,3 @@ def ivr_crm_process():
 # ---------------------------
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5013)
-
