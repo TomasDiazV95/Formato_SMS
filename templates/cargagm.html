@@ -7,7 +7,6 @@
 
   <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
   <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
 
   <style>
@@ -18,6 +17,12 @@
     .header-grad {
       background: rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(8px);
+    }
+    .soft-box {
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fafafa;
     }
   </style>
 </head>
@@ -53,11 +58,56 @@
           {% endwith %}
 
           <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+
+            <!-- Switches -->
+            <div class="soft-box mb-3">
+              <div class="d-flex flex-column gap-2">
+
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch"
+                         id="swComparar" name="habilitar_comparacion">
+                  <label class="form-check-label fw-semibold" for="swComparar">
+                    Activar comparación (archivo antiguo vs nuevo)
+                  </label>
+                  <div class="form-text">
+                    Solo si lo activas, se mostrará el input para subir el archivo antiguo y se generará un Excel con campañas nuevas.
+                  </div>
+                </div>
+
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch"
+                         id="swMasividades" name="habilitar_masividades">
+                  <label class="form-check-label fw-semibold" for="swMasividades">
+                    Activar masividades
+                  </label>
+                  <div class="form-text">
+                    Muestra botón de descarga y agrega plantilla al ZIP (hasta que crees tus dataframes).
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
             <div class="row g-3">
+              <!-- Archivo nuevo (Collection) -->
               <div class="col-12">
-                <label class="form-label fw-semibold">Archivo Collection</label>
+                <label class="form-label fw-semibold">Archivo Collection (Nuevo)</label>
                 <input class="form-control" type="file" name="archivo" accept=".xlsx,.xls" required>
                 <div class="invalid-feedback">Sube un archivo Excel válido.</div>
+              </div>
+
+              <!-- Sección comparación (oculta por defecto) -->
+              <div class="col-12 d-none" id="boxComparacion">
+                <div class="soft-box">
+                  <div class="fw-semibold mb-2">Comparación de campañas</div>
+
+                  <label class="form-label">Archivo Antiguo</label>
+                  <input class="form-control" type="file" id="archivoAnterior"
+                         name="archivo_anterior" accept=".xlsx,.xls">
+                  <div class="form-text">
+                    Este archivo se usa solo para comparar campañas y detectar nuevas.
+                  </div>
+                </div>
               </div>
 
               <div class="col-12 mt-2">
@@ -65,11 +115,30 @@
                   Procesar Archivo
                 </button>
                 <div class="form-text mt-2">
-                  Se generará un <b>.zip</b> con el Excel procesado.
+                  Se generará un <b>.zip</b> con el Excel procesado (y extras si activas los switches).
                 </div>
               </div>
             </div>
           </form>
+
+          <!-- Sección masividades (solo visual: botón) -->
+          <div class="mt-3 d-none" id="boxMasividades">
+            <div class="soft-box">
+              <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                <div>
+                  <div class="fw-semibold">Masividades</div>
+                  <div class="small text-muted">
+                    Descarga manual (por ahora, placeholder hasta que existan dataframes reales).
+                  </div>
+                </div>
+
+                <a class="btn btn-outline-primary rounded-3"
+                   href="{{ url_for('gm_masividades') }}">
+                  Descargar masividades
+                </a>
+              </div>
+            </div>
+          </div>
 
           <hr class="my-4">
 
@@ -78,6 +147,8 @@
             <ul class="mb-0">
               <li>Se aseguran columnas <b>campana_1</b> a <b>campana_5</b> si no existen.</li>
               <li>Se formatean campos numéricos y se reemplazan comas por puntos donde aplique.</li>
+              <li>Si activas comparación, se genera Excel con campañas nuevas (según campana_1..5).</li>
+              <li>Si activas masividades, se agrega masividades al ZIP.</li>
             </ul>
           </div>
         </div>
@@ -89,21 +160,75 @@
     </div>
   </div>
 
-  <script>
-    // Validación tipo Bootstrap
-    (() => {
-      'use strict'
-      const forms = document.querySelectorAll('.needs-validation')
-      Array.from(forms).forEach(form => {
-        form.addEventListener('submit', event => {
-          if (!form.checkValidity()) {
-            event.preventDefault()
-            event.stopPropagation()
-          }
-          form.classList.add('was-validated')
-        }, false)
-      })
-    })()
-  </script>
+<script>
+  // Validación tipo Bootstrap
+  (() => {
+    'use strict'
+    const forms = document.querySelectorAll('.needs-validation')
+    Array.from(forms).forEach(form => {
+      form.addEventListener('submit', event => {
+        if (!form.checkValidity()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+        form.classList.add('was-validated')
+      }, false)
+    })
+  })();
+
+  // Toggle UI: comparación + masividades (modo "a prueba de caché/estilos")
+  document.addEventListener("DOMContentLoaded", () => {
+    const swComparar = document.getElementById("swComparar");
+    const boxComparacion = document.getElementById("boxComparacion");
+    const archivoAnterior = document.getElementById("archivoAnterior");
+
+    const swMasividades = document.getElementById("swMasividades");
+    const boxMasividades = document.getElementById("boxMasividades");
+
+    if (!swComparar || !boxComparacion || !archivoAnterior) {
+      console.error("No se encontraron elementos de comparación", { swComparar, boxComparacion, archivoAnterior });
+      return;
+    }
+
+    function mostrar(el) {
+      el.classList.remove("d-none");
+      el.style.display = "block";
+    }
+
+    function ocultar(el) {
+      el.classList.add("d-none");
+      el.style.display = "none";
+    }
+
+    function syncComparacion() {
+      const on = swComparar.checked;
+      console.log("Comparación:", on); // <- mira esto en la consola (F12)
+      if (on) {
+        mostrar(boxComparacion);
+        archivoAnterior.required = true;
+      } else {
+        ocultar(boxComparacion);
+        archivoAnterior.required = false;
+        archivoAnterior.value = ""; // limpia selección si lo apagas
+      }
+    }
+
+    function syncMasividades() {
+      const on = swMasividades && swMasividades.checked;
+      console.log("Masividades:", on);
+      if (!boxMasividades) return;
+      if (on) mostrar(boxMasividades);
+      else ocultar(boxMasividades);
+    }
+
+    swComparar.addEventListener("change", syncComparacion);
+    if (swMasividades) swMasividades.addEventListener("change", syncMasividades);
+
+    // estado inicial
+    syncComparacion();
+    syncMasividades();
+  });
+</script>
+
 </body>
 </html>

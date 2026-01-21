@@ -5,6 +5,10 @@ from datetime import datetime, date, time, timedelta
 import io
 import zipfile
 import tempfile
+import os
+import re
+import numpy as np
+from itertools import cycle
 
 
 app = Flask(__name__)
@@ -81,6 +85,209 @@ def reemplazarComa(nombreColumna, dataFrame):
         if "," in dataFrame.loc[i, nombreColumna]:
             dataFrame.loc[i, nombreColumna] = dataFrame.loc[i, nombreColumna].replace(',', '.')
 
+CAMP_COLS = ["campana_1", "campana_2", "campana_3", "campana_4", "campana_5"]
+
+def asegurar_columnas_campana(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    for col in CAMP_COLS:
+        if col not in df.columns:
+            df[col] = ""
+    return df
+
+def copiar_campanas_por_operacion(
+    df_nuevo: pd.DataFrame,
+    df_antiguo: pd.DataFrame,
+    col_operacion: str = "Agreement Number "
+) -> pd.DataFrame:
+    """
+    Copia campana_1..campana_5 desde df_antiguo a df_nuevo usando match por col_operacion.
+    - Prioriza campañas del antiguo si hay match.
+    - Mantiene filas y orden del df_nuevo.
+    """
+    df_nuevo = df_nuevo.copy()
+    df_nuevo = asegurar_columnas_campana(df_nuevo)
+    df_antiguo = asegurar_columnas_campana(df_antiguo)
+
+    if col_operacion not in df_nuevo.columns:
+        raise ValueError(f"El archivo nuevo no contiene la columna de operación: {col_operacion}")
+    if col_operacion not in df_antiguo.columns:
+        raise ValueError(f"El archivo antiguo no contiene la columna de operación: {col_operacion}")
+
+    # Normaliza operación a string para evitar mismatch por números vs texto
+    df_nuevo[col_operacion] = df_nuevo[col_operacion].astype(str).str.strip()
+    df_antiguo[col_operacion] = df_antiguo[col_operacion].astype(str).str.strip()
+
+    # Lookup desde antiguo (operación + campañas), sin duplicados por operación
+    lookup = df_antiguo[[col_operacion] + CAMP_COLS].copy()
+    lookup = lookup.drop_duplicates(subset=[col_operacion], keep="first")
+    lookup = lookup.rename(columns={c: f"{c}_old" for c in CAMP_COLS})
+
+    # Merge para traer campañas del antiguo como *_old
+    merged = df_nuevo.merge(lookup, on=col_operacion, how="left")
+
+    # Copia campañas: si hay valor en *_old, úsalo; si no, conserva el del nuevo
+    for c in CAMP_COLS:
+        merged[c] = merged[f"{c}_old"].combine_first(merged[c])
+        merged.drop(columns=[f"{c}_old"], inplace=True)
+
+    return merged
+
+MASIVIDAD_COLUMNS = [
+    'INSTITUCIÓN','SEGMENTOINSTITUCIÓN','message_id','NOMBRE','RUT','OPERACION',
+    'FECHA_VENCIMIENTO_CUOTA','MONTO_CUOTA','FECHA_ARCHIVO','FONO_EJECUTIVA',
+    'FECHA_ENTREGA','dest_email','name_from','mail_from','CORREO_EJECUTIVA'
+]
+
+EJECUTIVOS = [
+    {"name_from": "Daniela Cañicul", "CORREO_EJECUTIVA": "dcanicul@phoenixservice.cl", "mail_from": "dcanicul@info.phoenixserviceinfo.cl"},
+    {"name_from": "Paula Alarcon",   "CORREO_EJECUTIVA": "palarcon@phoenixservice.cl", "mail_from": "palarcon@info.phoenixserviceinfo.cl"},
+    {"name_from": "Claudia Sandoval","CORREO_EJECUTIVA": "csandoval@phoenixservice.cl","mail_from": "csandoval@info.phoenixserviceinfo.cl"},
+    {"name_from": "Erika Alderete",  "CORREO_EJECUTIVA": "Ealderete@phoenixservice.cl","mail_from": "Ealderete@info.phoenixserviceinfo.cl"},
+    {"name_from": "Yessenia Salinas","CORREO_EJECUTIVA": "ysalinas@phoenixservice.cl", "mail_from": "ysalinas@info.phoenixserviceinfo.cl"},
+    {"name_from": "Paulina Ortiz",   "CORREO_EJECUTIVA": "portiz@phoenixservice.cl",  "mail_from": "portiz@estandar.phoenixserviceinfo.cl"},
+    {"name_from": "Pamela Alamos",   "CORREO_EJECUTIVA": "palamos@phoenixservice.cl", "mail_from": "palamos@info.phoenixserviceinfo.cl"},
+    {"name_from": "Luis Toledo",     "CORREO_EJECUTIVA": "ltoledo@phoenixservice.cl", "mail_from": "ltoledo@info.phoenixserviceinfo.cl"},
+]
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    # Quita espacios extremos y normaliza múltiples espacios
+    df = df.copy()
+    df.columns = [re.sub(r"\s+", " ", str(c)).strip() for c in df.columns]
+    return df
+
+def _rut_only_numbers(series: pd.Series) -> pd.Series:
+    # Acepta "12345678-9" o "12.345.678-9" o "12345678"
+    s = series.astype(str).str.strip()
+    s = s.str.replace(".", "", regex=False)
+    s = s.str.split("-").str[0]
+    s = s.str.replace(r"\D+", "", regex=True)
+    return s
+
+def construir_df_masividad(df_nuevo: pd.DataFrame) -> pd.DataFrame:
+    # OJO: NO normalizamos columnas, porque el Excel viene con espacios al final
+    required_map = {
+        "National Id ": "RUT",
+        "Customer Name ": "NOMBRE",
+        "Agreement Number ": "OPERACION",
+        "Due Date": "FECHA_VENCIMIENTO_CUOTA",
+        "EMI": "MONTO_CUOTA",
+        "Email ": "dest_email",
+    }
+
+    missing = [c for c in required_map.keys() if c not in df_nuevo.columns]
+    if missing:
+        raise ValueError(
+            "Faltan columnas para masividades en el archivo: "
+            + ", ".join(missing)
+            + ". (Ojo: este layout viene con espacios al final en las cabeceras)."
+        )
+
+    df_m = pd.DataFrame(index=df_nuevo.index, columns=MASIVIDAD_COLUMNS)
+
+    df_m["RUT"] = _rut_only_numbers(df_nuevo["National Id "])
+    df_m["NOMBRE"] = df_nuevo["Customer Name "].astype(str).str.strip()
+    df_m["OPERACION"] = df_nuevo["Agreement Number "].astype(str).str.strip()
+    df_m["FECHA_VENCIMIENTO_CUOTA"] = df_nuevo["Due Date"]
+    df_m["MONTO_CUOTA"] = df_nuevo["EMI"]
+    df_m["dest_email"] = df_nuevo["Email "].astype(str).str.strip()
+
+    hoy = datetime.now().strftime("%d-%m-%Y")
+    df_m["FECHA_ENTREGA"] = hoy
+    df_m["FECHA_ARCHIVO"] = hoy
+    df_m["FECHA_VENCIMIENTO_CUOTA"] = pd.to_datetime(df_m["FECHA_VENCIMIENTO_CUOTA"], errors='coerce').dt.strftime("%d-%m-%Y")
+    # Limpiezas básicas
+    df_m = df_m.dropna(subset=["dest_email"])
+    df_m = df_m[df_m["dest_email"].astype(str).str.strip() != ""]
+    df_m = df_m[df_m["dest_email"].astype(str).str.match(EMAIL_RE, na=False)]
+
+    df_m = df_m[df_m["RUT"].astype(str).str.len() >= 7]
+    df_m = df_m.drop_duplicates(subset=["RUT"], keep="first")
+
+    # Fijos
+    df_m = df_m.assign(
+        **{
+            "INSTITUCIÓN": "GENERAL MOTORS",
+            "SEGMENTOINSTITUCIÓN": "GENERAL MOTORS",
+            "message_id": 84995,
+            "FONO_EJECUTIVA": 228400433,
+        }
+    )
+
+    # Asignación ejecutivos
+    cyc = cycle(EJECUTIVOS)
+    asignados = [next(cyc) for _ in range(len(df_m))]
+    df_m["name_from"] = [a["name_from"] for a in asignados]
+    df_m["CORREO_EJECUTIVA"] = [a["CORREO_EJECUTIVA"] for a in asignados]
+    df_m["mail_from"] = [a["mail_from"] for a in asignados]
+
+    return df_m[MASIVIDAD_COLUMNS]
+
+    columnasMasividad = [
+        'INSTITUCIÓN','SEGMENTOINSTITUCIÓN','message_id','NOMBRE','RUT','OPERACION',
+        'FECHA_VENCIMIENTO_CUOTA','MONTO_CUOTA','FECHA_ARCHIVO','FONO_EJECUTIVA',
+        'FECHA_ENTREGA','dest_email','name_from','mail_from','CORREO_EJECUTIVA'
+    ]
+
+    # Crea DF con columnas
+    df_masividad = pd.DataFrame(columns=columnasMasividad)
+
+    # Validaciones mínimas (para que falle con mensaje claro si falta algo)
+    """ required = ['RUT - DV', 'NOMBRE', 'Nro_Documento', 'AD9', 'AD6', 'EMAIL1']
+    missing = [c for c in required if c not in nuevo_df.columns]
+    if missing:
+        raise ValueError(f"Faltan columnas para masividades en el archivo nuevo: {', '.join(missing)}")
+ """
+    # Mapeos
+    df_masividad['RUT'] = nuevo_df['National Id '].astype(str).str.split('-').str[0]
+    df_masividad['NOMBRE'] = nuevo_df['Customer Name ']
+    df_masividad['OPERACION'] = nuevo_df['Agreement Number']
+    df_masividad['FECHA_VENCIMIENTO_CUOTA'] = nuevo_df['Due Date']
+    df_masividad['MONTO_CUOTA'] = nuevo_df['EMI']
+    df_masividad['dest_email'] = nuevo_df['Email ']
+
+    hoy = datetime.now().strftime('%d-%m-%Y')
+    df_masividad['FECHA_ENTREGA'] = hoy
+    df_masividad['FECHA_ARCHIVO'] = hoy
+
+    # Eliminar filas vacías o NaN en dest_email
+    df_masividad = df_masividad.dropna(subset=['dest_email'])
+    df_masividad = df_masividad[df_masividad['dest_email'].astype(str).str.strip() != '']
+
+    # Eliminar duplicados por RUT
+    df_masividad = df_masividad.drop_duplicates(subset=['RUT'], keep='first')
+
+    # Asignaciones fijas
+    df_masividad = df_masividad.assign(
+        INSTITUCIÓN='GENERAL MOTORS',
+        SEGMENTOINSTITUCIÓN='GENERAL MOTORS',
+        message_id=84995,
+        FONO_EJECUTIVA=228400433
+    )
+
+    # Listas de ejecutivos
+    nombres_ejecutivos = [
+        'Daniela Cañicul', 'Paula Alarcon', 'Claudia Sandoval', 'Erika Alderete',
+        'Yessenia Salinas', 'Paulina Ortiz', 'Pamela Alamos', 'Luis Toledo'
+    ]
+
+    correos_ejecutivos = [
+        'dcanicul@phoenixservice.cl', 'palarcon@phoenixservice.cl', 'csandoval@phoenixservice.cl', 'Ealderete@phoenixservice.cl',
+        'ysalinas@phoenixservice.cl', 'portiz@phoenixservice.cl', 'palamos@phoenixservice.cl', 'ltoledo@phoenixservice.cl'
+    ]
+
+    correos_masivos = [
+        'dcanicul@info.phoenixserviceinfo.cl', 'palarcon@info.phoenixserviceinfo.cl', 'csandoval@info.phoenixserviceinfo.cl', 'Ealderete@info.phoenixserviceinfo.cl',
+        'ysalinas@info.phoenixserviceinfo.cl', 'portiz@estandar.phoenixserviceinfo.cl', 'palamos@info.phoenixserviceinfo.cl', 'ltoledo@info.phoenixserviceinfo.cl'
+    ]
+
+    # Asignación cíclica
+    df_masividad['name_from'] = np.resize(nombres_ejecutivos, len(df_masividad))
+    df_masividad['CORREO_EJECUTIVA'] = np.resize(correos_ejecutivos, len(df_masividad))
+    df_masividad['mail_from'] = np.resize(correos_masivos, len(df_masividad))
+
+    return df_masividad
 
 @app.route("/", methods=["GET"])
 def index():
@@ -150,42 +357,250 @@ def process():
         flash(f"Ocurrió un error procesando el archivo: {e}", "danger")
         return redirect(url_for("sms_page"))
 
-@app.route("/cargaGM", methods=['GET', 'POST'])
+@app.route("/cargaGM", methods=["GET", "POST"])
 def gm_page():
-    if request.method == 'POST':
-        archivo = request.files['archivo']
-        df = pd.read_excel(archivo)
+    if request.method == "POST":
+        try:
+            # Switches
+            comparar = request.form.get("habilitar_comparacion") == "on"
+            masividades = request.form.get("habilitar_masividades") == "on"
 
-        columnas_requeridas = ["campana_1", "campana_2", "campana_3", "campana_4", "campana_5"]
-        for col in columnas_requeridas:
-            if col not in df.columns:
-                df[col] = ""
+            # -----------------------------
+            # Archivo NUEVO (obligatorio)
+            # -----------------------------
+            archivo = request.files.get("archivo")
+            if not archivo:
+                flash("Debes subir el archivo Collection (Nuevo).", "danger")
+                return render_template("cargagm.html")
 
-        df['POS/Curr. Acc. Bal.* '] = df['POS/Curr. Acc. Bal.* '].astype(str)
-        df['EMI'] = df['EMI'].astype(str)
-        df['POS/Curr. Acc. Bal.* '] = df['POS/Curr. Acc. Bal.* '].apply(lambda x: '{:,.0f}'.format(float(x.replace(',', ''))))
-        df['EMI'] = df['EMI'].apply(lambda x: '{:,.0f}'.format(float(x.replace(',', ''))))
+            nuevo_df = pd.read_excel(archivo)
+            nuevo_df = asegurar_columnas_campana(nuevo_df)
 
-        reemplazarComa('EMI', df)
-        reemplazarComa('POS/Curr. Acc. Bal.* ', df)
+            # -----------------------------
+            # Si comparar: copiar campañas por operación (Nro_Documento)
+            # -----------------------------
+            if comparar:
+                archivo_ant = request.files.get("archivo_anterior")
+                if not archivo_ant:
+                    flash("Activaste comparación, pero falta subir el archivo antiguo.", "danger")
+                    return render_template("cargagm.html")
 
-        fecha_actual = datetime.now().strftime("%d-%m")
+                df_antiguo = pd.read_excel(archivo_ant)
+                nuevo_df = copiar_campanas_por_operacion(nuevo_df, df_antiguo, col_operacion="Agreement Number ")
+                flash("Campañas copiadas desde el archivo antiguo usando operación (Agreement Number ).", "success")
 
-        # Guardar el DataFrame en un archivo Excel
-        archivo_excel = f"ARCHIVO COLLECTION {fecha_actual}.xlsx"
-        df.to_excel(archivo_excel, index=False)
+            # -----------------------------
+            # Tu lógica de formateo original
+            # -----------------------------
+            # (Si estas columnas a veces cambian, dímelo y lo hacemos robusto)
+            nuevo_df['POS/Curr. Acc. Bal.* '] = nuevo_df['POS/Curr. Acc. Bal.* '].astype(str)
+            nuevo_df['EMI'] = nuevo_df['EMI'].astype(str)
 
-        # Crear y enviar ZIP directamente dentro del mismo bloque
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_zip:
-            with zipfile.ZipFile(temp_zip.name, 'w') as zipf:
-                zipf.write(archivo_excel)
-            return send_file(
-                temp_zip.name,
-                as_attachment=True,
-                download_name=f"Procesamiento_GM_{fecha_actual}.zip"
+            nuevo_df['POS/Curr. Acc. Bal.* '] = nuevo_df['POS/Curr. Acc. Bal.* '].apply(
+                lambda x: '{:,.0f}'.format(float(str(x).replace(',', '')))
             )
-    return render_template('cargagm.html')
+            nuevo_df['EMI'] = nuevo_df['EMI'].apply(
+                lambda x: '{:,.0f}'.format(float(str(x).replace(',', '')))
+            )
 
+            reemplazarComa('EMI', nuevo_df)
+            reemplazarComa('POS/Curr. Acc. Bal.* ', nuevo_df)
+
+            fecha_actual = datetime.now().strftime("%d-%m")
+
+            # -----------------------------
+            # Excel principal (final)
+            # -----------------------------
+            archivo_excel = f"ARCHIVO COLLECTION {fecha_actual}.xlsx"
+            nuevo_df.to_excel(archivo_excel, index=False)
+
+            # -----------------------------
+            # Masividades (opcional)
+            # -----------------------------
+            archivo_masividades = None
+            if masividades:
+                df_m = construir_df_masividad(nuevo_df)
+                archivo_masividades = f"MASIVIDADES {fecha_actual}.xlsx"
+                df_m.to_excel(archivo_masividades, index=False)
+
+            # -----------------------------
+            # ZIP final
+            # -----------------------------
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as temp_zip:
+                with zipfile.ZipFile(temp_zip.name, "w") as zipf:
+                    zipf.write(archivo_excel)
+                    if archivo_masividades:
+                        zipf.write(archivo_masividades)
+
+                # Limpieza archivos sueltos
+                for f in [archivo_excel, archivo_masividades]:
+                    if f and os.path.exists(f):
+                        try:
+                            os.remove(f)
+                        except:
+                            pass
+
+                return send_file(
+                    temp_zip.name,
+                    as_attachment=True,
+                    download_name=f"Procesamiento_GM_{fecha_actual}.zip"
+                )
+
+        except Exception as e:
+            flash(f"Error al procesar: {str(e)}", "danger")
+            return render_template("cargagm.html")
+
+    return render_template("cargagm.html")
+    if request.method == "POST":
+        try:
+            # Switches
+            comparar = request.form.get("habilitar_comparacion") == "on"
+            masividades = request.form.get("habilitar_masividades") == "on"
+
+            # -----------------------------
+            # Archivo NUEVO (obligatorio)
+            # -----------------------------
+            archivo = request.files.get("archivo")
+            if not archivo:
+                flash("Debes subir el archivo Collection (Nuevo).", "danger")
+                return render_template("cargagm.html")
+
+            nuevo_df = pd.read_excel(archivo)
+
+            # Asegura columnas de campañas
+            nuevo_df = asegurar_columnas_campana(nuevo_df)
+
+            # -----------------------------
+            # Tu lógica de formateo original
+            # -----------------------------
+            nuevo_df['POS/Curr. Acc. Bal.* '] = nuevo_df['POS/Curr. Acc. Bal.* '].astype(str)
+            nuevo_df['EMI'] = nuevo_df['EMI'].astype(str)
+
+            nuevo_df['POS/Curr. Acc. Bal.* '] = nuevo_df['POS/Curr. Acc. Bal.* '].apply(
+                lambda x: '{:,.0f}'.format(float(x.replace(',', '')))
+            )
+            nuevo_df['EMI'] = nuevo_df['EMI'].apply(
+                lambda x: '{:,.0f}'.format(float(x.replace(',', '')))
+            )
+
+            reemplazarComa('EMI', nuevo_df)
+            reemplazarComa('POS/Curr. Acc. Bal.* ', nuevo_df)
+
+            fecha_actual = datetime.now().strftime("%d-%m")
+
+            # -----------------------------
+            # Excel principal
+            # -----------------------------
+            archivo_excel = f"ARCHIVO COLLECTION {fecha_actual}.xlsx"
+            nuevo_df.to_excel(archivo_excel, index=False)
+
+            # -----------------------------
+            # Comparación (opcional)
+            # -----------------------------
+            archivo_campanas_nuevas = None
+            if comparar:
+                archivo_ant = request.files.get("archivo_anterior")
+                if not archivo_ant:
+                    flash("Activaste comparación, pero falta subir el archivo antiguo.", "danger")
+                    return render_template("cargagm.html")
+
+                df_antiguo = pd.read_excel(archivo_ant)
+                df_antiguo = asegurar_columnas_campana(df_antiguo)
+
+                camp_old = extraer_campanas(df_antiguo)
+                camp_new = extraer_campanas(nuevo_df)
+
+                nuevas = sorted(list(camp_new - camp_old))
+                df_nuevas = pd.DataFrame({"campana_nueva": nuevas})
+
+                archivo_campanas_nuevas = f"CAMPANAS_NUEVAS {fecha_actual}.xlsx"
+                df_nuevas.to_excel(archivo_campanas_nuevas, index=False)
+
+            # -----------------------------
+            # Masividades (opcional)
+            # -----------------------------
+            archivo_masividades = None
+            if masividades:
+                df_m = construir_df_masividad(nuevo_df)
+                archivo_masividades = f"MASIVIDADES {fecha_actual}.xlsx"
+                df_m.to_excel(archivo_masividades, index=False)
+
+            # -----------------------------
+            # ZIP final
+            # -----------------------------
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as temp_zip:
+                with zipfile.ZipFile(temp_zip.name, "w") as zipf:
+                    zipf.write(archivo_excel)
+
+                    if archivo_campanas_nuevas:
+                        zipf.write(archivo_campanas_nuevas)
+
+                    if archivo_masividades:
+                        zipf.write(archivo_masividades)
+
+                # Limpieza archivos sueltos
+                for f in [archivo_excel, archivo_campanas_nuevas, archivo_masividades]:
+                    if f and os.path.exists(f):
+                        os.remove(f)
+
+                return send_file(
+                    temp_zip.name,
+                    as_attachment=True,
+                    download_name=f"Procesamiento_GM_{fecha_actual}.zip"
+                )
+
+        except Exception as e:
+            flash(f"Error al procesar: {str(e)}", "danger")
+            return render_template("cargagm.html")
+
+    return render_template("cargagm.html")
+
+@app.route("/gm_masividades", methods=["GET", "POST"])
+def gm_masividades():
+    try:
+        if request.method == "GET":
+            # Renderiza tu template donde tienes el input file
+            return render_template("cargagm.html")
+
+        # POST
+        if "file" not in request.files:
+            raise ValueError("No se recibió archivo (input name='file').")
+
+        f = request.files["file"]
+        if not f or f.filename.strip() == "":
+            raise ValueError("Archivo vacío o sin nombre.")
+
+        # Lee excel
+        nuevo_df = pd.read_excel(f)
+
+        # Construye masividad
+        df_m = construir_df_masividad(nuevo_df)
+
+        # Exporta a XLSX en memoria
+        fecha_actual = datetime.now().strftime("%Y-%m-%d")
+        xlsx_name = f"MASIVIDADES_GM_{fecha_actual}.xlsx"
+
+        xlsx_bytes = io.BytesIO()
+        with pd.ExcelWriter(xlsx_bytes, engine="openpyxl") as writer:
+            df_m.to_excel(writer, index=False, sheet_name="MASIVIDAD")
+        xlsx_bytes.seek(0)
+
+        # Comprime a ZIP en memoria
+        zip_bytes = io.BytesIO()
+        with zipfile.ZipFile(zip_bytes, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(xlsx_name, xlsx_bytes.getvalue())
+        zip_bytes.seek(0)
+
+        return send_file(
+            zip_bytes,
+            as_attachment=True,
+            download_name=f"Masividades_GM_{fecha_actual}.zip",
+            mimetype="application/zip",
+        )
+
+    except Exception as e:
+        flash(f"No se pudo generar masividades: {str(e)}", "danger")
+        return render_template("cargagm.html")
 
 # =========================
 # FUNCIONALIDADES IVR + CRM
