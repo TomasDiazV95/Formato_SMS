@@ -1,4 +1,3 @@
-
 import pandas as pd
 from datetime import datetime
 
@@ -64,5 +63,24 @@ def procesar_gm(df_nuevo: pd.DataFrame, df_antiguo: pd.DataFrame | None, compara
     if masividades:
         df_m = construir_df_masividad(df_nuevo)
         named_dfs.append((f"MASIVIDADES_GM_{fecha}.xlsx", df_m))
+
+        # Crear dataframe extra con formato tipo CRM solicitado
+        df_extra = pd.DataFrame(index=df_m.index, columns=[
+            "RUT", "NRO_DOCUMENTO", "FECHA_GESTION", "TELEFONO", "OBSERVACION", "USUARIO", "CORREO"
+        ])
+
+        # Mapear columnas desde la masividad
+        df_extra["RUT"] = df_m.get("RUT", "")
+        df_extra["NRO_DOCUMENTO"] = df_m.get("OPERACION", "")
+        # Fecha de gestión: hoy a las 10:00:00 (mismo comportamiento que sms_service)
+        fecha_gestion_dt = datetime.now().replace(hour=10, minute=0, second=0, microsecond=0)
+        df_extra["FECHA_GESTION"] = fecha_gestion_dt
+        # TELEFONO no está presente en la masividad GM original; dejar vacío para completar manualmente si se desea
+        df_extra["TELEFONO"] = ""
+        df_extra["OBSERVACION"] = "EMAIL"
+        df_extra["USUARIO"] = "dlopez"
+        df_extra["CORREO"] = df_m.get("dest_email", "")
+
+        named_dfs.append((f"Archivo_de_Carga_CRM_{fecha}.xlsx", df_extra))
 
     return named_dfs
