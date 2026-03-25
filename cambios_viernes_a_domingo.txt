@@ -1,0 +1,32 @@
+Cambios realizados por Felipe entre el viernes 20 y el domingo 22 de marzo de 2026
+==========================================================================
+
+1. routes/sms.py
+   - Se separó el flujo antiguo `/sms/process` en dos endpoints dedicados: `/sms/crm` y `/sms/athenas`, además de exponer `/sms/athenas` conmutando entre Athenas y el nuevo layout AXIA.
+   - Se añadieron validaciones específicas para usuario, mensaje, fecha y rango horario y se convirtieron las cadenas a `datetime` antes de invocar los servicios.
+   - Se reemplazó la generación de un ZIP por envíos individuales de Excel usando `df_to_xlsx_bytesio`, nombrando los archivos por tipo y fecha.
+
+2. services/sms_service.py
+   - Refactor completo: nueva función `_prepare_base_df` normaliza columnas requeridas y se añadió lógica para limpiar FONO/OP, formar `FONO_2` y sembrar registros de prueba.
+   - Se creó `_generate_schedule` para distribuir citas entre `hora_inicio` y `hora_fin` con intervalos configurables de 5s y se reutiliza en los builders.
+   - Nuevos builders: `build_crm_output`, `build_athenas_output`, `build_axia_output` y `_build_crm_from_base`, todos reutilizando el dataframe base, permitiendo observación dinámica y compatibilidad con AXIA (archivo sin encabezados).
+
+3. services/ivr_service.py
+   - Se agregó la campaña "LA ARAUCANA" al listado CAMPO1 y se introdujo el número semilla `SEED_PHONE_IVR` para forzar registros de prueba en la salida.
+   - Se reforzó la detección de columnas usando `.loc`, se permiten valores opcionales, y `_pick_col` ahora maneja ausencias devolviendo `None` de forma explícita.
+   - Se generan dataframes tipados (`pd.Series(dtype=object)`) y se concatena la fila semilla antes de devolver la carga IVR; además, la rutina CRM usa la nueva lógica de schedule.
+
+4. templates/index.html
+   - La vista se reorganizó en dos tarjetas: una para cargas Athenas/AXIA y otra para CRM, cada una con copy y formularios diferenciados.
+   - El formulario Athenas ahora pide solo mensaje + tipo de salida y explica las diferencias; el CRM solicita fecha, horas, usuario y observación opcional.
+   - Ambos formularios usan clases `needs-validation`, muestran alertas de Flash al inicio y, tras descargar, se limpian y recargan automáticamente usando JS.
+
+5. templates/ivr.html
+   - Los formularios IVR ahora incluyen `data-refresh-after-submit="true"` y comparten el mismo script de validación que resetea el formulario después de una descarga exitosa.
+   - Se mantuvo el layout pero se mejoró la experiencia tras generar archivos para que la página vuelva al estado inicial.
+
+6. utils/excel_export.py
+   - Se tipó el buffer de Excel (`WriteExcelBuffer`) y `df_to_xlsx_bytes` acepta el flag `header` para poder omitir encabezados (caso AXIA).
+   - `df_to_xlsx_bytesio` delega en la nueva firma y expone el mismo parámetro `header`, facilitando las descargas directas sin archivos temporales.
+
+Estos son los cambios locales activos en el branch `Felipe` durante el fin de semana. No se incluyeron los archivos generados automáticamente (.pyc, outputs, .env).

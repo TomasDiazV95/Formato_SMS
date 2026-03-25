@@ -5,6 +5,8 @@ from routes.sms import sms_bp
 from routes.ivr import ivr_bp
 from routes.gm import gm_bp
 from routes.sant_hipotecario import sant_hipotecario_bp
+from routes.mail import mail_bp
+from routes.reports import reports_bp
 
 def create_app():
     app = Flask(__name__)
@@ -14,6 +16,8 @@ def create_app():
     app.register_blueprint(ivr_bp)
     app.register_blueprint(gm_bp)
     app.register_blueprint(sant_hipotecario_bp)
+    app.register_blueprint(mail_bp)
+    app.register_blueprint(reports_bp)
 
     return app
 

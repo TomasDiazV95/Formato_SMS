@@ -38,42 +38,114 @@
             {% endif %}
           {% endwith %}
 
-          <form action="{{ url_for('ivr.ivr_process') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label fw-semibold">Archivo Excel Base</label>
-                <input class="form-control" type="file" name="file" accept=".xlsx,.xls" required>
-                <div class="form-text">
-                  Debe contener columnas:
-                  <span class="badge text-bg-secondary">TELEFONO</span>
-                  <span class="badge text-bg-secondary">RUT</span> (o)
-                  <span class="badge text-bg-secondary">OPERACIÓN/OP</span>
-                  <span class="badge text-bg-secondary">NOMBRE</span> (opcional)
+          <div class="row g-4 align-items-start">
+            <div class="col-lg-7">
+              <form action="{{ url_for('ivr.ivr_process') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate autocomplete="off">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label fw-semibold">Archivo Excel Base</label>
+                    <input class="form-control" type="file" name="file" accept=".xlsx,.xls" required>
+                    <div class="form-text">
+                      Debe contener columnas:
+                      <span class="badge text-bg-secondary">TELEFONO</span>
+                      <span class="badge text-bg-secondary">RUT</span> (o)
+                      <span class="badge text-bg-secondary">OPERACIÓN/OP</span>
+                      <span class="badge text-bg-secondary">NOMBRE</span> (opcional)
+                    </div>
+                    <div class="invalid-feedback">Sube un archivo Excel válido.</div>
+                  </div>
+
+                  <!-- CAMPO1 (desplegable con label visible y value real) -->
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold">CAMPO1</label>
+                    <select class="form-select" name="campo1" required data-force-default="true">
+                      <option value="" selected>Seleccione una opción</option>
+                      {% for opt in campo1_options %}
+                        <option value="{{ opt.value }}">{{ opt.label }}</option>
+                      {% endfor %}
+                    </select>
+                    <div class="invalid-feedback">Selecciona un valor para CAMPO1.</div>
+                    <div class="mt-2">
+                      <button class="btn btn-outline-secondary btn-sm" type="button" id="toggleCampo1Panel">Gestionar CAMPO1</button>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold">Mandante</label>
+                    <select class="form-select" name="mandante" required data-force-default="true">
+                      <option value="" selected>Seleccione un mandante</option>
+                      {% for mandante in mandantes %}
+                        <option value="{{ mandante }}">{{ mandante }}</option>
+                      {% endfor %}
+                    </select>
+                    <div class="invalid-feedback">Selecciona un mandante.</div>
+                  </div>
+
+                  <div class="col-12">
+                    <a class="btn btn-outline-info btn-sm" href="{{ url_for('ivr.ivr_sample') }}" target="_blank" rel="noreferrer">
+                      Descargar ejemplo IVR Athenas
+                    </a>
+                  </div>
+
+                  <div class="col-12 d-flex flex-column flex-md-row gap-2 align-items-md-center mt-2">
+                    <div class="d-flex gap-2">
+                      <button class="btn btn-primary btn-lg rounded-3 px-4" type="submit">
+                        Generar y Descargar Excel (Athenas)
+                      </button>
+                      <button class="btn btn-outline-secondary btn-lg rounded-3" type="button" data-clear-form="true">
+                        Limpiar campos
+                      </button>
+                    </div>
+                    <div class="text-muted small">
+                      Se generará la carga IVR con columnas en el orden del formato de salida.
+                    </div>
+                  </div>
                 </div>
-                <div class="invalid-feedback">Sube un archivo Excel válido.</div>
-              </div>
+              </form>
+            </div>
 
-              <!-- CAMPO1 (desplegable con label visible y value real) -->
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">CAMPO1</label>
-                <select class="form-select" name="campo1" required>
-                  {% for opt in campo1_options %}
-                    <option value="{{ opt.value }}" {% if loop.first %}selected{% endif %}>{{ opt.label }}</option>
-                  {% endfor %}
-                </select>
-                <div class="invalid-feedback">Selecciona un valor para CAMPO1.</div>
-              </div>
-
-              <div class="col-12 d-flex gap-2 align-items-center mt-2">
-                <button class="btn btn-primary btn-lg rounded-3 px-4" type="submit">
-                  Generar y Descargar Excel (Athenas)
-                </button>
-                <div class="text-muted small">
-                  Se generará la carga IVR con columnas en el orden del formato de salida.
+            <div class="col-lg-5">
+              <div class="card border-0 shadow-sm h-100 d-none" id="campo1Builder">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h3 class="h6 mb-1">Agregar nuevo CAMPO1</h3>
+                      <p class="text-muted small mb-0">Define una etiqueta visible y el valor interno para la carga.</p>
+                    </div>
+                    <button class="btn-close" type="button" aria-label="Cerrar" id="closeCampo1Panel"></button>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Nombre visible en el combo</label>
+                    <input type="text" class="form-control" id="campo1LabelInput" placeholder="Ej: SANTANDER TELEFONÍA">
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Valor para CAMPO1 en el archivo</label>
+                    <input type="text" class="form-control" id="campo1ValueInput" placeholder="Ej: PHOENIXSNTELEFONIA">
+                  </div>
+                  <div class="d-flex gap-2 mb-3 flex-wrap">
+                    <button class="btn btn-success" type="button" id="addCampo1Btn">Agregar</button>
+                    <button class="btn btn-outline-secondary" type="button" id="clearCampo1Btn">Limpiar</button>
+                  </div>
+                  <div class="border rounded-3 p-3 bg-light">
+                    <div class="form-check mb-2">
+                      <input class="form-check-input" type="checkbox" value="" id="confirmDeleteCampo1">
+                      <label class="form-check-label" for="confirmDeleteCampo1">
+                        Confirmo que deseo eliminar una opción personalizada del combo.
+                      </label>
+                    </div>
+                    <div class="d-flex gap-2">
+                      <select class="form-select" id="customCampo1List" disabled>
+                        <option value="" selected>Selecciona la opción a eliminar</option>
+                      </select>
+                      <button class="btn btn-danger" type="button" id="deleteCampo1Btn" disabled>Eliminar</button>
+                    </div>
+                  </div>
+                  <div class="form-text text-success d-none" id="campo1BuilderSuccess">Opción agregada al combo.</div>
+                  <div class="form-text text-danger d-none" id="campo1BuilderError">Completa ambos campos o usa un valor distinto.</div>
                 </div>
               </div>
             </div>
-          </form>
+          </div>
 
           <hr class="my-4">
 
@@ -83,6 +155,7 @@
               <li>La columna <b>MENSAJE</b> se toma desde <b>NOMBRE</b> si existe; si no existe o viene vacía por fila, se usará el <b>RUT</b>.</li>
               <li>Las columnas <b>ID_CLIENTE</b>, <b>OPCIONAL</b> (de salida), <b>CAMPO2</b> y la columna con <b>encabezado vacío</b> se dejan en blanco cuando corresponda.</li>
               <li>La hoja se llamará <b>Hoja1</b>.</li>
+              <li>El botón <b>Gestionar CAMPO1</b> permite crear o eliminar opciones personalizadas del combo (requiere confirmar antes de borrar).</li>
             </ul>
           </div>
         </div>
@@ -96,7 +169,7 @@
         </div>
 
         <div class="p-4 p-md-5">
-          <form action="{{ url_for('ivr.ivr_crm_process') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+          <form action="{{ url_for('ivr.ivr_crm_process') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate autocomplete="off">
             <div class="row g-3">
 
               <!-- Archivo base -->
@@ -147,19 +220,31 @@
               <!-- Usuario -->
               <div class="col-md-6">
                 <label class="form-label fw-semibold">USUARIO</label>
-                <select class="form-select" name="usuario" required>
+                <select class="form-select" name="usuario" required data-force-default="true">
+                  <option value="" selected>Seleccione un usuario</option>
                   {% for u in usuarios %}
-                    <option value="{{ u }}" {% if loop.first %}selected{% endif %}>{{ u }}</option>
+                    <option value="{{ u }}">{{ u }}</option>
                   {% endfor %}
                 </select>
                 <div class="invalid-feedback">Selecciona un USUARIO.</div>
               </div>
 
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Observación (opcional)</label>
+                <input class="form-control" type="text" name="observacion" placeholder="Ej: Gestión IVR Abril">
+                <div class="form-text">Escribe el texto que quieras registrar o déjalo vacío.</div>
+              </div>
+
               <!-- Botón -->
-              <div class="col-12 d-flex gap-2 align-items-center mt-2">
-                <button class="btn btn-primary btn-lg rounded-3 px-4" type="submit">
-                  Generar y Descargar Excel CRM
-                </button>
+              <div class="col-12 d-flex flex-column flex-md-row gap-2 align-items-md-center mt-2">
+                <div class="d-flex gap-2">
+                  <button class="btn btn-primary btn-lg rounded-3 px-4" type="submit">
+                    Generar y Descargar Excel CRM
+                  </button>
+                  <button class="btn btn-outline-secondary btn-lg rounded-3" type="button" data-clear-form="true">
+                    Limpiar campos
+                  </button>
+                </div>
                 <div class="text-muted small">
                   Orden de columnas: <b>RUT | NRO_DOCUMENTO | FECHA_GESTION | TELEFONO | OBSERVACION | USUARIO | CORREO</b>.
                 </div>
@@ -173,7 +258,7 @@
             <div class="fw-semibold mb-1">Notas</div>
             <ul class="mb-0">
               <li>Las columnas <b>RUT</b>, <b>NRO_DOCUMENTO</b> (detectado como <b>OP/Operación/Nro Documento</b>) y <b>TELEFONO</b> se toman tal cual del Excel origen.</li>
-              <li><b>OBSERVACION</b> se establece como <b>IVR</b> para todos los registros.</li>
+              <li><b>OBSERVACION</b> guarda exactamente lo que escribas (puede quedar en blanco).</li>
               <li><b>USUARIO</b> será el seleccionado; <b>CORREO</b> se completa con un espacio (" ").</li>
               <li>Si defines un intervalo, no se sobrepasará la hora fin. Si el intervalo no alcanza para todos, se te avisará.</li>
               <li>La hoja se llamará <b>Hoja1</b> y el archivo <b>cargaIVR_CRM_dd-mm.xlsx</b>.</li>
@@ -189,9 +274,214 @@
   </div>
 
   <script>
-    // Validación tipo Bootstrap
+    // Validación + refresco después de descargar
     (() => {
       'use strict'
+
+      const CUSTOM_CAMPO1_KEY = 'ivrCustomCampo1Options'
+      const campo1Select = document.querySelector('select[name="campo1"]')
+      const campo1Panel = document.getElementById('campo1Builder')
+      const toggleBtn = document.getElementById('toggleCampo1Panel')
+      const closeBtn = document.getElementById('closeCampo1Panel')
+      const addBtn = document.getElementById('addCampo1Btn')
+      const clearBtn = document.getElementById('clearCampo1Btn')
+      const campo1LabelInput = document.getElementById('campo1LabelInput')
+      const campo1ValueInput = document.getElementById('campo1ValueInput')
+      const builderSuccess = document.getElementById('campo1BuilderSuccess')
+      const builderError = document.getElementById('campo1BuilderError')
+      const deleteSelect = document.getElementById('customCampo1List')
+      const deleteBtn = document.getElementById('deleteCampo1Btn')
+      const deleteConfirm = document.getElementById('confirmDeleteCampo1')
+
+      const appendCampo1Option = (label, value) => {
+        if (!campo1Select) return
+        const option = document.createElement('option')
+        option.value = value
+        option.textContent = label
+        option.dataset.custom = 'true'
+        campo1Select.appendChild(option)
+        if (deleteSelect) {
+          const clone = option.cloneNode(true)
+          deleteSelect.appendChild(clone)
+        }
+      }
+
+      const loadCustomCampo1Options = () => {
+        if (!campo1Select) return
+        campo1Select.querySelectorAll('option[data-custom="true"]').forEach(opt => opt.remove())
+        if (deleteSelect) {
+          Array.from(deleteSelect.options).forEach((opt, index) => {
+            if (index !== 0) opt.remove()
+          })
+        }
+        try {
+          const stored = JSON.parse(localStorage.getItem(CUSTOM_CAMPO1_KEY) || '[]')
+          if (Array.isArray(stored)) {
+            stored.forEach(({ label, value }) => {
+              if (label && value) {
+                appendCampo1Option(label, value)
+              }
+            })
+          }
+        } catch (_) {
+          // ignora errores de parseo
+        }
+      }
+
+      const saveCustomCampo1Options = () => {
+        if (!campo1Select) return
+        const customOptions = Array.from(
+          campo1Select.querySelectorAll('option[data-custom="true"]')
+        ).map(opt => ({
+          label: opt.textContent || '',
+          value: opt.value
+        }))
+        localStorage.setItem(CUSTOM_CAMPO1_KEY, JSON.stringify(customOptions))
+      }
+
+      const resetSelects = () => {
+        document.querySelectorAll('select[data-force-default="true"]').forEach(select => {
+          select.selectedIndex = 0
+        })
+      }
+
+      const hideMessages = () => {
+        builderSuccess?.classList.add('d-none')
+        builderError?.classList.add('d-none')
+      }
+
+      const showSuccess = (message) => {
+        if (!builderSuccess) return
+        builderSuccess.textContent = message
+        builderSuccess.classList.remove('d-none')
+        builderError?.classList.add('d-none')
+      }
+
+      const showError = (message) => {
+        if (!builderError) return
+        builderError.textContent = message
+        builderError.classList.remove('d-none')
+        builderSuccess?.classList.add('d-none')
+      }
+
+      const togglePanelVisibility = (forceShow) => {
+        if (!campo1Panel) return
+        const shouldShow = forceShow !== undefined ? forceShow : campo1Panel.classList.contains('d-none')
+        if (shouldShow) {
+          campo1Panel.classList.remove('d-none')
+          campo1LabelInput?.focus()
+        } else {
+          campo1Panel.classList.add('d-none')
+        }
+      }
+
+      toggleBtn?.addEventListener('click', () => {
+        hideMessages()
+        togglePanelVisibility(true)
+      })
+      closeBtn?.addEventListener('click', () => togglePanelVisibility(false))
+
+      addBtn?.addEventListener('click', () => {
+        hideMessages()
+        const label = campo1LabelInput?.value.trim()
+        const value = campo1ValueInput?.value.trim()
+        if (!label || !value) {
+          showError('Completa ambos campos antes de agregar.')
+          return
+        }
+        const exists = campo1Select && Array.from(campo1Select.options).some(opt => opt.value === value)
+        if (exists) {
+          showError('Ese valor de CAMPO1 ya existe en el combo.')
+          return
+        }
+        appendCampo1Option(label, value)
+        saveCustomCampo1Options()
+        campo1LabelInput.value = ''
+        campo1ValueInput.value = ''
+        showSuccess('Opción agregada al combo.')
+      })
+
+      clearBtn?.addEventListener('click', () => {
+        hideMessages()
+        if (campo1LabelInput) campo1LabelInput.value = ''
+        if (campo1ValueInput) campo1ValueInput.value = ''
+      })
+
+      const updateDeleteControls = () => {
+        const hasSelection = deleteSelect && deleteSelect.value
+        const confirmed = deleteConfirm?.checked
+        if (deleteSelect) deleteSelect.disabled = !confirmed
+        if (deleteBtn) deleteBtn.disabled = !confirmed || !hasSelection
+      }
+
+      deleteConfirm?.addEventListener('change', () => {
+        if (!deleteConfirm.checked && deleteSelect) {
+          deleteSelect.selectedIndex = 0
+        }
+        updateDeleteControls()
+      })
+
+      deleteSelect?.addEventListener('change', updateDeleteControls)
+
+      deleteBtn?.addEventListener('click', () => {
+        if (!deleteSelect || !deleteSelect.value || !campo1Select) return
+        const value = deleteSelect.value
+        campo1Select.querySelectorAll(`option[value="${CSS.escape(value)}"]`).forEach(opt => {
+          if (opt.dataset.custom === 'true') opt.remove()
+        })
+        deleteSelect.querySelectorAll(`option[value="${CSS.escape(value)}"]`).forEach(opt => opt.remove())
+        saveCustomCampo1Options()
+        deleteSelect.selectedIndex = 0
+        if (deleteConfirm) deleteConfirm.checked = false
+        updateDeleteControls()
+        hideMessages()
+      })
+
+      window.addEventListener('storage', event => {
+        if (event.key === CUSTOM_CAMPO1_KEY) {
+          loadCustomCampo1Options()
+          resetSelects()
+        }
+      })
+
+      const removeTestEntries = () => {
+        const stored = localStorage.getItem(CUSTOM_CAMPO1_KEY)
+        if (!stored) return
+        try {
+          const parsed = JSON.parse(stored)
+          if (!Array.isArray(parsed)) return
+          const isTestEntry = entry => {
+            const label = (entry?.label || '').toString().toLowerCase()
+            const value = (entry?.value || '').toString().toLowerCase()
+            return label === 'prb' || value === 'prb'
+          }
+          const cleaned = parsed.filter(entry => !isTestEntry(entry))
+          if (cleaned.length !== parsed.length) {
+            localStorage.setItem(CUSTOM_CAMPO1_KEY, JSON.stringify(cleaned))
+          }
+        } catch (_) {
+          localStorage.removeItem(CUSTOM_CAMPO1_KEY)
+        }
+      }
+
+      removeTestEntries()
+      loadCustomCampo1Options()
+      resetSelects()
+
+      const attachClearHandlers = () => {
+        document.querySelectorAll('[data-clear-form="true"]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const form = btn.closest('form')
+            if (!form) return
+            form.reset()
+            form.classList.remove('was-validated')
+            resetSelects()
+          })
+        })
+      }
+
+      attachClearHandlers()
+
       const forms = document.querySelectorAll('.needs-validation')
       Array.from(forms).forEach(form => {
         form.addEventListener('submit', event => {
@@ -204,6 +494,5 @@
       })
     })()
   </script>
-</body>
-</html>
-
+ </body>
+ </html>

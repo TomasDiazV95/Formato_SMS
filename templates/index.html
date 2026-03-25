@@ -15,64 +15,180 @@
   🏠 Inicio
 </a>
   <div class="container py-5">
-    <div class="mx-auto" style="max-width: 820px;">
-      <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+    <div class="mx-auto" style="max-width: 900px;">
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mb-4">
+            {% for category, msg in messages %}
+              <div class="alert alert-{{category}} rounded-3" role="alert">
+                {{ msg }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <!-- ====== CARD: Carga Athenas/SMS ====== -->
+      <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
         <div class="p-4 p-md-5 header-grad text-black">
-          <h1 class="h3 mb-1">Generador de Cargas</h1>
-          <p class="mb-0 opacity-75">Sube tu Excel, ingresa Mensaje y Usuario, y descarga el ZIP con las 2 salidas.</p>
+          <h2 class="h4 mb-1">Generador de Carga Athenas / SMS</h2>
+          <p class="mb-0 opacity-75">Sube el mismo Excel base, define el mensaje y descarga el layout de envío masivo con teléfonos +56.</p>
         </div>
 
-        <div class="p-4 p-md-5">
-          {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-              {% for category, msg in messages %}
-                <div class="alert alert-{{category}} rounded-3" role="alert">
-                  {{ msg }}
-                </div>
-              {% endfor %}
-            {% endif %}
-          {% endwith %}
-
-          <form action="{{ url_for('sms.sms_process') }}" method="POST" enctype="multipart/form-data">
+        <div class="p-4 p-md-5 bg-white">
+          <form action="{{ url_for('sms.sms_athenas_process') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
             <div class="row g-3">
               <div class="col-12">
-                <label class="form-label fw-semibold">Archivo Excel</label>
+                <label class="form-label fw-semibold">Archivo Excel Base</label>
                 <input class="form-control" type="file" name="file" accept=".xlsx,.xls" required>
-                <div class="form-text">Debe contener columnas: <span class="badge text-bg-secondary">RUT</span> <span class="badge text-bg-secondary">OP</span> <span class="badge text-bg-secondary">FONO</span></div>
+                <div class="form-text">
+                  Necesita las mismas columnas: <span class="badge text-bg-secondary">RUT</span> <span class="badge text-bg-secondary">OP</span> <span class="badge text-bg-secondary">FONO</span>
+                </div>
                 <div class="invalid-feedback">Sube un archivo Excel válido.</div>
               </div>
 
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Mensaje</label>
+              <div class="col-md-8">
+                <label class="form-label fw-semibold">Mensaje SMS</label>
                 <input class="form-control" type="text" name="mensaje" placeholder="Ej: Hola! Te contactamos por..." required>
                 <div class="invalid-feedback">Ingresa un mensaje.</div>
               </div>
 
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Usuario</label>
-                <input class="form-control" type="text" name="usuario" placeholder="Ej: jriveros" required>
-                <div class="invalid-feedback">Ingresa un usuario.</div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Formato de salida</label>
+                <select class="form-select" name="tipo_salida" required data-force-default="true">
+                  <option value="" selected>Selecciona formato</option>
+                  <option value="ATHENAS">ATHENAS</option>
+                  <option value="AXIA">AXIA</option>
+                </select>
+                <div class="form-text">ATHENAS genera el layout habitual; AXIA genera solo FONO y MENSAJE sin encabezados.</div>
               </div>
 
-              <div class="col-12 d-flex gap-2 align-items-center mt-2">
-                <button class="btn btn-primary btn-lg rounded-3 px-4" type="submit">
-                  Generar y Descargar ZIP
-                </button>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Mandante</label>
+                <select class="form-select" name="mandante" required data-force-default="true">
+                  <option value="" selected>Selecciona mandante</option>
+                  {% for mandante in mandantes %}
+                    <option value="{{ mandante }}">{{ mandante }}</option>
+                  {% endfor %}
+                </select>
+                <div class="invalid-feedback">Selecciona un mandante.</div>
+              </div>
+
+              <div class="col-12">
+                <div class="d-flex flex-wrap gap-2">
+                  <a class="btn btn-outline-info btn-sm" href="{{ url_for('sms.sms_sample', tipo='ATHENAS') }}" target="_blank" rel="noreferrer">
+                    Descargar ejemplo Athenas
+                  </a>
+                  <a class="btn btn-outline-info btn-sm" href="{{ url_for('sms.sms_sample', tipo='AXIA') }}" target="_blank" rel="noreferrer">
+                    Descargar ejemplo AXIA
+                  </a>
+                </div>
+              </div>
+
+              <div class="col-12 d-flex flex-column flex-md-row gap-2 align-items-md-center mt-2">
+                <div class="d-flex gap-2">
+                  <button class="btn btn-success btn-lg rounded-3 px-4" type="submit">
+                    Generar y Descargar Excel
+                  </button>
+                  <button class="btn btn-outline-secondary btn-lg rounded-3" type="button" data-clear-form="true">
+                    Limpiar campos
+                  </button>
+                </div>
                 <div class="text-muted small">
-                  Se generarán <b>cargaCRM</b> y <b>cargaAthenas</b>.
+                  ATHENAS: <b>TELEFONO (56+), MENSAJE, ID_CLIENTE (RUT), OPCIONAL, CAMPO1-3</b>. AXIA: solo <b>FONO | MENSAJE</b> sin encabezados.
                 </div>
               </div>
             </div>
           </form>
 
           <hr class="my-4">
-
           <div class="small text-muted">
             <div class="fw-semibold mb-1">Notas</div>
             <ul class="mb-0">
-              <li>La fecha de gestión se setea a <b>hoy 10:00:00</b>.</li>
-              <li>El teléfono Athenas se arma como <b>56 + FONO</b>.</li>
-              <li>Se descarga un <b>.zip</b> con ambos archivos.</li>
+              <li>El teléfono se normaliza a texto y se antepone <b>56</b>.</li>
+              <li>CAMPO1/2/3 y OPCIONAL quedan en blanco listos para ser completados si se requiere.</li>
+              <li>Se agrega siempre un registro de prueba (teléfono 56 976900353, ID cliente PRB) con el mismo mensaje.</li>
+              <li>Si eliges AXIA, se genera un archivo sin encabezados con columnas <b>FONO</b> y <b>MENSAJE</b> más el registro de prueba.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== CARD: Carga CRM ====== -->
+      <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+        <div class="p-4 p-md-5 header-grad text-black">
+          <h1 class="h3 mb-1">Generador de Carga CRM</h1>
+          <p class="mb-0 opacity-75">Agenda tus gestiones cada 5 segundos en el rango definido, con el usuario y observación que necesites.</p>
+        </div>
+
+        <div class="p-4 p-md-5 bg-white">
+          <form action="{{ url_for('sms.sms_crm_process') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">Archivo Excel Base</label>
+                <input class="form-control" type="file" name="file" accept=".xlsx,.xls" required>
+                <div class="form-text">
+                  Debe contener columnas: <span class="badge text-bg-secondary">RUT</span> <span class="badge text-bg-secondary">OP</span> <span class="badge text-bg-secondary">FONO</span>
+                </div>
+                <div class="invalid-feedback">Sube un archivo Excel válido.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Fecha de gestión</label>
+                <input class="form-control" type="date" name="fecha" required>
+                <div class="form-text">Formato: AAAA-MM-DD</div>
+                <div class="invalid-feedback">Indica la fecha de gestión.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Hora inicio</label>
+                <input class="form-control" type="time" name="hora_inicio" step="1" required>
+                <div class="form-text">Ej.: 09:00 o 09:00:00</div>
+                <div class="invalid-feedback">Indica la hora de inicio.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Hora fin</label>
+                <input class="form-control" type="time" name="hora_fin" step="1" required>
+                <div class="form-text">Debe ser mayor que la hora inicio.</div>
+                <div class="invalid-feedback">Indica la hora de fin.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Usuario CRM</label>
+                <input class="form-control" type="text" name="usuario" placeholder="Ej: jriveros" required>
+                <div class="invalid-feedback">Ingresa un usuario.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Observación (opcional)</label>
+                <input class="form-control" type="text" name="observacion" placeholder="Ej: SMS MASIVO">
+                <div class="form-text">Déjalo vacío si no quieres registrar observación.</div>
+              </div>
+
+              <div class="col-12 d-flex flex-column flex-md-row gap-2 align-items-md-center mt-2">
+                <div class="d-flex gap-2">
+                  <button class="btn btn-primary btn-lg rounded-3 px-4" type="submit">
+                    Generar y Descargar Excel CRM
+                  </button>
+                  <button class="btn btn-outline-secondary btn-lg rounded-3" type="button" data-clear-form="true">
+                    Limpiar campos
+                  </button>
+                </div>
+                <div class="text-muted small">
+                  Columnas: <b>RUT, NRO_DOCUMENTO, FECHA_GESTION, TELEFONO, OBSERVACION, USUARIO, CORREO</b>. Intervalo fijo: <b>5s</b>.
+                </div>
+              </div>
+            </div>
+          </form>
+
+          <hr class="my-4">
+          <div class="small text-muted">
+            <div class="fw-semibold mb-1">Notas</div>
+            <ul class="mb-0">
+              <li>La fecha y horas las defines en el formulario; cada registro se agenda cada <b>5 segundos</b> desde la hora inicio.</li>
+              <li>La observación se guarda exactamente como la ingreses.</li>
             </ul>
           </div>
         </div>
@@ -85,9 +201,32 @@
   </div>
 
   <script>
-    // Validación tipo Bootstrap
+    // Validación y limpieza manual
     (() => {
       'use strict'
+
+      const resetSelects = () => {
+        document.querySelectorAll('select[data-force-default="true"]').forEach(select => {
+          select.selectedIndex = 0
+        })
+      }
+
+      resetSelects()
+
+      const attachClearHandlers = () => {
+        document.querySelectorAll('[data-clear-form="true"]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const form = btn.closest('form')
+            if (!form) return
+            form.reset()
+            form.classList.remove('was-validated')
+            resetSelects()
+          })
+        })
+      }
+
+      attachClearHandlers()
+
       const forms = document.querySelectorAll('.needs-validation')
       Array.from(forms).forEach(form => {
         form.addEventListener('submit', event => {
