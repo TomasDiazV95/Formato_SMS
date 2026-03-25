@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Proceso Mails</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-soft">
+  <a href="{{ url_for('sms.main') }}" class="btn btn-primary btn-sm position-fixed top-0 end-0 m-3 shadow">
+    🏠 Inicio
+  </a>
+
+  <div class="container py-5">
+    <div class="mx-auto" style="max-width: 900px;">
+
+      <!-- ====== CARD: Plantillas de Mail ====== -->
+      <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+        <div class="p-4 p-md-5 header-grad text-black">
+          <h1 class="h4 mb-1">Generador de Plantillas Mail</h1>
+          <p class="mb-0 opacity-75">Sube la base y selecciona el tipo de plantilla para generar el archivo final.</p>
+        </div>
+        <div class="p-4 p-md-5 bg-white">
+          <form action="{{ url_for('mail.mail_template_process') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">Archivo Excel Base</label>
+                <input class="form-control" type="file" name="file" accept=".xlsx,.xls" required>
+                <div class="form-text">Debe contener columnas como <b>RUT/DV</b>, <b>NRO_OPERACION</b>, <b>dest_mail</b>, <b>nombre/mail del agente</b>.</div>
+                <div class="invalid-feedback">Sube un archivo Excel válido.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Mandante</label>
+                <select class="form-select" name="mandante_template" required data-force-default="true">
+                  <option value="" selected>Selecciona un mandante</option>
+                  {% for mandante in mandantes %}
+                    <option value="{{ mandante }}">{{ mandante }}</option>
+                  {% endfor %}
+                </select>
+                <div class="invalid-feedback">Selecciona un mandante.</div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Plantilla</label>
+                <select class="form-select" name="template_code" required data-force-default="true" disabled>
+                  <option value="" selected>Selecciona una plantilla</option>
+                  {% for tpl in mail_templates %}
+                    <option value="{{ tpl.code }}" data-mandante="{{ tpl.mandante }}">{{ tpl.label }}</option>
+                  {% endfor %}
+                </select>
+                <div class="invalid-feedback">Selecciona una plantilla.</div>
+              </div>
+              <div class="col-12 d-flex gap-2">
+                <button class="btn btn-primary" type="submit">Generar plantilla</button>
+                <button class="btn btn-outline-secondary" type="button" data-clear-form="true">Limpiar campos</button>
+              </div>
+              <div class="col-12">
+                <div class="alert alert-info small mb-0">
+                  Para Tanner, el campo <b>mail_from</b> se obtiene de <b>REENVIADORES AGENTES.xlsx</b>. Asegúrate de que el correo del agente exista en ese catálogo.
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ====== CARD: Carga Mail CRM ====== -->
+      <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+        <div class="p-4 p-md-5 header-grad text-black">
+          <h2 class="h4 mb-1">Generador de Carga MAIL CRM</h2>
+          <p class="mb-0 opacity-75">Agenda envíos masivos vía CRM usando correos electrónicos de la base.</p>
+        </div>
+        <div class="p-4 p-md-5 bg-white">
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              <div class="mb-3">
+                {% for category, msg in messages %}
+                  <div class="alert alert-{{category}} rounded-3" role="alert">{{ msg }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
+
+          <form action="{{ url_for('mail.mail_crm_process') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">Archivo Excel Base</label>
+                <input class="form-control" type="file" name="file" accept=".xlsx,.xls" required>
+                <div class="form-text">Debe incluir al menos: <span class="badge text-bg-secondary">RUT</span> <span class="badge text-bg-secondary">OPERACION</span> <span class="badge text-bg-secondary">MAIL</span>.</div>
+                <div class="invalid-feedback">Sube un archivo Excel válido.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Fecha de gestión</label>
+                <input class="form-control" type="date" name="fecha" required>
+                <div class="invalid-feedback">Indica la fecha.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Hora inicio</label>
+                <input class="form-control" type="time" name="hora_inicio" step="1" required>
+                <div class="invalid-feedback">Indica la hora inicio.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Hora fin</label>
+                <input class="form-control" type="time" name="hora_fin" step="1" required>
+                <div class="invalid-feedback">Indica la hora fin.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Intervalo (segundos)</label>
+                <input class="form-control" type="number" name="intervalo" min="1" placeholder="Opcional (p.ej. 5)">
+                <div class="form-text">Déjalo vacío para usar intervalo de 5s.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Usuario CRM</label>
+                <input class="form-control" type="text" name="usuario" placeholder="Ej: jriveros" required>
+                <div class="invalid-feedback">Ingresa un usuario.</div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Observación (opcional)</label>
+                <input class="form-control" type="text" name="observacion" placeholder="Ej: Mail preventivo">
+              </div>
+
+              <div class="col-12 d-flex flex-column flex-md-row gap-2 align-items-md-center mt-2">
+                <div class="d-flex gap-2">
+                  <button class="btn btn-primary btn-lg rounded-3 px-4" type="submit">Generar y Descargar Excel CRM</button>
+                  <button class="btn btn-outline-secondary btn-lg rounded-3" type="button" data-clear-form="true">Limpiar campos</button>
+                </div>
+                <div class="text-muted small">El correo se inserta en la columna <b>CORREO</b> y el campo <b>TELEFONO</b> queda vacío.</div>
+              </div>
+            </div>
+          </form>
+
+          <hr class="my-4">
+          <div class="small text-muted">
+            <div class="fw-semibold mb-1">Notas</div>
+            <ul class="mb-0">
+              <li>Formato de salida: <b>RUT, NRO_DOCUMENTO (OPERACION), FECHA_GESTION, TELEFONO, OBSERVACION, USUARIO, CORREO</b>.</li>
+              <li>Los correos provienen de la columna MAIL y se copian íntegramente al campo CORREO.</li>
+              <li>TELEFONO se deja vacío para evitar envíos erróneos.</li>
+              <li>El archivo se descargará como <b>carga_MAIL_CRM_dd-mm.xlsx</b>.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict'
+
+      const mandanteSelect = document.querySelector('select[name="mandante_template"]')
+      const templateSelect = document.querySelector('select[name="template_code"]')
+
+      const filterTemplates = mandante => {
+        if (!templateSelect) return
+        let hasMatch = false
+        Array.from(templateSelect.options).forEach(option => {
+          if (!option.value) {
+            option.hidden = false
+            return
+          }
+          const matches = mandante && option.dataset.mandante === mandante
+          option.hidden = !matches
+          if (matches) hasMatch = true
+        })
+        if (!hasMatch) {
+          templateSelect.selectedIndex = 0
+        }
+      }
+
+      const attachClearHandlers = () => {
+        document.querySelectorAll('[data-clear-form="true"]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const form = btn.closest('form')
+            if (!form) return
+            form.reset()
+            form.classList.remove('was-validated')
+            if (form.contains(templateSelect)) {
+              templateSelect.disabled = true
+              filterTemplates('')
+            }
+          })
+        })
+      }
+
+      attachClearHandlers()
+
+      mandanteSelect?.addEventListener('change', () => {
+        const value = mandanteSelect.value
+        filterTemplates(value)
+        if (templateSelect) {
+          templateSelect.disabled = !value
+          templateSelect.selectedIndex = 0
+        }
+      })
+
+      const forms = document.querySelectorAll('.needs-validation')
+      Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+          if (!form.checkValidity()) {
+            event.preventDefault()
+            event.stopPropagation()
+          }
+          form.classList.add('was-validated')
+        }, false)
+      })
+    })()
+  </script>
+</body>
+</html>

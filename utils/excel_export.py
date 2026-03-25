@@ -1,16 +1,20 @@
 # utils/excel_export.py
 import io
 import zipfile
-import pandas as pd
+from typing import cast
 
-def df_to_xlsx_bytes(df: pd.DataFrame, sheet_name: str = "Hoja1") -> bytes:
+import pandas as pd
+from pandas._typing import WriteExcelBuffer
+
+def df_to_xlsx_bytes(df: pd.DataFrame, sheet_name: str = "Hoja1", header: bool = True) -> bytes:
     bio = io.BytesIO()
-    with pd.ExcelWriter(bio, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name=sheet_name)
+    excel_buffer = cast(WriteExcelBuffer, bio)
+    with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name=sheet_name, header=header)
     return bio.getvalue()
 
-def df_to_xlsx_bytesio(df: pd.DataFrame, sheet_name: str = "Hoja1") -> io.BytesIO:
-    bio = io.BytesIO(df_to_xlsx_bytes(df, sheet_name))
+def df_to_xlsx_bytesio(df: pd.DataFrame, sheet_name: str = "Hoja1", header: bool = True) -> io.BytesIO:
+    bio = io.BytesIO(df_to_xlsx_bytes(df, sheet_name, header=header))
     bio.seek(0)
     return bio
 

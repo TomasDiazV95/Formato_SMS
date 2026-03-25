@@ -1,0 +1,1 @@
+Ocurrió un error procesando el archivo: [Errno 13] Permission denied: 'C:\\Users\\Explotación Phoenix\\OneDrive - Phoenix Service\\Escritorio\\PROGRAMA\\Formato_SMS\\PLANTILLAS MAIL\\TANNER\\REENVIADORES AGENTES.xlsx'

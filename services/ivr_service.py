@@ -1,18 +1,23 @@
 
 import pandas as pd
 from datetime import datetime, timedelta, date, time
+from typing import cast
 import io
 
 # Opciones para el select del front
 CAMPO1_CHOICES = [
-    ("ITAÚ VENCIDA",         "PHOENIXIVRITAUVENCIDA"),
-    ("ITAÚ CASTIGO",         "PHOENIXIVRITAUCASTIGO"),
-    ("CAJA 18",              "PHOENIXIVRCAJA18_3"),
-    ("BANCO INTERNACIONAL",  "PHOENIX_BINTERNACIONAL"),
-    ("SANTANDER HIPOTECARIO","PHOENIXIVRSANTANDERHIPO"),
-    ("SANTANDER CONSUMER",   "PHOENIXSC_ICOMERCIAL"),
-    ("GENERAL MOTORS",       "PHOENIXGMPREJUDICIAL"),
+    ("ITAÚ VENCIDA",                  "PHOENIXIVRITAUVENCIDA"),
+    ("ITAÚ CASTIGO",                  "PHOENIXIVRITAUCASTIGO"),
+    ("CAJA 18",                       "PHOENIXIVRCAJA18_3"),
+    ("BANCO INTERNACIONAL",           "PHOENIX_BINTERNACIONAL"),
+    ("SANTANDER HIPOTECARIO",         "PHOENIXIVRSANTANDERHIPO"),
+    ("SANTANDER CONSUMER TERRENO",    "PHOENIXSC_ICOMERCIAL"),
+    ("SANTANDER CONSUMER TELEFONÍA",  "PHOENIXSC_ICOMERCIAL"),
+    ("GENERAL MOTORS",                "PHOENIXGMPREJUDICIAL"),
+    ("LA ARAUCANA",                   "PHOENIXIVRARAUCANA"),
 ]
+
+SEED_PHONE_IVR = "976900353"
 
 POSSIBLE_NAMES = {
     "TELEFONO": {"telefono", "teléfono", "fono", "celular", "movil", "móvil", "telefono1"},
@@ -81,16 +86,19 @@ def build_ivr_output(df: pd.DataFrame, campo1_value: str) -> pd.DataFrame:
     rut_col = _pick_col(base, "RUT")
     op_col  = _pick_col(base, "OP")
     nom_col = _pick_col(base, "NOMBRE")
-    if not tel_col:
+    if tel_col is None:
         raise ValueError("Falta columna de TELEFONO (acepta: Telefono, Teléfono, Fono, Celular, Móvil).")
 
-    telefono = _as_text(base[tel_col])
-    rut      = _as_text(base[rut_col]) if rut_col else pd.Series([""] * len(base), index=base.index)
-    oper     = _as_text(base[op_col])  if op_col  else pd.Series([""] * len(base), index=base.index)
+    telefono = _as_text(base.loc[:, tel_col])
+    rut      = _as_text(base.loc[:, rut_col]) if rut_col else pd.Series([""] * len(base), index=base.index)
+    if op_col:
+        oper = base.loc[:, op_col].copy()
+    else:
+        oper = pd.Series([""] * len(base), index=base.index)
 
     # ---- Cambio solicitado: MENSAJE = nombre si existe; si no existe o viene vacío por fila, usar RUT ----
-    if nom_col:
-        nombre = _as_text(base[nom_col])
+    if nom_col is not None:
+        nombre = _as_text(base.loc[:, nom_col])
         # Fallback por fila: si nombre queda vacío, usar RUT
         nombre = nombre.where(nombre.str.len() > 0, rut)
     else:
@@ -98,7 +106,7 @@ def build_ivr_output(df: pd.DataFrame, campo1_value: str) -> pd.DataFrame:
         nombre = rut
 
     final_cols = ["TELEFONO", "MENSAJE", "ID_CLIENTE", "", "OPCIONAL", "CAMPO1", "CAMPO2"]
-    out = pd.DataFrame(columns=final_cols)
+    out = pd.DataFrame({col: pd.Series(dtype=object) for col in final_cols})
     out["TELEFONO"]   = "56" + telefono
     out["MENSAJE"]    = nombre
     out["ID_CLIENTE"] = rut
@@ -106,9 +114,29 @@ def build_ivr_output(df: pd.DataFrame, campo1_value: str) -> pd.DataFrame:
     out["OPCIONAL"]   = oper
     out["CAMPO1"]     = campo1_value
     out["CAMPO2"]     = ""
+
+    seed = pd.DataFrame({
+        "TELEFONO": ["56" + SEED_PHONE_IVR],
+        "MENSAJE": ["SEMILLA"],
+        "ID_CLIENTE": ["PRB"],
+        "": [""],
+        "OPCIONAL": [""],
+        "CAMPO1": [campo1_value],
+        "CAMPO2": [""],
+    })
+
+    out = pd.concat([seed, out], ignore_index=True)
     return out
 
-def build_crm_output(df: pd.DataFrame, fecha: date, hora_inicio: str, hora_fin: str, usuario_value: str, intervalo_segundos: int | None) -> pd.DataFrame:
+def build_crm_output(
+    df: pd.DataFrame,
+    fecha: date,
+    hora_inicio: str,
+    hora_fin: str,
+    usuario_value: str,
+    observacion_value: str = "IVR",
+    intervalo_segundos: int | None = None,
+) -> pd.DataFrame:
     base = df.copy()
     tel_col = _pick_col(base, "TELEFONO")
     rut_col = _pick_col(base, "RUT")
@@ -119,18 +147,40 @@ def build_crm_output(df: pd.DataFrame, fecha: date, hora_inicio: str, hora_fin: 
     if not tel_col: faltantes.append("TELEFONO")
     if faltantes:
         raise ValueError("Faltan columnas requeridas en el Excel base: " + ", ".join(faltantes))
-    rut      = _as_text(base[rut_col])
-    nro_doc  = _as_text(base[op_col])
-    telefono = _as_text(base[tel_col])
+    rut      = _as_text(base.loc[:, rut_col])
+    nro_doc  = _as_text(base.loc[:, op_col])
+    telefono = _as_text(base.loc[:, tel_col])
     n = len(base)
     fechas = _generate_schedule(n, fecha, hora_inicio, hora_fin, intervalo_segundos)
     out_cols = ["RUT", "NRO_DOCUMENTO", "FECHA_GESTION", "TELEFONO", "OBSERVACION", "USUARIO", "CORREO"]
-    out = pd.DataFrame(columns=out_cols, index=base.index)
+    out = pd.DataFrame({col: pd.Series(index=base.index, dtype=object) for col in out_cols})
     out["RUT"]            = rut
     out["NRO_DOCUMENTO"]  = nro_doc
     out["FECHA_GESTION"]  = fechas
     out["TELEFONO"]       = telefono       # tal cual origen (sin 56)
-    out["OBSERVACION"]    = "IVR"
+    out["OBSERVACION"]    = (observacion_value or "").strip()
     out["USUARIO"]        = usuario_value
     out["CORREO"]         = " "            # espacio para no vacío
     return out
+
+
+def sample_ivr_df() -> pd.DataFrame:
+    data = {
+        "TELEFONO": ["56987654321", "56911223344"],
+        "MENSAJE": ["Hola Juan, recuerda tu pago", "Estimada Ana, contáctanos"],
+        "ID_CLIENTE": ["11.111.111-1", "22.222.222-2"],
+        "": ["", ""],
+        "OPCIONAL": ["123456", "654321"],
+        "CAMPO1": ["PHOENIXIVRITAUVENCIDA", "PHOENIXIVRITAUVENCIDA"],
+        "CAMPO2": ["", ""],
+    }
+    seed = pd.DataFrame({
+        "TELEFONO": ["56976900353"],
+        "MENSAJE": ["Registro semilla"],
+        "ID_CLIENTE": ["PRB"],
+        "": [""],
+        "OPCIONAL": [""],
+        "CAMPO1": ["PHOENIXIVRITAUVENCIDA"],
+        "CAMPO2": [""],
+    })
+    return pd.concat([seed, pd.DataFrame(data)], ignore_index=True)
