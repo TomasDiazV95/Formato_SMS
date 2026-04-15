@@ -1,0 +1,3 @@
+31-03-2026
+- React: módulo Mail habilitado, procesos de Cargas GM/Santander migrados y reportes conectados al backend.
+- Backend: habilitado CORS exponiendo Content-Disposition, soporte CSV latin-1 para Santander, y registro detallado (masividades_detalle) para SMS/IVR/Mail, GM y Santander Hipotecario.

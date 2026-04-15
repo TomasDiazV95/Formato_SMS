@@ -2,18 +2,55 @@
 import pandas as pd
 from datetime import datetime, date, time, timedelta
 
+from services.constants import COLUMN_MAP
+
 REQUIRED_COLUMNS = {"RUT", "OP", "FONO"}
 SEED_PHONE = "976900353"
 SEED_PHONE_INTL = "56" + SEED_PHONE
 SEED_ID = "PRB"
 
 
+def _normalize_name(value: str) -> str:
+    return (
+        (value or "")
+        .strip()
+        .lower()
+        .replace(" ", "")
+        .replace("_", "")
+        .replace("-", "")
+    )
+
+
+ALIAS_GROUPS = {
+    "RUT": {"rut"} | set(COLUMN_MAP.get("rut", set())),
+    "OP": {"op", "operacion"} | set(COLUMN_MAP.get("operacion", set())),
+    "FONO": {"fono", "telefono"} | set(COLUMN_MAP.get("telefono", set())),
+}
+
+
+def _resolve_column(df: pd.DataFrame, logical: str) -> str | None:
+    aliases = {_normalize_name(alias) for alias in ALIAS_GROUPS.get(logical, set())}
+    normalized_cols = {_normalize_name(col): col for col in df.columns}
+    for alias in aliases:
+        if alias in normalized_cols:
+            return normalized_cols[alias]
+    return None
+
+
 def _prepare_base_df(df: pd.DataFrame) -> pd.DataFrame:
-    missing = REQUIRED_COLUMNS - set(df.columns)
+    base = df.copy()
+    rename_map: dict[str, str] = {}
+    missing: list[str] = []
+    for logical in REQUIRED_COLUMNS:
+        column = _resolve_column(base, logical)
+        if not column:
+            missing.append(logical)
+        else:
+            rename_map[column] = logical
     if missing:
         raise ValueError(f"Faltan columnas en el Excel: {', '.join(sorted(missing))}")
 
-    base = df.copy()
+    base = base.rename(columns=rename_map)
     header_mask = (
         base["RUT"].astype(str).str.strip().str.upper().isin({"RUT", "ID", "ID_CLIENTE"})
         & base["OP"].astype(str).str.strip().str.upper().isin({"OP", "OPERACION", "OPERACIÓN", "NRO_DOCUMENTO"})
@@ -51,14 +88,21 @@ def _generate_schedule(n: int, fecha: date, hora_inicio: str, hora_fin: str, int
     if n <= 0:
         return []
 
-    step = intervalo_segundos if intervalo_segundos and intervalo_segundos > 0 else 5
-    capacidad = rango_seg // step + 1
-    if n > capacidad:
+    if n > (rango_seg + 1):
         raise ValueError(
-            f"El rango {hora_inicio}-{hora_fin} no alcanza para {n} registros con intervalo de {step}s (capacidad: {capacidad})."
+            f"El rango {hora_inicio}-{hora_fin} no alcanza para {n} registros. "
+            f"Con precision de segundos, la capacidad maxima es {rango_seg + 1}."
         )
 
-    schedule = [dt_ini + timedelta(seconds=i * step) for i in range(n)]
+    if n == 1:
+        return [dt_ini.strftime("%Y-%m-%d %H:%M:%S")]
+
+    # Se distribuye toda la base a lo largo del rango completo.
+    # El intervalo ingresado pasa a ser referencial para validacion UI,
+    # evitando rechazos innecesarios cuando hay capacidad en el rango.
+    span = (dt_fin - dt_ini).total_seconds()
+    offsets = [int(round((span * i) / (n - 1))) for i in range(n)]
+    schedule = [dt_ini + timedelta(seconds=offset) for offset in offsets]
     return [dt.strftime("%Y-%m-%d %H:%M:%S") for dt in schedule]
 
 
@@ -84,10 +128,21 @@ def _build_crm_from_base(
     return df1.reset_index(drop=True)
 
 
-def _build_athenas_from_base(base: pd.DataFrame, mensaje: str) -> pd.DataFrame:
+def _build_athenas_from_base(base: pd.DataFrame, mensaje: str, mensajes_series: pd.Series | None = None) -> pd.DataFrame:
+    if mensajes_series is None:
+        mensajes = pd.Series([mensaje] * len(base), index=base.index)
+    else:
+        mensajes = (
+            mensajes_series.reindex(base.index)
+            .fillna("")
+            .astype(str)
+            .str.replace(r"\.0$", "", regex=True)
+            .str.strip()
+        )
+        mensajes = mensajes.where(mensajes != "", mensaje)
     df2 = pd.DataFrame({
         "TELEFONO": base["FONO_2"],
-        "MENSAJE": mensaje,
+        "MENSAJE": mensajes,
         "ID_CLIENTE (RUT)": base["RUT"],
         "OPCIONAL": " ",
         "CAMPO1": " ",
@@ -109,11 +164,22 @@ def _build_athenas_from_base(base: pd.DataFrame, mensaje: str) -> pd.DataFrame:
     return df2.reset_index(drop=True)
 
 
-def build_axia_output(df: pd.DataFrame, mensaje: str) -> pd.DataFrame:
+def build_axia_output(df: pd.DataFrame, mensaje: str, mensajes_series: pd.Series | None = None) -> pd.DataFrame:
     base = _prepare_base_df(df)
+    if mensajes_series is None:
+        mensajes = pd.Series([mensaje] * len(base), index=base.index)
+    else:
+        mensajes = (
+            mensajes_series.reindex(base.index)
+            .fillna("")
+            .astype(str)
+            .str.replace(r"\.0$", "", regex=True)
+            .str.strip()
+        )
+        mensajes = mensajes.where(mensajes != "", mensaje)
     salida = pd.DataFrame({
         "FONO": base["FONO"],
-        "MENSAJE": mensaje,
+        "MENSAJE": mensajes,
     })
     seed_row = pd.DataFrame([{"FONO": SEED_PHONE, "MENSAJE": mensaje}])
     salida = pd.concat([seed_row, salida], ignore_index=True)
@@ -134,9 +200,9 @@ def build_crm_output(
     return _build_crm_from_base(base, usuario, fecha, hora_inicio, hora_fin, obs, intervalo_segundos)
 
 
-def build_athenas_output(df: pd.DataFrame, mensaje: str) -> pd.DataFrame:
+def build_athenas_output(df: pd.DataFrame, mensaje: str, mensajes_series: pd.Series | None = None) -> pd.DataFrame:
     base = _prepare_base_df(df)
-    return _build_athenas_from_base(base, mensaje)
+    return _build_athenas_from_base(base, mensaje, mensajes_series)
 
 
 def build_outputs(df: pd.DataFrame, mensaje: str, usuario: str):

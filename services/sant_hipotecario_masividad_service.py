@@ -78,4 +78,4 @@ def generar_masividad(df: pd.DataFrame, output_dir: str) -> dict:
 
     df_mas.to_excel(masiv_path, index=False)
 
-    return {"masiv_path": masiv_path, "masiv_name": masiv_name}
+    return {"masiv_path": masiv_path, "masiv_name": masiv_name, "df": df_mas}

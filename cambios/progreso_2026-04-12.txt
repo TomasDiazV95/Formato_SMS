@@ -1,0 +1,6 @@
+Progreso del domingo 12-04-2026
+=================================
+
+- Se consolidaron todos los cambios históricos en `cambios/historial_cambios.txt` y se movió `progreso.txt` a la carpeta `cambios/`.
+- Se creó la convención de generar `progreso_<fecha>.txt` a diario y se agregaron los reportes atrasados (08-04 al 11-04) para dejar completo el historial.
+- Documentación y housekeeping: se eliminaron los TXT antiguos y se dejó una única carpeta `cambios/` con el historial y los progresos diarios.

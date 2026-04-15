@@ -1,0 +1,128 @@
+from __future__ import annotations
+
+import re
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from flask import Blueprint, flash, make_response, render_template, request
+from utils.db import get_asterisk_connection
+
+resultantes_bp = Blueprint("resultantes", __name__)
+
+
+def _build_tanner_query(fecha_inicio: str, fecha_fin: str) -> str:
+    query_path = Path(__file__).resolve().parent.parent / "QUERY.txt"
+    base_query = query_path.read_text(encoding="utf-8")
+
+    query = re.sub(
+        r"(?m)^SET @fechaInicio := '.*?';$",
+        f"SET @fechaInicio := '{fecha_inicio}';",
+        base_query,
+    )
+    query = re.sub(
+        r"(?m)^SET @fechaFin := '.*?';$",
+        f"SET @fechaFin := '{fecha_fin}';",
+        query,
+    )
+    return query
+
+
+def _to_pipe_text_from_rows(columns: list[str], rows: list[dict[str, Any]]) -> str:
+    def clean(value: Any) -> str:
+        if value is None:
+            return ""
+        return str(value).replace("\r", " ").replace("\n", " ").strip()
+
+    body = ["|".join(clean(row.get(col)) for col in columns) for row in rows]
+    return "\n".join(body)
+
+
+def _run_query(query: str) -> tuple[list[str], list[dict[str, Any]]]:
+    with get_asterisk_connection() as conn:
+        with conn.cursor(dictionary=True) as cur:
+            columns: list[str] = []
+            rows: list[dict[str, Any]] = []
+            for result in cur.execute(query, multi=True):
+                if result.with_rows:
+                    fetched = result.fetchall()
+                    rows = fetched
+                    columns = [col[0] for col in result.description or []]
+            return columns, rows
+
+
+@resultantes_bp.get("/resultantes")
+def resultantes_page():
+    return render_template("resultantes.html")
+
+
+@resultantes_bp.route("/resultantes/tanner", methods=["GET", "POST"])
+def resultante_tanner_page():
+    today = datetime.now().strftime("%Y-%m-%d")
+    fecha_inicio = (request.form.get("fecha_inicio") or today).strip()
+    fecha_fin = (request.form.get("fecha_fin") or today).strip()
+    query_generada = None
+    total_registros = None
+
+    if request.method == "POST":
+        try:
+            ini_dt = datetime.strptime(fecha_inicio, "%Y-%m-%d").date()
+            fin_dt = datetime.strptime(fecha_fin, "%Y-%m-%d").date()
+            if fin_dt < ini_dt:
+                raise ValueError("La fecha de término debe ser mayor o igual a la fecha de inicio.")
+            query_generada = _build_tanner_query(fecha_inicio, fecha_fin)
+            cols, rows = _run_query(query_generada)
+            total_registros = len(rows)
+            if not cols:
+                raise ValueError("La consulta no devolvió columnas. Revisa QUERY.txt.")
+            flash(f"Consulta Tanner ejecutada correctamente. Registros obtenidos: {total_registros}", "success")
+        except ValueError as exc:
+            flash(str(exc), "danger")
+        except Exception as exc:
+            flash(f"No se pudo generar la consulta: {exc}", "danger")
+
+    return render_template(
+        "resultante_tanner.html",
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+        query_generada=query_generada,
+        total_registros=total_registros,
+    )
+
+
+@resultantes_bp.post("/resultantes/tanner/download")
+def download_resultante_tanner_query():
+    fecha_inicio = (request.form.get("fecha_inicio") or "").strip()
+    fecha_fin = (request.form.get("fecha_fin") or "").strip()
+
+    try:
+        ini_dt = datetime.strptime(fecha_inicio, "%Y-%m-%d").date()
+        fin_dt = datetime.strptime(fecha_fin, "%Y-%m-%d").date()
+        if fin_dt < ini_dt:
+            raise ValueError("La fecha de término debe ser mayor o igual a la fecha de inicio.")
+
+        query = _build_tanner_query(fecha_inicio, fecha_fin)
+        columns, rows = _run_query(query)
+        if not columns:
+            raise ValueError("La consulta no devolvió columnas para exportar.")
+
+        txt_content = _to_pipe_text_from_rows(columns, rows)
+        fecha_inicio_compacta = ini_dt.strftime("%Y%m%d")
+        filename = f"{fecha_inicio_compacta}_BaseGestiones2_200.txt"
+
+        response = make_response(txt_content)
+        response.headers["Content-Type"] = "text/plain; charset=utf-8"
+        response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+        return response
+    except ValueError as exc:
+        flash(str(exc), "danger")
+    except Exception as exc:
+        flash(f"No se pudo descargar la consulta: {exc}", "danger")
+
+    return render_template(
+        "resultante_tanner.html",
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+        query_generada=None,
+        total_registros=None,
+    )

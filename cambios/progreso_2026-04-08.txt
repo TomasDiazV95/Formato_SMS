@@ -1,0 +1,6 @@
+Progreso del miércoles 08-04-2026
+=================================
+
+- Flask ahora sirve la build de React: se creó `frontend.py`, se configuró `AUTO_BUILD_FRONTEND` y todas las rutas GET de SMS/IVR/Mail/GM/Santander/Reportes redirigen al SPA.
+- Se movieron los estáticos (`/assets`, `favicon`, `icons`) al helper y el backend valida que exista la carpeta `react-frontend/dist`.
+- React se recompiló con Vite y el portal quedó como punto de entrada oficial; los botones del front conectan contra los mismos endpoints JSON.

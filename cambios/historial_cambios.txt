@@ -1,0 +1,90 @@
+# Historial de cambios
+
+## Viernes 20 al Domingo 22 de marzo 2026
+
+Cambios realizados por Felipe entre el viernes 20 y el domingo 22 de marzo de 2026
+==========================================================================
+
+1. routes/sms.py
+   - Se separó el flujo antiguo `/sms/process` en dos endpoints dedicados: `/sms/crm` y `/sms/athenas`, además de exponer `/sms/athenas` conmutando entre Athenas y el nuevo layout AXIA.
+   - Se añadieron validaciones específicas para usuario, mensaje, fecha y rango horario y se convirtieron las cadenas a `datetime` antes de invocar los servicios.
+   - Se reemplazó la generación de un ZIP por envíos individuales de Excel usando `df_to_xlsx_bytesio`, nombrando los archivos por tipo y fecha.
+
+2. services/sms_service.py
+   - Refactor completo: nueva función `_prepare_base_df` normaliza columnas requeridas y se añadió lógica para limpiar FONO/OP, formar `FONO_2` y sembrar registros de prueba.
+   - Se creó `_generate_schedule` para distribuir citas entre `hora_inicio` y `hora_fin` con intervalos configurables de 5s y se reutiliza en los builders.
+   - Nuevos builders: `build_crm_output`, `build_athenas_output`, `build_axia_output` y `_build_crm_from_base`, todos reutilizando el dataframe base, permitiendo observación dinámica y compatibilidad con AXIA (archivo sin encabezados).
+
+3. services/ivr_service.py
+   - Se agregó la campaña "LA ARAUCANA" al listado CAMPO1 y se introdujo el número semilla `SEED_PHONE_IVR` para forzar registros de prueba en la salida.
+   - Se reforzó la detección de columnas usando `.loc`, se permiten valores opcionales, y `_pick_col` ahora maneja ausencias devolviendo `None` de forma explícita.
+   - Se generan dataframes tipados (`pd.Series(dtype=object)`) y se concatena la fila semilla antes de devolver la carga IVR; además, la rutina CRM usa la nueva lógica de schedule.
+
+4. templates/index.html
+   - La vista se reorganizó en dos tarjetas: una para cargas Athenas/AXIA y otra para CRM, cada una con copy y formularios diferenciados.
+   - El formulario Athenas ahora pide solo mensaje + tipo de salida y explica las diferencias; el CRM solicita fecha, horas, usuario y observación opcional.
+   - Ambos formularios usan clases `needs-validation`, muestran alertas de Flash al inicio y, tras descargar, se limpian y recargan automáticamente usando JS.
+
+5. templates/ivr.html
+   - Los formularios IVR ahora incluyen `data-refresh-after-submit="true"` y comparten el mismo script de validación que resetea el formulario después de una descarga exitosa.
+   - Se mantuvo el layout pero se mejoró la experiencia tras generar archivos para que la página vuelva al estado inicial.
+
+6. utils/excel_export.py
+   - Se tipó el buffer de Excel (`WriteExcelBuffer`) y `df_to_xlsx_bytes` acepta el flag `header` para poder omitir encabezados (caso AXIA).
+   - `df_to_xlsx_bytesio` delega en la nueva firma y expone el mismo parámetro `header`, facilitando las descargas directas sin archivos temporales.
+
+Estos son los cambios locales activos en el branch `Felipe` durante el fin de semana. No se incluyeron los archivos generados automáticamente (.pyc, outputs, .env).
+
+## Viernes 20 al Lunes 23 de marzo 2026
+
+Cambios realizados por Felipe entre el viernes 20 y el lunes 23 de marzo de 2026
+==============================================================================
+
+1. Reestructuración Proceso SMS
+   - Se separó el flujo en dos endpoints (`/sms/athenas` y `/sms/crm`) con validaciones dedicadas para mensaje, usuario, fecha y rango horario.
+   - Nuevos builders en `services/sms_service.py` generan CRM, Athenas y AXIA; se agregaron semillas de prueba y normalización de columnas (FONO, OP, RUT).
+   - El front (`templates/index.html`) ahora muestra dos tarjetas independientes, explica cada salida y ofrece select de formato + botones para limpiar formularios manualmente (sin refresh automático).
+
+2. Mejoras Proceso IVR
+   - `services/ivr_service.py` incorpora la campaña "LA ARAUCANA", agrega número semilla y refuerza la detección de columnas usando `.loc` y dataframes tipados.
+   - `routes/ivr.py` valida fecha/hora/observación, renombra archivos (`carga_IVR_ATHENAS_dd-mm`, `carga_IVR_CRM_dd-mm`) y admite observación personalizada en CRM.
+   - `templates/ivr.html` recibió una experiencia completa: placeholders obligatorios, panel lateral “Gestionar CAMPO1” con persistencia en localStorage (agregar/limpiar/eliminar opciones con confirmación), botones para limpiar formularios y eliminación del refresh automático.
+
+3. Proceso Mail (nuevo)
+   - Se creó el blueprint `routes/mail.py`, registrado en `app.py` y expuesto desde el menú principal.
+   - `services/mail_service.py` construye el layout CRM usando columnas RUT/OPERACION/MAIL, dejando `TELEFONO` vacío y programando gestiones con intervalos configurables.
+   - `templates/mail.html` ofrece una maqueta para plantillas futuras y un formulario funcional “MAIL CRM” con validaciones, descarga `carga_MAIL_CRM_dd-mm.xlsx`, botones de limpieza y notas específicas.
+
+4. Utilidades y experiencia común
+   - `utils/excel_export.py` ahora permite omitir encabezados y castea el buffer a `WriteExcelBuffer`.
+   - Todos los formularios (SMS, IVR, Mail) eliminan el `data-refresh-after-submit` y cuentan con botones “Limpiar campos” que resetean inputs/selects sin interrumpir las descargas.
+   - Se documentó cada cambio en `templates/main.html` añadiendo el acceso al Proceso Mail y reordenando los botones.
+
+Estos ajustes cubren el trabajo realizado desde el viernes 20 hasta el lunes 23 de marzo de 2026.
+
+## Viernes 20 al Miércoles 25 de marzo 2026
+
+Cambios realizados por Felipe entre el viernes 20 y el miércoles 25 de marzo de 2026
+================================================================================
+
+1. Reorganización de la app
+   - Nuevo portal principal (`portal.html`) con accesos separados a Procesos, Cargas y Reportes; se crearon las vistas `procesos.html` y `cargas.html` sin tocar la lógica de cada módulo.
+   - El menú de Reportes incluye descargas en Excel: consolidado global y filtrado por mandante (`routes/reports.py`, `templates/reports.html`).
+
+2. Formularios SMS / IVR
+   - Selectores obligatorios de mandante + placeholders; botones “Descargar ejemplo…” para Athenas, AXIA e IVR.
+   - Lectura de Excel con `dtype=str`, padding especial (Itau Vencida) al normalizar `OP`.
+   - Registro automático en MySQL (`masividades_log`) para formularios de masividad (SMS/IVR) con totales corregidos (sin semilla). Se eliminó el auto-refresh y se añadieron botones de “Limpiar campos”.
+
+3. Proceso Mail
+   - Formulario CRM conserva datos exactamente como vienen de origen (`dtype=str`).
+   - Nuevo generador de plantillas (Tanner – Medios de Pago, ID 87410): detecta encabezados flexibles, arma la planilla con `INSTITUCIÓN`, `message_id`, `RUT+DV`, `mail_from` (usando `REENVIADORES AGENTES.xlsx`), `name_from` igual al nombre del agente, etc. Todo se registra en `masividades_log`.
+   - Mandantes y plantillas están vinculados en la UI (combo dependiente), con validaciones y notas informativas.
+
+4. Reportes y formato
+   - `services/db_repos.get_cost_summary` devuelve datos agregados sin decimales .00 sobrantes.
+   - Endpoint JSON `/reportes/costos` sigue disponible para integraciones externas.
+
+5. Utilidades
+   - Conexión a MySQL (`utils/db.py`) lee el `.env` automáticamente; se añadió `services/db_repos.py` con fetchers/repositorios y registro de masividades.
+   - `services/mail_templates.py` centraliza la lógica de plantillas y normaliza encabezados (RUT, DV, teléfono, etc.).

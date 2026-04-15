@@ -1,0 +1,10 @@
+Progreso del martes 07-04-2026
+=================================
+
+- React pasó a ser la interfaz principal: Flask ahora sirve la build de Vite y todos los endpoints GET de SMS/IVR/Mail/GM/Santander/Reportes devuelven el SPA.
+- Se creó `frontend.py` con helpers para asegurar la build y exponer assets/static junto con la variable `AUTO_BUILD_FRONTEND`.
+- Formularios GM y Santander Hipotecario dejaron de usar templates/flash: responden JSON/ZIP, se registran correctamente los errores y el frontend reactivo puede interpretar los mensajes.
+- El frontend IVR se actualizó con el checkbox de “Múltiples Usuarios” que genera ZIP por usuario usando los nuevos endpoints `/ivr_crm/process`.
+- Se incorporó la tabla `ejecutivos_phoenix` con alias y scripts `insert_alias_ejecutivos.sql` / `inserts_ejecutivos_phoenix.sql` para poblarla desde el Excel de reenviadores.
+- Se agregaron alias de columnas (OPER, OPE, ID_CREDITO) en SMS/IVR/Mail CRM y se adaptaron los constructores del backend para reconocerlos.
+- Se consolidaron los distintos archivos de cambios en `cambios/historial_cambios.txt` y el progreso se trasladó a la misma carpeta para centralizar documentación.

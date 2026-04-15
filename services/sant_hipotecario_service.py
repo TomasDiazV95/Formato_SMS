@@ -17,7 +17,11 @@ def leer_csv_sant_hipotecario(file_storage) -> pd.DataFrame:
     file_bytes = file_storage.read()
     encoding = _detect_encoding(file_bytes)
     stream = io.BytesIO(file_bytes)
-    df = pd.read_csv(stream, encoding=encoding, sep=";", on_bad_lines="skip")
+    try:
+        df = pd.read_csv(stream, encoding=encoding, sep=";", on_bad_lines="skip")
+    except UnicodeDecodeError:
+        stream.seek(0)
+        df = pd.read_csv(stream, encoding="latin-1", sep=";", on_bad_lines="skip")
     return df
 
 

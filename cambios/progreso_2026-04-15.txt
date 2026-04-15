@@ -1,0 +1,20 @@
+Progreso (ayer + avance actual)
+===============================
+
+Ayer (14-04-2026)
+------------------
+
+- CRM (SMS/IVR/Mail): se corrigio la logica de agenda para que no rechace cargas grandes por intervalo fijo cuando el rango horario si alcanza.
+- Distribucion de FECHA_GESTION: ahora los registros se reparten en todo el rango inicio-fin, evitando que termine temprano (ej. 13:45) aunque haya ventana disponible.
+- Validacion de capacidad: se dejo el bloqueo solo para el caso real donde no caben registros ni siquiera con precision por segundo.
+
+Avance actual (15-04-2026)
+--------------------------
+
+- Nuevo modulo Resultantes creado en React y agregado al portal principal, con mini-modulos por mandante: TANNER, BIT, LA ARAUCANA, SANTANDER CONSUMER, PORSCHE y GENERAL MOTORS.
+- Backend Resultantes implementado con endpoint de descarga y estructura de servicio/repositorio para conectar a base externa.
+- Tanner habilitado en TXT con layout pipeado final y nombre de archivo {YYYYMMDD}_BaseGestiones2_200.txt, siguiendo el ejemplo entregado.
+- Se agrego seleccion por rango de fechas (fecha inicio y fecha termino) para descargar gestiones de un dia o de varios dias (ej. 15 al 18).
+- Se adapto la query SQL de Tanner usando el contenido entregado (gestion + discador con UNION ALL), filtrando por cartera y rango de fechas.
+- Conexion externa configurada y probada contra base asterisk (host 200.39.137.217:3306, usuario skalajcic).
+- Pruebas realizadas: conexion OK, query Tanner OK (122 filas para 2026-01-07), build frontend OK y compilacion Python OK.

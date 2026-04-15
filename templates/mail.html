@@ -46,7 +46,7 @@
                 <select class="form-select" name="template_code" required data-force-default="true" disabled>
                   <option value="" selected>Selecciona una plantilla</option>
                   {% for tpl in mail_templates %}
-                    <option value="{{ tpl.code }}" data-mandante="{{ tpl.mandante }}">{{ tpl.label }}</option>
+                    <option value="{{ tpl.code }}" data-mandante="{{ tpl.mandante }}">{{ tpl.label }} (ID: {{ tpl.message_id }})</option>
                   {% endfor %}
                 </select>
                 <div class="invalid-feedback">Selecciona una plantilla.</div>
