@@ -1,0 +1,6 @@
+Progreso del sábado 11-04-2026
+=================================
+
+- Se consolidó la documentación de cambios en `cambios/historial_cambios.txt` y `progreso.txt` se movió al mismo directorio.
+- Guía operativa: quedamos con la instrucción de emitir un `progreso_<fecha>.txt` diario bajo `cambios/` con los avances del día.
+- Limpieza de archivos: se eliminaron los TXT antiguos y se dejó `progreso_2026-04-07.txt` junto al historial consolidado como base.

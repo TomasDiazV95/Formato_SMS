@@ -1,0 +1,6 @@
+Progreso del jueves 09-04-2026
+=================================
+
+- IVR incorporó el modo “Múltiples Usuarios”: el backend agrupa por columna USUARIO/AGENTE, genera un Excel por usuario y responde un ZIP; el frontend agregó el check correspondiente.
+- Santander Hipotecario y GM cambiaron a respuestas JSON/ZIP, eliminando los `flash` y permitiendo que React interprete los errores sin plantillas.
+- Ejecución automática de `npm run build` quedó integrada con `AUTO_BUILD_FRONTEND` y se documentó cómo levantar el stack con React como UI principal.

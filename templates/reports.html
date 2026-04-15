@@ -47,6 +47,47 @@
           </div>
         </div>
       </div>
+
+      <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+        <div class="p-4 p-md-5 header-grad text-black">
+          <h2 class="h5 mb-1">Detalle por contacto</h2>
+          <p class="mb-0 opacity-75">Exporta los registros almacenados en <code>masividades_detalle</code> con RUT y teléfono.</p>
+        </div>
+        <div class="p-4 p-md-5 bg-white">
+          <form class="row g-3" method="GET" action="{{ url_for('reports.download_detalle_masividades') }}">
+            <div class="col-md-6">
+              <label class="form-label">Mandante (opcional)</label>
+              <select class="form-select" name="mandante">
+                <option value="" selected>Todos los mandantes</option>
+                {% for mandante in mandantes %}
+                  <option value="{{ mandante }}">{{ mandante }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Proceso (opcional)</label>
+              <select class="form-select" name="proceso">
+                <option value="" selected>Todos los procesos</option>
+                {% for proceso in procesos %}
+                  <option value="{{ proceso }}">{{ proceso }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha desde</label>
+              <input type="date" class="form-control" name="desde" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha hasta</label>
+              <input type="date" class="form-control" name="hasta" required>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-primary" type="submit">Descargar detalle</button>
+            </div>
+          </form>
+          <p class="text-muted small mt-3">El detalle incluye columnas Mandante, Proceso, Usuario, Archivo generado, RUT, Teléfono y Operación. El rango máximo recomendado es 30 días para mantener archivos livianos.</p>
+        </div>
+      </div>
     </div>
   </div>
 </body>

@@ -5,14 +5,17 @@ from datetime import datetime, timedelta, date, time
 REQUIRED_COLUMNS = {
     "RUT": {"rut", "id_cliente", "id cliente"},
     "NOMBRE": {"nombre", "cliente", "contacto"},
-    "OPERACION": {"operacion", "operación", "op", "nro_documento", "nro documento", "documento"},
-    "MAIL": {"mail", "correo", "email", "e-mail"},
+    "OPERACION": {"operacion", "operación", "op", "ope", "oper", "nro_documento", "nro documento", "documento", "id_credito"},
+    "MAIL": {"mail", "correo", "email", "e-mail", "dest_email", "dest_mail", "mail_cliente", "email_cliente"},
 }
 
-def _find_col(df: pd.DataFrame, logical: str) -> str | None:
+def _find_col(df: pd.DataFrame, logical: str, *, exclude_keywords: set[str] | None = None) -> str | None:
+    exclude_keywords = {kw.lower() for kw in (exclude_keywords or set())}
     targets = {logical.lower()} | {alias.lower() for alias in REQUIRED_COLUMNS.get(logical, set())}
     for col in df.columns:
         key = str(col).strip().lower()
+        if exclude_keywords and any(keyword in key for keyword in exclude_keywords):
+            continue
         if key in targets:
             return col
     return None
@@ -42,17 +45,21 @@ def _generate_schedule(n: int, fecha: date, hora_inicio: str, hora_fin: str, int
     if n <= 0:
         return []
 
-    step = intervalo_segundos if intervalo_segundos and intervalo_segundos > 0 else 5
     rango_seg = int((dt_fin - dt_ini).total_seconds())
-    capacidad = rango_seg // step + 1
-    if n > capacidad:
+    if n > (rango_seg + 1):
         raise ValueError(
-            f"El rango {hora_inicio}-{hora_fin} no alcanza para {n} registros con intervalo de {step}s (capacidad: {capacidad})."
+            f"El rango {hora_inicio}-{hora_fin} no alcanza para {n} registros. "
+            f"Con precision de segundos, la capacidad maxima es {rango_seg + 1}."
         )
 
+    if n == 1:
+        return [dt_ini.strftime("%Y-%m-%d %H:%M:%S")]
+
+    span = (dt_fin - dt_ini).total_seconds()
+    offsets = [int(round((span * i) / (n - 1))) for i in range(n)]
     return [
-        (dt_ini + timedelta(seconds=i * step)).strftime("%Y-%m-%d %H:%M:%S")
-        for i in range(n)
+        (dt_ini + timedelta(seconds=offset)).strftime("%Y-%m-%d %H:%M:%S")
+        for offset in offsets
     ]
 
 
@@ -68,7 +75,7 @@ def build_mail_crm_output(
     base = df.copy()
     rut_col = _find_col(base, "RUT")
     op_col = _find_col(base, "OPERACION")
-    mail_col = _find_col(base, "MAIL")
+    mail_col = _find_col(base, "MAIL", exclude_keywords={"agente"})
 
     faltantes = [name for name, col in (("RUT", rut_col), ("OPERACION", op_col), ("MAIL", mail_col)) if col is None]
     if faltantes:
@@ -91,3 +98,21 @@ def build_mail_crm_output(
     out["CORREO"] = correo
 
     return out.reset_index(drop=True)
+
+
+def sample_mail_crm_output() -> pd.DataFrame:
+    sample_df = pd.DataFrame({
+        "RUT": ["11.111.111-1", "22.222.222-2"],
+        "OPERACION": ["OP123456", "OP654321"],
+        "MAIL": ["cliente1@example.com", "cliente2@example.com"],
+    })
+    fecha = datetime.now().date()
+    return build_mail_crm_output(
+        df=sample_df,
+        fecha=fecha,
+        hora_inicio="09:00",
+        hora_fin="10:00",
+        usuario_value="demo_user",
+        observacion_value="Mail CRM de ejemplo",
+        intervalo_segundos=5,
+    )

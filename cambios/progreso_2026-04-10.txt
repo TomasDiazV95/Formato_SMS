@@ -1,0 +1,6 @@
+Progreso del viernes 10-04-2026
+=================================
+
+- SMS CRM ahora tiene “Múltiples Usuarios” igual que IVR y genera ZIP por usuario; se añadieron alias de columnas (OPE, OPER, ID_CREDITO) para SMS/IVR/Mail.
+- El formulario SMS masivo incorpora “Mensajes personalizados”: puede leer la columna MENSAJE del Excel y mezclar texto global con overrides por fila.
+- Se agregó el mandante “Santander Consumer Judicial” al catálogo y a los selects de React, reutilizando el CAMPO1 de Consumer (PHOENIXSC_ICOMERCIAL).

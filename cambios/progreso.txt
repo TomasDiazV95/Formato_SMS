@@ -1,0 +1,22 @@
+Objetivo general:
+Migrar la interfaz actual en Flask a un front React (Vite + Tailwind) para SMS, IVR y Mail, manteniendo los endpoints existentes y preparando una futura administración de CAMPO1 en MySQL.
+
+Trabajo realizado hasta ahora:
+1. Backend: se agregó un mapa de alias de columnas en services/constants.py y mejoras en los constructores de plantillas (services/mail_templates.py) para detectar columnas con flexibilidad. Se mantiene el uso de dtype=str al leer Excel para conservar los valores completos de las OP.
+2. React: se creó la app react-frontend (Vite + React Router + Tailwind 3.x). Configuración base en src/App.jsx, src/main.jsx, Tailwind, router y utilidades.
+3. Portal React: páginas Portal, Procesos, Cargas y Reportes con navegación básica.
+4. Módulo SMS React: página completa (src/pages/sms/SmsPage.jsx) con formularios Masivo y CRM, manejo de ejemplos, alertas y descargas desde /sms/athenas y /sms/crm.
+5. Módulo IVR React: estructura creada (src/pages/ivr/IvrPage.jsx). Se corrigieron etiquetas JSX abiertas y se completó el formulario CRM. Ambos formularios (Athenas y CRM) permiten subir archivos, seleccionar mandante/CAMPO1, definir fecha/horario/intervalo y descargar resultados.
+6. Build: npm run build dentro de react-frontend compila sin errores.
+
+Pendiente / próximos pasos:
+1. Confirmar lógica específica de IVR (mapeos de mandantes, reenviadores) que ya existe en helpers del backend.
+2. Implementar módulo Mail React reutilizando helpers de services/mail_templates.py.
+3. Planificar panel “Gestionar CAMPO1” con persistencia en MySQL (reemplazar localStorage).
+
+Progreso miércoles 01/04/2026 a lunes 06/04/2026:
+1. Frontend: módulo Mail React quedó a la par de SMS/IVR (descarga de ejemplos, validación de MIME, manejo de errores) y se añadió el formulario de detalle en Reportes con filtros y descarga desde masividades_detalle.
+2. Backend: endpoints Mail devuelven JSON para SPA, se creó el helper api_error_response, se agregaron ejemplos `/mail/sample/*`, se normalizó la lógica de mandantes especiales (Itau 24 / Santander Hipotecario 12) y se refactorizó apply_mandante_rules.
+3. Mail CRM: la detección de columnas ignora los correos de agentes, TELEFONO queda vacío, fechas salen en formato `YYYY-MM-DD HH:MM:SS` y se documentó en la UI.
+4. Reportes: nuevo endpoint `/reports/detalle` + UI React para exportar por contacto (RUT/teléfono) y combos para mandante/proceso.
+5. Ejecutivos Phoenix: se definió el esquema SQL, el repositorio `services/ejecutivos_repo.py` y la plantilla Mail ahora busca datos de ejecutivos por mandante/nombre (compatible con alias, falla suave si la tabla no existe) para eliminar la dependencia del Excel de reenviadores.

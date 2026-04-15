@@ -1,0 +1,7 @@
+Progreso del lunes 13-04-2026
+================================
+
+- Mail: se actualizó la plantilla “Tanner - Medios de Pago” al message_id 91869 y se creó la nueva plantilla “Santander Consumer Judicial - Cobranza” (ID 86257) con su builder dedicado, reutilizando ejecutivos y columnas PLANTILLA/NUM_OP/telefono.
+- SMS/IVR: se ampliaron los alias de columnas de operación (OPE/OPER/ID_CREDITO) y se implementó el modo “Mensajes personalizados” para SMS masivo, además de “Múltiples Usuarios” en CRM.
+- Frontend: React ahora muestra ambas plantillas de mail en el combo y se recompiló la build servida por Flask; se agregaron etiquetas nuevas en IVR/SMS para explicar los nuevos modos.
+- Backoffice: se normalizaron nombres de agentes y se reforzó la detección de columnas (AGENTE/EJECUTIVO/CARTERIZADO) para que el backend encuentre los ejecutivos en MySQL aun con variaciones en el Excel.

@@ -13,8 +13,10 @@ CAMPO1_CHOICES = [
     ("SANTANDER HIPOTECARIO",         "PHOENIXIVRSANTANDERHIPO"),
     ("SANTANDER CONSUMER TERRENO",    "PHOENIXSC_ICOMERCIAL"),
     ("SANTANDER CONSUMER TELEFONÍA",  "PHOENIXSC_ICOMERCIAL"),
+    ("SANTANDER CONSUMER JUDICIAL",   "PHOENIXSC_ICOMERCIAL"),
     ("GENERAL MOTORS",                "PHOENIXGMPREJUDICIAL"),
     ("LA ARAUCANA",                   "PHOENIXIVRARAUCANA"),
+    ("TANNER",                        "PHOENIXTANNER_IVR"),
 ]
 
 SEED_PHONE_IVR = "976900353"
@@ -22,8 +24,9 @@ SEED_PHONE_IVR = "976900353"
 POSSIBLE_NAMES = {
     "TELEFONO": {"telefono", "teléfono", "fono", "celular", "movil", "móvil", "telefono1"},
     "RUT": {"rut", "id_cliente", "id cliente", "id_cliente (rut)", "id cliente (rut)"},
-    "OP": {"op", "operacion", "operación", "nro_documento", "nro documento", "documento", "operacion1"},
-    "NOMBRE": {"nombre", "name", "cliente", "contacto"}
+    "OP": {"op", "operacion", "operación", "ope", "oper", "id_credito", "nro_documento", "nro documento", "documento", "operacion1"},
+    "NOMBRE": {"nombre", "name", "cliente", "contacto"},
+    "USUARIO": {"usuario", "usuario_crm", "agente", "ejecutivo", "usuario_gestion", "usuario crm", "usuario gestion"},
 }
 
 def _pick_col(df: pd.DataFrame, logical_name: str) -> str | None:
@@ -64,19 +67,20 @@ def _generate_schedule(n: int, fecha: date, hora_inicio: str, hora_fin: str, int
     rango_seg = int((dt_fin - dt_ini).total_seconds())
     if n <= 0:
         return []
-    if intervalo_segundos is not None and intervalo_segundos > 0:
-        capacidad = rango_seg // intervalo_segundos + 1  # incluye el inicio
-        if n > capacidad:
-            raise ValueError(
-                f"El rango {hora_inicio}–{hora_fin} no alcanza para {n} registros con intervalo de {intervalo_segundos}s "
-                f"(capacidad: {capacidad}). Ajusta el intervalo o amplía el rango."
-            )
-        step = intervalo_segundos
-    else:
-        # Auto-ajuste: distribución homogénea para que entren todos
-        step = 1 if n == 1 else max(1, rango_seg // (n - 1))
-    schedule = [dt_ini + timedelta(seconds=i * step) for i in range(n)]
-    schedule = [min(dt, dt_fin) for dt in schedule]  # no pasar la hora fin
+    if n > (rango_seg + 1):
+        raise ValueError(
+            f"El rango {hora_inicio}-{hora_fin} no alcanza para {n} registros. "
+            f"Con precision de segundos, la capacidad maxima es {rango_seg + 1}."
+        )
+
+    if n == 1:
+        return [dt_ini.strftime("%Y-%m-%d %H:%M:%S")]
+
+    # Distribucion uniforme en todo el rango para aprovechar la ventana completa.
+    # El intervalo queda como referencia operativa, sin bloquear el proceso.
+    span = (dt_fin - dt_ini).total_seconds()
+    offsets = [int(round((span * i) / (n - 1))) for i in range(n)]
+    schedule = [dt_ini + timedelta(seconds=offset) for offset in offsets]
     return [dt.strftime("%Y-%m-%d %H:%M:%S") for dt in schedule]
 
 
