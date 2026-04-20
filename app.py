@@ -7,6 +7,7 @@ from routes.sms import sms_bp
 from routes.ivr import ivr_bp
 from routes.gm import gm_bp
 from routes.sant_hipotecario import sant_hipotecario_bp
+from routes.santander_consumer import santander_consumer_bp
 from routes.mail import mail_bp
 from routes.reports import reports_bp
 from routes.resultantes import resultantes_bp
@@ -20,6 +21,7 @@ def _register_frontend_routes(app: Flask) -> None:
         "/procesos/sms",
         "/procesos/ivr",
         "/procesos/mail",
+        "/procesos/santander-consumer",
         "/cargas",
         "/cargas/gm",
         "/cargas/santander",
@@ -61,6 +63,7 @@ def create_app():
     app.register_blueprint(ivr_bp)
     app.register_blueprint(gm_bp)
     app.register_blueprint(sant_hipotecario_bp)
+    app.register_blueprint(santander_consumer_bp)
     app.register_blueprint(mail_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(resultantes_bp)

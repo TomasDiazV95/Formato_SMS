@@ -7,6 +7,7 @@ import Resultantes from './pages/Resultantes'
 import SmsPage from './pages/sms/SmsPage'
 import IvrPage from './pages/ivr/IvrPage'
 import MailPage from './pages/mail/MailPage'
+import SantanderConsumerPage from './pages/santander_consumer/SantanderConsumerPage'
 import GmPage from './pages/cargas/GmPage'
 import SantanderPage from './pages/cargas/SantanderPage'
 
@@ -17,6 +18,7 @@ function App() {
       <Route path="/procesos" element={<Procesos />} />
       <Route path="/procesos/ivr" element={<IvrPage />} />
       <Route path="/procesos/mail" element={<MailPage />} />
+      <Route path="/procesos/santander-consumer" element={<SantanderConsumerPage />} />
       <Route path="/cargas" element={<Cargas />} />
       <Route path="/cargas/gm" element={<GmPage />} />
       <Route path="/cargas/santander" element={<SantanderPage />} />
