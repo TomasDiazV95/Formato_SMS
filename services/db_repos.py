@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from typing import Any, Optional, cast
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from utils.db import get_connection
@@ -43,6 +43,27 @@ def fetch_all_procesos() -> list[str]:
             cur.execute(query)
             rows = cast(list[RowDict], cur.fetchall())
     return [row["codigo"] for row in rows]
+
+
+def fetch_mandantes_catalog() -> list[RowDict]:
+    query = "SELECT id, codigo, nombre, activo FROM mandantes ORDER BY nombre"
+    with get_connection() as conn:
+        with conn.cursor(dictionary=True) as cur:
+            cur.execute(query)
+            rows = cast(list[RowDict], cur.fetchall())
+    return rows
+
+
+def fetch_procesos_catalog() -> list[RowDict]:
+    query = (
+        "SELECT id, codigo, descripcion, tipo, costo_unitario, activo "
+        "FROM procesos ORDER BY codigo"
+    )
+    with get_connection() as conn:
+        with conn.cursor(dictionary=True) as cur:
+            cur.execute(query)
+            rows = cast(list[RowDict], cur.fetchall())
+    return rows
 
 
 def fetch_mandante_by_nombre(nombre: str) -> Optional[Mandante]:
@@ -201,14 +222,65 @@ def fetch_masividades_detalle(
     return rows
 
 
-def get_cost_summary(mandante_nombre: str | None = None) -> dict[str, Any]:
-    filters = []
+def fetch_process_history(*, usuario_app: str, limit: int = 20) -> list[RowDict]:
+    query = (
+        "SELECT ml.id, ml.total_registros, ml.archivo_generado, ml.fecha_ejecucion, "
+        "p.codigo AS proceso_codigo, p.descripcion AS proceso_descripcion, "
+        "m.nombre AS mandante_nombre "
+        "FROM masividades_log ml "
+        "JOIN procesos p ON ml.proceso_id = p.id "
+        "JOIN mandantes m ON ml.mandante_id = m.id "
+        "WHERE ml.usuario_app = %s "
+        "ORDER BY ml.fecha_ejecucion DESC, ml.id DESC "
+        "LIMIT %s"
+    )
+
+    safe_limit = max(1, min(limit, 100))
+    with get_connection() as conn:
+        with conn.cursor(dictionary=True) as cur:
+            cur.execute(query, (usuario_app, safe_limit))
+            rows = cast(list[RowDict], cur.fetchall())
+    return rows
+
+
+def _build_cost_filters(
+    *,
+    mandante_nombre: str | None = None,
+    proceso_codigo: str | None = None,
+    fecha_inicio: datetime | None = None,
+    fecha_fin: datetime | None = None,
+) -> tuple[str, list[Any]]:
+    filters: list[str] = []
     params: list[Any] = []
     if mandante_nombre:
         filters.append("m.nombre = %s")
         params.append(mandante_nombre)
-
+    if proceso_codigo:
+        filters.append("p.codigo = %s")
+        params.append(proceso_codigo)
+    if fecha_inicio:
+        filters.append("ml.fecha_ejecucion >= %s")
+        params.append(fecha_inicio)
+    if fecha_fin:
+        filters.append("ml.fecha_ejecucion <= %s")
+        params.append(fecha_fin)
     where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+    return where_clause, params
+
+
+def get_cost_summary(
+    *,
+    mandante_nombre: str | None = None,
+    proceso_codigo: str | None = None,
+    fecha_inicio: datetime | None = None,
+    fecha_fin: datetime | None = None,
+) -> dict[str, Any]:
+    where_clause, params = _build_cost_filters(
+        mandante_nombre=mandante_nombre,
+        proceso_codigo=proceso_codigo,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+    )
 
     query = f"""
         SELECT
@@ -251,9 +323,221 @@ def get_cost_summary(mandante_nombre: str | None = None) -> dict[str, Any]:
 
     return {
         "mandante": mandante_nombre,
+        "proceso": proceso_codigo,
         "resumen_por_proceso": resumen,
         "totales": totales,
     }
+
+
+def get_monthly_cost_trend(
+    *,
+    months: int = 12,
+    mandante_nombre: str | None = None,
+    proceso_codigo: str | None = None,
+    end_year: int | None = None,
+    end_month: int | None = None,
+) -> list[RowDict]:
+    safe_months = max(1, min(months, 24))
+    if end_year is None or end_month is None:
+        ref = datetime.now()
+        end_year = ref.year
+        end_month = ref.month
+
+    end_period = date(end_year, end_month, 1)
+    month_list: list[tuple[int, int]] = []
+    cursor = end_period
+    for _ in range(safe_months):
+        month_list.append((cursor.year, cursor.month))
+        if cursor.month == 1:
+            cursor = date(cursor.year - 1, 12, 1)
+        else:
+            cursor = date(cursor.year, cursor.month - 1, 1)
+    month_list.reverse()
+    start_year, start_month = month_list[0]
+    end_year_safe, end_month_safe = month_list[-1]
+
+    where_clause, params = _build_cost_filters(
+        mandante_nombre=mandante_nombre,
+        proceso_codigo=proceso_codigo,
+    )
+    period_clause = (
+        "(YEAR(ml.fecha_ejecucion) > %s OR (YEAR(ml.fecha_ejecucion) = %s AND MONTH(ml.fecha_ejecucion) >= %s)) "
+        "AND (YEAR(ml.fecha_ejecucion) < %s OR (YEAR(ml.fecha_ejecucion) = %s AND MONTH(ml.fecha_ejecucion) <= %s))"
+    )
+    if where_clause:
+        where_clause += f" AND {period_clause}"
+    else:
+        where_clause = f"WHERE {period_clause}"
+
+    params.extend([start_year, start_year, start_month, end_year_safe, end_year_safe, end_month_safe])
+    query = f"""
+        SELECT
+            YEAR(ml.fecha_ejecucion) AS anio,
+            MONTH(ml.fecha_ejecucion) AS mes,
+            SUM(ml.total_registros) AS total_registros,
+            SUM(ml.costo_total) AS costo_total
+        FROM masividades_log ml
+        JOIN mandantes m ON ml.mandante_id = m.id
+        JOIN procesos p ON ml.proceso_id = p.id
+        {where_clause}
+        GROUP BY YEAR(ml.fecha_ejecucion), MONTH(ml.fecha_ejecucion)
+        ORDER BY YEAR(ml.fecha_ejecucion), MONTH(ml.fecha_ejecucion)
+    """
+
+    with get_connection() as conn:
+        with conn.cursor(dictionary=True) as cur:
+            cur.execute(query, params)
+            rows = cast(list[RowDict], cur.fetchall())
+
+    row_map: dict[tuple[int, int], RowDict] = {}
+    for row in rows:
+        key = (int(row.get("anio") or 0), int(row.get("mes") or 0))
+        row_map[key] = {
+            "anio": key[0],
+            "mes": key[1],
+            "periodo": f"{key[0]:04d}-{key[1]:02d}",
+            "total_registros": int(row.get("total_registros") or 0),
+            "costo_total": _normalize_decimal(row.get("costo_total")),
+        }
+
+    result: list[RowDict] = []
+    for year, month in month_list:
+        existing = row_map.get((year, month))
+        if existing:
+            result.append(existing)
+            continue
+        result.append(
+            {
+                "anio": year,
+                "mes": month,
+                "periodo": f"{year:04d}-{month:02d}",
+                "total_registros": 0,
+                "costo_total": 0,
+            }
+        )
+    return result
+
+
+def get_mandante_ranking(
+    *,
+    fecha_inicio: datetime,
+    fecha_fin: datetime,
+    proceso_codigo: str | None = None,
+    limit: int = 10,
+) -> list[RowDict]:
+    safe_limit = max(1, min(limit, 50))
+    where_clause, params = _build_cost_filters(
+        proceso_codigo=proceso_codigo,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+    )
+    query = f"""
+        SELECT
+            m.nombre AS mandante,
+            SUM(ml.total_registros) AS total_registros,
+            SUM(ml.costo_total) AS costo_total
+        FROM masividades_log ml
+        JOIN mandantes m ON ml.mandante_id = m.id
+        JOIN procesos p ON ml.proceso_id = p.id
+        {where_clause}
+        GROUP BY m.id
+        ORDER BY SUM(ml.costo_total) DESC, SUM(ml.total_registros) DESC
+        LIMIT %s
+    """
+    params.append(safe_limit)
+    with get_connection() as conn:
+        with conn.cursor(dictionary=True) as cur:
+            cur.execute(query, params)
+            rows = cast(list[RowDict], cur.fetchall())
+    for row in rows:
+        row["total_registros"] = int(row.get("total_registros") or 0)
+        row["costo_total"] = _normalize_decimal(row.get("costo_total"))
+    return rows
+
+
+def get_process_month_matrix(
+    *,
+    months: int = 6,
+    mandante_nombre: str | None = None,
+    end_year: int | None = None,
+    end_month: int | None = None,
+) -> list[RowDict]:
+    safe_months = max(1, min(months, 12))
+    if end_year is None or end_month is None:
+        ref = datetime.now()
+        end_year = ref.year
+        end_month = ref.month
+
+    trend_months = get_monthly_cost_trend(
+        months=safe_months,
+        mandante_nombre=mandante_nombre,
+        end_year=end_year,
+        end_month=end_month,
+    )
+    month_keys = [str(item["periodo"]) for item in trend_months]
+
+    end_period = date(end_year, end_month, 1)
+    start_period = end_period
+    for _ in range(safe_months - 1):
+        if start_period.month == 1:
+            start_period = date(start_period.year - 1, 12, 1)
+        else:
+            start_period = date(start_period.year, start_period.month - 1, 1)
+
+    where_clause, params = _build_cost_filters(mandante_nombre=mandante_nombre)
+    period_clause = (
+        "(YEAR(ml.fecha_ejecucion) > %s OR (YEAR(ml.fecha_ejecucion) = %s AND MONTH(ml.fecha_ejecucion) >= %s)) "
+        "AND (YEAR(ml.fecha_ejecucion) < %s OR (YEAR(ml.fecha_ejecucion) = %s AND MONTH(ml.fecha_ejecucion) <= %s))"
+    )
+    if where_clause:
+        where_clause += f" AND {period_clause}"
+    else:
+        where_clause = f"WHERE {period_clause}"
+    params.extend([start_period.year, start_period.year, start_period.month, end_year, end_year, end_month])
+
+    query = f"""
+        SELECT
+            p.codigo AS proceso,
+            YEAR(ml.fecha_ejecucion) AS anio,
+            MONTH(ml.fecha_ejecucion) AS mes,
+            SUM(ml.costo_total) AS costo_total,
+            SUM(ml.total_registros) AS total_registros
+        FROM masividades_log ml
+        JOIN procesos p ON ml.proceso_id = p.id
+        JOIN mandantes m ON ml.mandante_id = m.id
+        {where_clause}
+        GROUP BY p.codigo, YEAR(ml.fecha_ejecucion), MONTH(ml.fecha_ejecucion)
+        ORDER BY p.codigo, YEAR(ml.fecha_ejecucion), MONTH(ml.fecha_ejecucion)
+    """
+
+    with get_connection() as conn:
+        with conn.cursor(dictionary=True) as cur:
+            cur.execute(query, params)
+            rows = cast(list[RowDict], cur.fetchall())
+
+    grouped: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        process_code = str(row.get("proceso") or "")
+        if process_code not in grouped:
+            grouped[process_code] = {
+                "proceso": process_code,
+                "periodos": {key: {"costo_total": 0, "total_registros": 0} for key in month_keys},
+                "total_costo": 0,
+                "total_registros": 0,
+            }
+        period_key = f"{int(row.get('anio') or 0):04d}-{int(row.get('mes') or 0):02d}"
+        bucket = grouped[process_code]["periodos"].get(period_key)
+        costo = _normalize_decimal(row.get("costo_total"))
+        regs = int(row.get("total_registros") or 0)
+        if bucket is not None:
+            bucket["costo_total"] = costo
+            bucket["total_registros"] = regs
+        grouped[process_code]["total_costo"] += float(costo or 0)
+        grouped[process_code]["total_registros"] += regs
+
+    result = list(grouped.values())
+    result.sort(key=lambda item: item.get("total_costo", 0), reverse=True)
+    return result
 
 
 def _normalize_decimal(value: Any) -> Any:

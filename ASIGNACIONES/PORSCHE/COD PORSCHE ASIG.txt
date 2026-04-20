@@ -1,0 +1,123 @@
+#PASO 1
+#Librerias
+import io
+import pandas as pd
+import datetime
+from google.colab import files
+import numpy as np
+from openpyxl import load_workbook
+from openpyxl.styles import NamedStyle
+
+# Carga Archivo
+archivo = files.upload()
+nombre_archivo = list(archivo.keys())[0]
+
+# --- LECTURA ROBUSTA: detectar la fila de encabezados real ("N° Contrato") ---
+# Leemos sin encabezado para encontrar la fila que contiene los nombres de columnas
+raw = pd.read_excel(nombre_archivo, header=None, engine="openpyxl")
+
+# Buscar la fila donde aparece "N° Contrato" en cualquier columna
+mask_header = raw.apply(lambda row: row.astype(str).str.strip().eq("N° Contrato").any(), axis=1)
+if not mask_header.any():
+    raise ValueError("No se encontró la fila de encabezados (que contenga 'N° Contrato'). Revisa el archivo.")
+
+fila_header = mask_header.idxmax()  # índice de la primera coincidencia
+
+# Usar esa fila como encabezado y tomar desde la fila siguiente como datos
+headers = raw.iloc[fila_header].astype(str).str.strip().tolist()
+df = raw.iloc[fila_header + 1:].copy()
+df.columns = headers
+
+# Eliminar filas completamente vacías y reindexar
+df = df.dropna(how="all").reset_index(drop=True)
+
+# (Opcional) normalizar algunos campos de fecha si existen
+for col in ["Fecha Reporte", "Fecha de activación", "Fecha último pago"]:
+    if col in df.columns:
+        # el archivo suele venir con formato mm/dd/yyyy; si no aplica, queda NaT sin romper el flujo
+        df[col] = pd.to_datetime(df[col], errors="coerce", dayfirst=False)
+
+# Limpiar espacios en campos clave (si existen)
+cols_strip = [
+    "N° Contrato","Rut Cliente","Nombre Cliente","Tipo de Producto",
+    "Marca Vehículo","Modelo Vehículo","DealerName","E-mail",
+    "Región cliente","Ciudad","Comuna","Tramo de mora"
+]
+for c in cols_strip:
+    if c in df.columns:
+        df[c] = df[c].astype(str).str.strip()
+
+# Asegurar la columna fija requerida para el CRM
+df["NombreProducto"] = "AUTOMOTRIZ"
+
+# Vista rápida
+df.head(5)
+
+#PASO 3
+from datetime import datetime
+
+columnas_a_trabajar = ['N° Contrato','Rut Cliente','Nombre Cliente','Cuotas Pagadas', 'NombreProducto','Cuotas Totales',
+                       'Cuotas en mora','Intereses Mora','Gastos Cobranza','Valor Cuota','Monto Adeudado','Marca Vehículo','Modelo Vehículo','E-mail','Fono cliente','Tramo de mora']
+
+columnas_CRM = ['Nro_Documento', 'RUT - DV', 'NOMBRE', 'AD1', 'NombreProducto', 'AD2', 'AD3', 'AD4', 'AD5', 'AD6', 'AD7',
+                'DEUDA TOTAL', 'AD11', 'AD8', 'AD9', 'AD10', 'DIRECCION', 'COMUNA', 'CIUDAD', 'REGION', 'DIRECCION_COMERCIAL', 'COMUNA_COMERCIAL',
+                'CIUDAD_COMERCIAL', 'REGION_COMERCIAL', 'EMAIL1', 'AD13', 'FONO1', 'FONO2', 'FONO3', 'FONO4', 'FONO5', 'FONO6', 'AD14', 'AD15', 'TIPO_DEUDOR', 'TIPO_PRODUCTO 1',
+                'AFINIDAD_1', 'NRO_PRODUCTO 1', 'FECHA_VEN_1', 'COD_SEG_1', 'ID_BANCO_1', 'TIPO_PRODUCTO_2', 'AFINIDAD_2', 'NRO_PRODUCTO_2', 'FECHA_VEN_2', 'COD_SEG_2', 'ID_BANCO_2',
+                'TIPO_PRODUCTO_3', 'AFINIDAD_3', 'NRO_PRODUCTO_3', 'FECHA_VEN_3', 'COD_SEG_3', 'ID_BANCO_3', 'TIPO_PRODUCTO_4', 'AFINIDAD_4', 'NRO_PRODUCTO_4', 'FECHA_VEN_4', 'COD_SEG_4', 'ID_BANCO_4',
+                'TIPO_PRODUCTO_5', 'AFINIDAD_5', 'NRO_PRODUCTO_5', 'FECHA_VEN_5', 'COD_SEG_5', 'ID_BANCO_5', 'PRIMER_NOMBRE', 'SEGUNDO_NOMBRE', 'APE_PATERNO', 'APE_MATERNO', 'EDAD', 'SEXO', 'FECHA_NAC',
+                'NUMERO', 'DEPARTAMENTO', 'POBLACION']
+
+df_crm = pd.DataFrame(columns=columnas_CRM)
+
+df_crm['Nro_Documento'] = df['N° Contrato']
+df_crm['RUT - DV'] = df['Rut Cliente']
+df_crm['NOMBRE'] = df['Nombre Cliente']
+df_crm['AD1'] = df['Cuotas Pagadas']
+df_crm['NombreProducto'] = "AUTOMOTRIZ"
+df_crm['AD2'] = df['Cuotas Totales']
+df_crm['AD3'] = df['Cuotas en mora']
+df_crm['AD5'] = df['Intereses Mora']
+df_crm['AD6'] = df['Gastos Cobranza']
+df_crm['AD7'] = df['Valor Cuota']
+df_crm['AD11'] = df['Monto Adeudado']
+df_crm['AD8'] = df['Marca Vehículo']
+df_crm['AD9'] = df['Modelo Vehículo']
+df_crm['EMAIL1'] = df['E-mail']
+df_crm['FONO1'] = df['Fono cliente']
+df_crm['TIPO_DEUDOR'] = df['Tramo de mora']
+
+
+df_crm.head(5)
+
+
+# Paso 4 - Limpieza en modo texto
+
+# 1) Rellenar NaN primero, para que no revienten los .str ni los reemplazos
+df_crm = df_crm.fillna(' ')
+
+# 2) Aplicar strip solo a columnas de tipo texto (object)
+for col in df_crm.columns:
+    if pd.api.types.is_object_dtype(df_crm[col]):
+        df_crm[col] = df_crm[col].astype(str).str.strip()
+
+# 3) Reemplazos básicos en todo el DataFrame
+df_crm = df_crm.replace('', ' ')
+df_crm = df_crm.replace('-', ' ')
+
+# 4) Validaciones
+assert not df_crm.isna().any().any(), "Aún hay celdas nulas (NaN/None)."
+assert not (df_crm == '').any().any(), "Aún hay celdas vacías ('')."
+
+
+# Paso 5 - Guardado de informe en Excel (todo texto)
+from datetime import datetime
+fecha_actual = datetime.now().strftime("%d-%m-%y")
+
+archivo_excel = f"ASIGNACION_PORSCHE_{fecha_actual}.xlsx"
+
+# Asegurar que todas las celdas se escriben como cadenas
+df_crm = df_crm.applymap(lambda x: str(x))
+# Guardar
+df_crm.to_excel(archivo_excel, index=False)
+# Descargar
+files.download(archivo_excel)

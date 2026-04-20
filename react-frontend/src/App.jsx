@@ -10,6 +10,9 @@ import MailPage from './pages/mail/MailPage'
 import SantanderConsumerPage from './pages/santander_consumer/SantanderConsumerPage'
 import GmPage from './pages/cargas/GmPage'
 import SantanderPage from './pages/cargas/SantanderPage'
+import PorschePage from './pages/cargas/PorschePage'
+import BitPage from './pages/cargas/BitPage'
+import TannerPage from './pages/cargas/TannerPage'
 
 function App() {
   return (
@@ -22,7 +25,11 @@ function App() {
       <Route path="/cargas" element={<Cargas />} />
       <Route path="/cargas/gm" element={<GmPage />} />
       <Route path="/cargas/santander" element={<SantanderPage />} />
+      <Route path="/cargas/porsche" element={<PorschePage />} />
+      <Route path="/cargas/bit" element={<BitPage />} />
+      <Route path="/cargas/tanner" element={<TannerPage />} />
       <Route path="/reportes" element={<Reportes />} />
+      <Route path="/backoffice/catalogos" element={<BackofficeCatalogos />} />
       <Route path="/resultantes" element={<Resultantes />} />
       <Route path="/procesos/sms" element={<SmsPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />

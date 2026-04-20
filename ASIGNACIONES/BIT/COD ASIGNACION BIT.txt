@@ -1,0 +1,120 @@
+#PASO 1
+#Librerias
+import io
+import chardet
+import pandas as pd
+import datetime
+from google.colab import files
+import numpy as np
+from openpyxl import load_workbook
+from openpyxl.styles import NamedStyle
+
+#Carga Archivo
+archivo=files.upload()
+
+nombre_archivo = list(archivo.keys())[0]
+
+# Detect the file encoding
+with open(nombre_archivo, 'rb') as f:
+    result = chardet.detect(f.read())
+encoding = result['encoding']
+
+# Read the CSV with the detected encoding, specifying delimiter and skipping bad lines
+df = pd.read_csv(nombre_archivo, encoding=encoding, sep=';', on_bad_lines='skip')
+
+df.head(5)
+
+# Paso 2
+cols_a_convertir = [
+    'RUT', 'IDENT_CLI', 'NRO_OPERACION', 'TELEFONO_EJE_NORM',
+    'TELEFONO1','TELEFONO2','TELEFONO3',
+    'CUOTAS_MOROSAS','NRO_TOTAL_CUOTAS',
+    'MTO_CUOTA','DEUDA_TOTAL','MONTO_MORA_TOTAL',
+    'DV','CIUDAD'
+]
+
+for col in cols_a_convertir:
+    if col in df.columns:
+
+        df[col] = df[col].astype('object')
+        s = df[col]
+        s = s.mask(s.isna(), ' ')
+        s = s.astype(str).str.strip()
+        s = s.str.replace(r'\.0$', '', regex=True)
+        s = s.replace(r'^\s*$', ' ', regex=True)
+        df[col] = s
+
+df.head(5)
+
+
+#PASO 3
+from datetime import datetime
+
+columnas_a_trabajar = ['NRO_OPERACION','RUT','DV','NOMBRE_CLIENTE','FECHA_CURSE', 'GRUPO_PRODUCTO','CUOTAS_MOROSAS','NRO_TOTAL_CUOTAS','FE_VTO_CUOTA','MTO_CUOTA','NOMBRE_EJE_COMER','FEC_MORA','DEUDA_TOTAL','CORREO_EJE_COMER','TELEFONO_EJE_NORM','CAMPANA','MONTO_MORA_TOTAL','DIR_PARTICULAR','COMUNA','CIUDAD','MAIL','TELEFONO1','TELEFONO2','TELEFONO3','CARTERA','PRODUCTO']
+columnas_CRM = ['Nro_Documento', 'RUT - DV', 'NOMBRE', 'AD1', 'NombreProducto', 'AD2', 'AD3', 'AD4', 'AD5', 'AD6', 'AD7', 'DEUDA TOTAL', 'AD11', 'AD8', 'AD9', 'AD10', 'DIRECCION', 'COMUNA', 'CIUDAD', 'REGION', 'DIRECCION_COMERCIAL', 'COMUNA_COMERCIAL', 'CIUDAD_COMERCIAL', 'REGION_COMERCIAL', 'EMAIL1', 'AD13', 'FONO1', 'FONO2', 'FONO3', 'FONO4', 'FONO5', 'FONO6', 'AD14', 'AD15', 'TIPO_DEUDOR', 'TIPO_PRODUCTO 1', 'AFINIDAD_1', 'NRO_PRODUCTO 1', 'FECHA_VEN_1', 'COD_SEG_1', 'ID_BANCO_1', 'TIPO_PRODUCTO_2', 'AFINIDAD_2', 'NRO_PRODUCTO_2', 'FECHA_VEN_2', 'COD_SEG_2', 'ID_BANCO_2', 'TIPO_PRODUCTO_3', 'AFINIDAD_3', 'NRO_PRODUCTO_3', 'FECHA_VEN_3', 'COD_SEG_3', 'ID_BANCO_3', 'TIPO_PRODUCTO_4', 'AFINIDAD_4', 'NRO_PRODUCTO_4', 'FECHA_VEN_4', 'COD_SEG_4', 'ID_BANCO_4', 'TIPO_PRODUCTO_5', 'AFINIDAD_5', 'NRO_PRODUCTO_5', 'FECHA_VEN_5', 'COD_SEG_5', 'ID_BANCO_5', 'PRIMER_NOMBRE', 'SEGUNDO_NOMBRE', 'APE_PATERNO', 'APE_MATERNO', 'EDAD', 'SEXO', 'FECHA_NAC', 'NUMERO', 'DEPARTAMENTO', 'POBLACION']
+
+df_crm = pd.DataFrame(columns=columnas_CRM)
+
+df_crm['Nro_Documento'] = df['NRO_OPERACION']
+df_crm['RUT - DV'] = df['RUT'].astype(str).str.strip().str.cat(df['DV'].astype(str).str.strip(), sep='-', na_rep=' ')
+df_crm['NOMBRE'] = df['NOMBRE_CLIENTE']
+df_crm['AD1'] = pd.to_datetime(df['FECHA_CURSE'], format='%d-%m-%Y', errors='coerce').dt.strftime('%d-%m-%Y')
+df_crm['NombreProducto'] = df['GRUPO_PRODUCTO']
+df_crm['AD2'] = df['CUOTAS_MOROSAS']
+df_crm['AD3'] = df['NRO_TOTAL_CUOTAS']
+df_crm['AD4'] = pd.to_datetime(df['FE_VTO_CUOTA'], format='%d-%m-%Y', errors='coerce').dt.strftime('%d-%m-%Y')
+df_crm['AD5'] = df['MTO_CUOTA']
+df_crm['AD6'] = df['NOMBRE_EJE_COMER']
+df_crm['AD7'] = pd.to_datetime(df['FEC_MORA'], format='%d-%m-%Y', errors='coerce').dt.strftime('%d-%m-%Y')
+df_crm['DEUDA TOTAL'] = df['DEUDA_TOTAL']
+df_crm['AD11'] = df['CORREO_EJE_COMER']
+df_crm['AD8'] = df['TELEFONO_EJE_NORM']
+df_crm['AD9'] = df['CAMPANA']
+df_crm['AD10'] = df['MONTO_MORA_TOTAL']
+df_crm['DIRECCION'] = df['DIR_PARTICULAR']
+df_crm['COMUNA'] = df['COMUNA']
+df_crm['CIUDAD'] = df['CIUDAD']
+df_crm['DIRECCION_COMERCIAL'] = df.get('DIR_COMERCIAL', pd.Series(index=df.index))
+df_crm['COMUNA_COMERCIAL'] = df.get('COMUNA_COMERCIAL', pd.Series(index=df.index))
+df_crm['CIUDAD_COMERCIAL'] = df.get('CIUDAD_COMERCIAL', pd.Series(index=df.index))
+df_crm['EMAIL1'] = df['MAIL']
+df_crm['FONO1'] = df['TELEFONO1']
+df_crm['FONO2'] = df['TELEFONO2']
+df_crm['FONO3'] = df['TELEFONO3']
+df_crm['TIPO_DEUDOR'] = df['CARTERA']
+df_crm['TIPO_PRODUCTO 1'] = df['PRODUCTO']
+
+df_crm = df_crm.fillna(' ')\
+               .replace(['nan','NaN','NaT','None','<NA>'], ' ')
+df_crm.head(5)
+
+
+# Paso 4
+import pandas as pd
+import numpy as np
+
+for col in df_crm.columns:
+    s = df_crm[col]
+    mask = s.isna()
+    # Convertimos SOLO los no nulos a texto y strip
+    df_crm.loc[~mask, col] = s.loc[~mask].astype(str).str.strip()
+    # Donde sea nulo o vacío/solo espacios → espacio simple
+    df_crm.loc[mask, col] = ' '
+    df_crm[col] = df_crm[col].replace(r'^\s*$', ' ', regex=True)
+
+# Barrido adicional por si aparece algún literal de nulo
+df_crm = df_crm.replace(['nan','NaN','NaT','None','<NA>'], ' ')
+
+
+
+#PASO 5
+from datetime import datetime
+fecha_actual = datetime.now().strftime("%d-%m-%Y")
+
+# Guardar el DataFrame en un archivo Excel
+archivo_excel = f"CARGA BIT {fecha_actual}.xlsx"
+df_crm.to_excel(archivo_excel, index=False)
+
+# Descargar el archivo Excel
+files.download(archivo_excel)
+

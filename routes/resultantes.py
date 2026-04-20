@@ -25,24 +25,31 @@ def resultantes_page():
 @resultantes_bp.get("/resultantes/download")
 def resultantes_download():
     mandante = (request.args.get("mandante") or "").strip()
+    modo = (request.args.get("modo") or "rango").strip().lower()
     fecha_inicio_raw = (request.args.get("fecha_inicio") or request.args.get("fecha") or "").strip()
     fecha_fin_raw = (request.args.get("fecha_fin") or fecha_inicio_raw).strip()
 
     if not mandante:
         return _resultantes_error("Debes seleccionar un mandante.")
-    if not fecha_inicio_raw:
-        return _resultantes_error("Debes seleccionar una fecha de inicio.")
-
+    if mandante.strip().upper() == "PORSCHE" and modo not in {"consolidado", "rango"}:
+        return _resultantes_error("Modo inválido para Porsche. Usa consolidado o rango.")
     try:
-        fecha_inicio = datetime.strptime(fecha_inicio_raw, "%Y-%m-%d").date()
-        fecha_fin = datetime.strptime(fecha_fin_raw, "%Y-%m-%d").date()
-        if fecha_fin < fecha_inicio:
-            return _resultantes_error("La fecha termino debe ser mayor o igual a la fecha inicio.")
+        if mandante.strip().upper() == "PORSCHE" and modo == "consolidado":
+            today = datetime.now().date()
+            fecha_inicio = today.replace(day=1)
+            fecha_fin = today
+        else:
+            if not fecha_inicio_raw:
+                return _resultantes_error("Debes seleccionar una fecha de inicio.")
+            fecha_inicio = datetime.strptime(fecha_inicio_raw, "%Y-%m-%d").date()
+            fecha_fin = datetime.strptime(fecha_fin_raw, "%Y-%m-%d").date()
+            if fecha_fin < fecha_inicio:
+                return _resultantes_error("La fecha termino debe ser mayor o igual a la fecha inicio.")
     except ValueError:
         return _resultantes_error("Formato de fecha invalido (usa AAAA-MM-DD).")
 
     try:
-        payload, filename, mimetype = build_resultante_file(mandante, fecha_inicio, fecha_fin)
+        payload, filename, mimetype = build_resultante_file(mandante, fecha_inicio, fecha_fin, modo=modo)
         return send_file(
             io.BytesIO(payload),
             as_attachment=True,

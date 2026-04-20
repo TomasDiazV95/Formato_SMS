@@ -1,0 +1,32 @@
+Progreso (20-04-2026)
+=====================
+
+- Documentacion operativa: se actualizo `README.md` con arquitectura real (Flask + React), variables de entorno, endpoints clave y flujo de ejecucion.
+- Documentacion operativa: se creo `RUNBOOK_OPERATIVO.md` con checklist pre-operacion, troubleshooting y validaciones funcionales por modulo.
+- Bitacora: se creo plantilla semanal en `cambios/plantilla_bitacora_semanal.txt` para estandarizar seguimiento.
+
+- Backoffice: se habilito modulo inicial de catalogos en `/backoffice/catalogos` con vista React y endpoint `/api/backoffice/catalogos`.
+- Backoffice: se incorporaron consultas de mandantes/procesos en `services/db_repos.py` (`fetch_mandantes_catalog`, `fetch_procesos_catalog`).
+
+- CAMPO1 (IVR): se implemento CRUD completo en backoffice con endpoints `GET/POST/PUT/DELETE` sobre `/api/backoffice/campo1`.
+- CAMPO1 (IVR): se creo servicio de catalogo en `services/campo1_catalog.py` con persistencia en `data/campo1_catalog.json`.
+- CAMPO1 (IVR): el selector de IVR ahora consume opciones dinamicas desde `/ivr/campo1-options` y valida que el valor enviado este habilitado en catalogo.
+
+- CRM unificado: se ajusto persistencia del toggle multiusuarios para no perder seleccion al cambiar de modo y se agrego mensaje de contexto para modo mail.
+
+- Reportes (upgrade profesional): se extendio backend para filtros por `anio/mes` y rango (`desde/hasta`) en `/reportes/costos`.
+- Reportes (upgrade profesional): se agregaron endpoints nuevos:
+  - `/reportes/costos/tendencia`
+  - `/reportes/costos/ranking-mandantes`
+  - `/reportes/costos/proceso-vs-mes`
+  - `/reports/costos/mensual` (export Excel multihoja).
+- Reportes (upgrade profesional): se rediseño `react-frontend/src/pages/Reportes.jsx` con filtros ejecutivos (Año, Mes, Mandante, Proceso), KPIs y visualizaciones.
+- Reportes (ajuste UX): se aplicaron cambios solicitados por negocio:
+  - etiqueta `Año` (reemplazo de `Ano`),
+  - meses con nombre completo,
+  - se mantienen `Cantidad de registros` y `Costo total`,
+  - se reemplazan `Ticket promedio` y `Procesos activos` por `Mandantes con movimiento` y `Proceso con mayor costo`.
+
+- Validacion tecnica:
+  - Compilacion Python OK (`py_compile`) para archivos de backend modificados.
+  - Build frontend OK (`npm run build`) con dashboard de reportes actualizado.
