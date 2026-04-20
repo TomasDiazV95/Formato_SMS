@@ -4,7 +4,7 @@ const procesos = [
   { title: 'SMS', description: 'Masividades Athenas/AXIA + CRM', to: '/procesos/sms', icon: '📩', disabled: false },
   { title: 'IVR', description: 'Cargas Athenas y CRM', to: '/procesos/ivr', icon: '📞', disabled: false },
   { title: 'Mail', description: 'Plantillas y carga CRM', to: '/procesos/mail', icon: '✉️', disabled: false },
-  { title: 'CRM', description: 'Unificado: Mail y SMS/IVR', to: '/procesos/crm', icon: '🧩', disabled: false },
+  { title: 'Santander Consumer', description: 'Terreno desde BD (tmp_bench_STC)', to: '/procesos/santander-consumer', icon: '🏦', disabled: false },
 ]
 
 function Procesos() {
@@ -20,7 +20,7 @@ function Procesos() {
           <Link to="/" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           {procesos.map(proc => (
             proc.disabled ? (
               <div key={proc.title} className="rounded-3xl bg-white p-6 opacity-50 ring-1 ring-slate-200">

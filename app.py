@@ -9,7 +9,7 @@ from routes.gm import gm_bp
 from routes.bit_asignacion import bit_bp
 from routes.tanner_asignacion import tanner_bp
 from routes.sant_hipotecario import sant_hipotecario_bp
-from routes.porsche_asignacion import porsche_bp
+from routes.santander_consumer import santander_consumer_bp
 from routes.mail import mail_bp
 from routes.reports import reports_bp
 from routes.resultantes import resultantes_bp
@@ -25,7 +25,7 @@ def _register_frontend_routes(app: Flask) -> None:
         "/procesos/sms",
         "/procesos/ivr",
         "/procesos/mail",
-        "/procesos/crm",
+        "/procesos/santander-consumer",
         "/cargas",
         "/cargas/gm",
         "/cargas/bit",
@@ -73,7 +73,7 @@ def create_app():
     app.register_blueprint(bit_bp)
     app.register_blueprint(tanner_bp)
     app.register_blueprint(sant_hipotecario_bp)
-    app.register_blueprint(porsche_bp)
+    app.register_blueprint(santander_consumer_bp)
     app.register_blueprint(mail_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(resultantes_bp)
