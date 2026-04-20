@@ -1,0 +1,11 @@
+Progreso (17-04-2026)
+=====================
+
+- Historial por proceso: se implemento consulta de historial en backend (`/reportes/historial`) filtrada por `sms`, `ivr` y `mail`.
+- Historial por proceso: se agrego repositorio `fetch_process_history` sobre `masividades_log` + `procesos` + `mandantes` con orden por fecha descendente.
+- Historial en UI: se agrego tabla al final de SMS, IVR y Mail con columnas `Proceso`, `Mandante`, `Registros`, `Fecha creacion` y `Archivo generado`.
+- Historial en UI: se agrego carga inicial, boton `Actualizar` y refresco automatico despues de cada generacion exitosa.
+- Nombres de salida por mandante (procesos): SMS, IVR y Mail ahora incluyen el mandante en el nombre final del archivo.
+- CRM unificado: se agrego combobox de mandante en `/procesos/crm` solo para nombrar archivo de salida.
+- CRM unificado: se ajusto backend para recibir `mandante_salida` y nombrar XLSX/ZIP final con ese mandante, sin alterar el contenido de la carga.
+- Validacion tecnica: compilacion Python y build React exitosos para los cambios aplicados.

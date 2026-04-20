@@ -1,16 +1,30 @@
-# React + Vite
+# Frontend React (Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+SPA para los modulos operativos del sistema Formato_SMS.
 
-Currently, two official plugins are available:
+## Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `npm run dev`: levanta Vite en modo desarrollo.
+- `npm run build`: compila a `dist/`.
+- `npm run preview`: sirve build local para validacion.
+- `npm run lint`: ejecuta ESLint.
 
-## React Compiler
+## Integracion con Flask
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Flask sirve el build desde `react-frontend/dist`.
+- Rutas SPA principales: `/`, `/procesos/*`, `/cargas/*`, `/reportes`, `/resultantes`, `/backoffice/catalogos`.
+- APIs se consumen con Axios usando `VITE_API_BASE_URL` (default: `http://localhost:5013`).
 
-## Expanding the ESLint configuration
+## Estructura principal
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- `src/pages/`: vistas por modulo.
+- `src/api/`: clientes Axios por dominio (`sms`, `ivr`, `mail`, `crm`, `reports`, `resultantes`, `backoffice`).
+- `src/components/`: componentes UI reutilizables.
+- `src/data/`: constantes de mandantes, plantillas y opciones.
+
+## Flujo recomendado de cambios
+
+1) Desarrollar en `npm run dev`.
+2) Validar con `npm run lint`.
+3) Compilar con `npm run build`.
+4) Probar en Flask (`python app.py`) para confirmar integracion final.

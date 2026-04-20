@@ -1,0 +1,48 @@
+# Plantilla Bitacora Semanal
+
+Semana: YYYY-MM-DD al YYYY-MM-DD
+Responsable: <nombre>
+
+Resumen ejecutivo:
+-
+-
+
+Cambios por modulo:
+
+1) SMS
+-
+
+2) IVR
+-
+
+3) Mail
+-
+
+4) CRM
+-
+
+5) Reportes
+-
+
+6) Resultantes
+-
+
+7) Backoffice
+-
+
+Incidencias y mitigaciones:
+- Incidencia:
+  - Impacto:
+  - Mitigacion:
+
+Pendientes para la proxima semana:
+1.
+2.
+3.
+
+Validaciones ejecutadas:
+- [ ] Build frontend
+- [ ] Flujos SMS/IVR/Mail
+- [ ] CRM sms_ivr y mail
+- [ ] Reportes
+- [ ] Resultantes

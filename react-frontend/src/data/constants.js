@@ -19,6 +19,14 @@ export const formatoSalida = [
 
 export const mailTemplates = [
   {
+    code: 'ITAU_VENCIDA_MAIL',
+    label: 'Itau Vencida - Mail',
+    messageId: 84824,
+    mandante: 'Itau Vencida',
+    institucion: 'BANCO ITAU',
+    segmento: 'BANCO ITAU',
+  },
+  {
     code: 'TANNER_MEDIOS_PAGO',
     label: 'Tanner - Medios de Pago',
     messageId: 91869,
@@ -42,6 +50,22 @@ export const mailTemplates = [
     institucion: 'SANTANDER CONSUMER',
     segmento: 'SANTANDER CONSUMER',
   },
+  {
+    code: 'SC_TELEFONIA_DESCUENTO',
+    label: 'Santander Consumer Telefonía - Descuento',
+    messageId: 95008,
+    mandante: 'Santander Consumer Telefonía',
+    institucion: 'Santander Consumer',
+    segmento: 'Santander Consumer',
+  },
+  {
+    code: 'SC_TELEFONIA_MEDIOS_PAGO',
+    label: 'Santander Consumer Telefonía - Medios de Pago',
+    messageId: 96706,
+    mandante: 'Santander Consumer Telefonía',
+    institucion: 'Santander Consumer',
+    segmento: 'Santander Consumer',
+  },
 ]
 
 export const procesosMasividad = [
@@ -57,6 +81,6 @@ export const resultantesMandantes = [
   { code: 'BIT', label: 'BIT', enabled: false },
   { code: 'LA_ARAUCANA', label: 'LA ARAUCANA', enabled: false },
   { code: 'SANTANDER_CONSUMER', label: 'SANTANDER CONSUMER', enabled: false },
-  { code: 'PORSCHE', label: 'PORSCHE', enabled: false },
+  { code: 'PORSCHE', label: 'PORSCHE', enabled: true },
   { code: 'GENERAL_MOTORS', label: 'GENERAL MOTORS', enabled: false },
 ]

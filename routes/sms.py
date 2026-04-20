@@ -2,11 +2,13 @@
 import pandas as pd
 from datetime import datetime
 from flask import Blueprint, request, send_file, abort
-from typing import cast, Any
+from typing import Any
 import re
+import unicodedata
+from pathlib import Path
+from difflib import SequenceMatcher
 
 from services.sms_service import (
-    build_crm_output,
     build_athenas_output,
     build_axia_output,
     sample_athenas_df,
@@ -14,8 +16,8 @@ from services.sms_service import (
 )
 from services.constants import MANDANTE_CHOICES, COLUMN_MAP
 from services.mandante_rules import apply_mandante_rules
-from services import db_repos
-from utils.excel_export import df_to_xlsx_bytesio, zip_named_dfs_bytes
+from services import db_repos, ejecutivos_repo
+from utils.excel_export import df_to_xlsx_bytesio
 from utils import api_error_response
 from frontend import serve_react_app
 
@@ -78,79 +80,303 @@ def _build_sms_detalle(df: pd.DataFrame, mensaje: str, tipo_salida: str, mensaje
     return detalles
 
 
-USER_COLUMN_ALIASES = {
-    "usuario",
-    "usuario_crm",
-    "multiplex",
-    "agente",
-    "ejecutivo",
-    "usuario_gestion",
-    "usuario crm",
-    "usuario gestion",
-    "user",
+ITAU_SMS_TEMPLATE_FILES = {
+    "MOROSIDAD": "SMS NORMAL-MOROSIDAD.txt",
+    "COMPROMISO_PAGO": "SMS VIGENTE-COMPROMISO DE PAGO.txt",
+    "COMPROMISO_ROTO": "SMS VENCIDO-COMPROMISO ROTO.txt",
+}
+
+ITAU_SEED_FILE = "SEMILLA ITAU VENCIDA.txt"
+
+ITAU_MASIVIDAD_TO_TEMPLATE = {
+    "SMS MOROSIDAD": "MOROSIDAD",
+    "SMS COMPROMISO DE PAGO": "COMPROMISO_PAGO",
+    "SMS COMPROMISO ROTO": "COMPROMISO_ROTO",
 }
 
 
-def _find_user_column(df: pd.DataFrame) -> str | None:
+def _normalize_spaces(value: str) -> str:
+    return " ".join((value or "").split()).strip()
+
+
+def _ascii_fold(value: str) -> str:
+    text = unicodedata.normalize("NFKD", value or "")
+    return text.encode("ascii", "ignore").decode("ascii")
+
+
+def _filename_token(value: str) -> str:
+    text = _ascii_fold(_normalize_spaces(value))
+    text = re.sub(r"[^A-Za-z0-9]+", "_", text).strip("_")
+    return text or "MANDANTE"
+
+
+def _find_first_column(df: pd.DataFrame, aliases: set[str]) -> str | None:
     normalized = {_normalize_key(col): col for col in df.columns}
-    for alias in USER_COLUMN_ALIASES:
+    for alias in aliases:
         key = _normalize_key(alias)
         if key in normalized:
             return normalized[key]
     return None
 
 
-def _slugify(value: str) -> str:
-    value = (value or "").strip()
-    normalized = re.sub(r"[^A-Za-z0-9-_]+", "_", value)
-    normalized = re.sub(r"_+", "_", normalized).strip("_")
-    return normalized or "usuario"
+def _normalize_contact_phone(value: str) -> str:
+    digits = re.sub(r"\D", "", value or "")
+    if not digits:
+        return ""
+    if digits.startswith("56"):
+        return f"+{digits}"
+    if digits.startswith("0"):
+        digits = digits.lstrip("0")
+    return f"+56{digits}"
 
 
-def _build_crm_zip_por_usuario(
-    df: pd.DataFrame,
-    *,
-    fecha,
-    hora_inicio: str,
-    hora_fin: str,
-    observacion: str,
-    intervalo: int | None,
-    fecha_label: str,
-):
-    base = df.copy()
-    user_col = _find_user_column(base)
-    if not user_col:
-        raise ValueError("No se encontró una columna de usuario en el archivo (ej. USUARIO_CRM, USUARIO, AGENTE).")
+def _load_itau_sms_template(tipo_sms: str) -> str:
+    filename = ITAU_SMS_TEMPLATE_FILES.get((tipo_sms or "").strip().upper())
+    if not filename:
+        raise ValueError("Tipo de SMS Itaú no soportado.")
+    base_dir = Path(__file__).resolve().parent.parent / "SMS_ITAU_VENCIDA"
+    file_path = base_dir / filename
+    if not file_path.exists():
+        raise ValueError(f"No se encontró la plantilla Itaú: {filename}")
+    text = file_path.read_text(encoding="utf-8").strip()
+    if not text:
+        raise ValueError(f"La plantilla Itaú está vacía: {filename}")
+    return text
 
-    usuarios = base[user_col].fillna("").astype(str).str.strip()
-    base["__usuario_display"] = usuarios
-    base["__usuario_key"] = usuarios.str.lower()
-    valid = base[base["__usuario_key"].str.len() > 0].copy()
-    if valid.empty:
-        raise ValueError("La columna de usuarios está vacía. Verifica el archivo de origen.")
 
-    named_outputs: list[tuple[str, pd.DataFrame]] = []
-    for key, group in valid.groupby("__usuario_key"):
-        if not isinstance(key, str) or not key.strip():
+def _strip_trailing_phone(template_text: str) -> str:
+    without_phone = re.sub(r"(?:\+?\d[\d\s\-()]{6,})\s*$", "", template_text or "").strip()
+    return without_phone or (template_text or "").strip()
+
+
+def _resolve_itau_phone(mandante: str, carterizado_name: str) -> str:
+    raw = _normalize_spaces(carterizado_name)
+    if not raw:
+        return ""
+
+    candidates = [
+        raw,
+        raw.lower(),
+        raw.upper(),
+        _ascii_fold(raw),
+        _ascii_fold(raw).lower(),
+        _ascii_fold(raw).upper(),
+    ]
+    seen: set[str] = set()
+    unique_candidates: list[str] = []
+    for item in candidates:
+        item = _normalize_spaces(item)
+        if item and item not in seen:
+            seen.add(item)
+            unique_candidates.append(item)
+
+    for candidate in unique_candidates:
+        ejecutivo = ejecutivos_repo.fetch_by_mandante_and_nombre(mandante, candidate)
+        if ejecutivo and ejecutivo.telefono:
+            phone = _normalize_contact_phone(ejecutivo.telefono)
+            if phone:
+                return phone
+
+    target = _ascii_fold(raw).lower().strip()
+    if target:
+        try:
+            best_score = 0.0
+            best_phone = ""
+            for ejecutivo in ejecutivos_repo.list_ejecutivos(mandante=mandante, activos=True):
+                options = [
+                    _ascii_fold(ejecutivo.nombre_mostrar or "").lower().strip(),
+                    (ejecutivo.nombre_clave or "").replace("_", " ").lower().strip(),
+                ]
+                for option in options:
+                    if not option:
+                        continue
+                    score = SequenceMatcher(None, target, option).ratio()
+                    if score > best_score and ejecutivo.telefono:
+                        best_score = score
+                        best_phone = _normalize_contact_phone(ejecutivo.telefono)
+            if best_score >= 0.92 and best_phone:
+                return best_phone
+        except Exception:
+            pass
+    return ""
+
+
+def _build_itau_carterizado_messages(df: pd.DataFrame, mandante: str) -> pd.Series:
+    carterizado_col = _find_first_column(
+        df,
+        {"carterizado", "carterizado<", "agente", "ejecutivo", "nombre_agente", "nombre agente", "carterizado abril"},
+    )
+    if not carterizado_col:
+        raise ValueError("No se encontró la columna CARTERIZADO/AGENTE en el Excel.")
+
+    masividad_col = _find_first_column(df, {"masividad", "tipo_sms", "tipo sms", "gestion", "gestion"})
+    if not masividad_col:
+        raise ValueError("No se encontró la columna MASIVIDAD en el Excel de Itaú.")
+
+    template_cache: dict[str, str] = {}
+
+    def _normalize_masividad(value: str) -> str:
+        text = _ascii_fold(_normalize_spaces(value)).upper()
+        text = re.sub(r"\s+", " ", text)
+        return text
+
+    def _template_text_from_masividad(value: str) -> str:
+        key = ITAU_MASIVIDAD_TO_TEMPLATE.get(_normalize_masividad(value))
+        if not key:
+            return ""
+        if key not in template_cache:
+            template_cache[key] = _strip_trailing_phone(_load_itau_sms_template(key))
+        return template_cache[key]
+
+    phones: list[str] = []
+    templates: list[str] = []
+    missing: list[str] = []
+    invalid_masividades: list[str] = []
+
+    raw_carterizados = df[carterizado_col].fillna("").astype(str).tolist()
+    raw_masividades = df[masividad_col].fillna("").astype(str).tolist()
+    for raw_name, raw_masividad in zip(raw_carterizados, raw_masividades):
+        template_text = _template_text_from_masividad(raw_masividad)
+        templates.append(template_text)
+        if not template_text:
+            invalid_masividades.append(_normalize_spaces(raw_masividad) or "(vacío)")
+            phones.append("")
             continue
-        group_df = cast(pd.DataFrame, group).copy()
-        display = group_df["__usuario_display"].tolist()[0]
-        subset = group_df.drop(columns=["__usuario_display", "__usuario_key"])
-        salida = build_crm_output(
-            subset,
-            usuario=display,
-            fecha=fecha,
-            hora_inicio=hora_inicio,
-            hora_fin=hora_fin,
-            observacion=observacion,
-            intervalo_segundos=intervalo,
-        )
-        filename = f"cargaCRM_SMS_{_slugify(display)}_{fecha_label}.xlsx"
-        named_outputs.append((filename, salida))
 
-    zip_buf = zip_named_dfs_bytes(named_outputs)
-    zip_name = f"cargaCRM_SMS_{fecha_label}_por_usuario.zip"
-    return zip_buf, zip_name
+        carterizado = _normalize_spaces(raw_name)
+        phone = _resolve_itau_phone(mandante, carterizado)
+        phones.append(phone)
+        if not phone:
+            missing.append(carterizado or "(vacío)")
+
+    if invalid_masividades:
+        uniq_invalid = []
+        for item in invalid_masividades:
+            if item not in uniq_invalid:
+                uniq_invalid.append(item)
+        only_invalid = all(not t for t in templates)
+        if only_invalid:
+            raise ValueError(
+                "No se encontraron valores de MASIVIDAD válidos para SMS Itaú. "
+                f"Valores detectados: {', '.join(uniq_invalid[:8])}"
+            )
+
+    if missing:
+        # No se bloquea todo el proceso: filas sin match quedan vacías y se filtran en el flujo.
+        # Si todas las filas quedan sin teléfono, se informa error.
+        pass
+
+    messages = [f"{tpl} {phone}".strip() if tpl and phone else "" for tpl, phone in zip(templates, phones)]
+    if not any(messages):
+        uniq = []
+        for name in missing:
+            if name not in uniq:
+                uniq.append(name)
+        preview = ", ".join(uniq[:8])
+        extra = "" if len(uniq) <= 8 else f" ... (+{len(uniq) - 8} más)"
+        raise ValueError(
+            "No se encontró teléfono de ejecutivo para los carterizados del archivo. "
+            f"Ejemplos: {preview}{extra}. Revisa ejecutivos_phoenix/alias para Itau Vencida."
+        )
+    return pd.Series(messages, index=df.index)
+
+
+def _seed_type_from_message(message: str) -> str | None:
+    text = _ascii_fold(_normalize_spaces(message)).upper()
+    if not text:
+        return None
+    if "MORA" in text:
+        return "MOROSIDAD"
+    if "PROXIMO" in text and "VENC" in text:
+        return "COMPROMISO_PAGO"
+    if "PENDIENTE" in text:
+        return "COMPROMISO_ROTO"
+    return None
+
+
+def _load_itau_seed_rows() -> list[dict[str, str]]:
+    seed_path = Path(__file__).resolve().parent.parent / "SMS_ITAU_VENCIDA" / ITAU_SEED_FILE
+    if not seed_path.exists():
+        return []
+
+    rows: list[dict[str, str]] = []
+    for raw_line in seed_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if "\t" in line:
+            phone_raw, msg_raw = line.split("\t", 1)
+        else:
+            parts = line.split(maxsplit=1)
+            if len(parts) < 2:
+                continue
+            phone_raw, msg_raw = parts[0], parts[1]
+        digits = re.sub(r"\D", "", phone_raw or "")
+        if not digits:
+            continue
+        seed_type = _seed_type_from_message(msg_raw)
+        if not seed_type:
+            continue
+        rows.append({
+            "seed_type": seed_type,
+            "phone_local": digits,
+            "message": _normalize_spaces(msg_raw),
+        })
+    return rows
+
+
+def _prepend_itau_seed_rows(
+    carga: pd.DataFrame,
+    tipo_salida: str,
+    mensaje_series: pd.Series,
+) -> tuple[pd.DataFrame, int]:
+    seeds = _load_itau_seed_rows()
+    if not seeds:
+        return carga, 0
+
+    target_types = {
+        seed_type
+        for seed_type in mensaje_series.fillna("").astype(str).map(_seed_type_from_message).tolist()
+        if seed_type
+    }
+    if not target_types:
+        return carga, 0
+
+    selected = [row for row in seeds if row["seed_type"] in target_types]
+    if not selected:
+        return carga, 0
+
+    base = carga.copy()
+    # En modo Itaú se ignoran semillas hardcodeadas del sistema.
+    if tipo_salida == "AXIA":
+        if not base.empty and str(base.iloc[0].get("FONO", "")).strip() == "976900353":
+            base = base.iloc[1:].copy()
+        seed_df = pd.DataFrame(
+            [{"FONO": row["phone_local"], "MENSAJE": row["message"]} for row in selected]
+        )
+        final_df = pd.concat([seed_df, base], ignore_index=True)
+        return final_df, len(seed_df)
+
+    if "ID_CLIENTE (RUT)" in base.columns:
+        if not base.empty and str(base.iloc[0].get("ID_CLIENTE (RUT)", "")).strip().upper() == "PRB":
+            base = base.iloc[1:].copy()
+    seed_df = pd.DataFrame(
+        [
+            {
+                "TELEFONO": f"56{row['phone_local']}",
+                "MENSAJE": row["message"],
+                "ID_CLIENTE (RUT)": "PRB",
+                "OPCIONAL": " ",
+                "CAMPO1": " ",
+                "CAMPO2": " ",
+                "CAMPO3": " ",
+            }
+            for row in selected
+        ]
+    )
+    final_df = pd.concat([seed_df, base], ignore_index=True)
+    return final_df, len(seed_df)
+
 
 @sms_bp.get("/")
 def main():
@@ -194,80 +420,6 @@ def sms_sample(tipo: str):
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
-@sms_bp.post("/sms/crm")
-def sms_crm_process():
-    file = request.files.get("file")
-    usuario = (request.form.get("usuario") or "").strip()
-    observacion = (request.form.get("observacion") or "").strip()
-    fecha_str = (request.form.get("fecha") or "").strip()
-    hora_inicio = (request.form.get("hora_inicio") or "").strip()
-    hora_fin = (request.form.get("hora_fin") or "").strip()
-    intervalo_str = (request.form.get("intervalo") or "").strip()
-    multi_usuarios = request.form.get("multiples_usuarios") == "on"
-    if not file or file.filename == "":
-        return _sms_error("Debes subir un archivo Excel.")
-    if not multi_usuarios and not usuario:
-        return _sms_error("Debes ingresar un Usuario.")
-    if not fecha_str or not hora_inicio or not hora_fin:
-        return _sms_error("Debes indicar FECHA DE GESTIÓN y el RANGO HORARIO.")
-
-    try:
-        fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
-    except ValueError:
-        return _sms_error("Formato de fecha inválido (usa AAAA-MM-DD).")
-
-    intervalo = None
-    if intervalo_str:
-        try:
-            intervalo_val = int(intervalo_str)
-            if intervalo_val <= 0:
-                raise ValueError
-            intervalo = intervalo_val
-        except ValueError:
-            return _sms_error("El intervalo debe ser un entero positivo en segundos.")
-
-    try:
-        df = pd.read_excel(file, dtype=str)
-        fecha_salida = fecha.strftime("%d-%m")
-        if multi_usuarios:
-            zip_buf, zip_name = _build_crm_zip_por_usuario(
-                df,
-                fecha=fecha,
-                hora_inicio=hora_inicio,
-                hora_fin=hora_fin,
-                observacion=observacion,
-                intervalo=intervalo,
-                fecha_label=fecha_salida,
-            )
-            return send_file(
-                zip_buf,
-                as_attachment=True,
-                download_name=zip_name,
-                mimetype="application/zip",
-            )
-
-        carga_crm = build_crm_output(
-            df,
-            usuario=usuario,
-            fecha=fecha,
-            hora_inicio=hora_inicio,
-            hora_fin=hora_fin,
-            observacion=observacion,
-            intervalo_segundos=intervalo,
-        )
-        buf = df_to_xlsx_bytesio(carga_crm, sheet_name="cargaCRM")
-
-        return send_file(
-            buf,
-            as_attachment=True,
-            download_name=f"cargaCRM_SMS_{fecha_salida}.xlsx",
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-
-    except Exception as e:
-        return _sms_error(f"Ocurrió un error procesando el archivo: {e}", status=500)
-
-
 @sms_bp.post("/sms/athenas")
 def sms_athenas_process():
     file = request.files.get("file")
@@ -275,21 +427,36 @@ def sms_athenas_process():
     tipo_salida = (request.form.get("tipo_salida") or "").strip().upper()
     mandante_nombre = (request.form.get("mandante") or "").strip()
     mensajes_personalizados = request.form.get("mensajes_personalizados") == "on"
+    modo_carterizado_itau = request.form.get("modo_carterizado_itau") == "on"
 
     if not file or file.filename == "":
         return _sms_error("Debes subir un archivo Excel.")
-    if not mensaje and not mensajes_personalizados:
+    if not mensaje and not mensajes_personalizados and not modo_carterizado_itau:
         return _sms_error("Debes ingresar un Mensaje.")
     if not tipo_salida:
         return _sms_error("Debes escoger un formato de salida.")
     if not mandante_nombre:
         return _sms_error("Debes seleccionar un Mandante.")
+    if modo_carterizado_itau and mandante_nombre.lower() != "itau vencida":
+        return _sms_error("El modo carterizado Itaú solo está habilitado para mandante Itau Vencida.")
 
     try:
         df = pd.read_excel(file, dtype=str)
         df = apply_mandante_rules(df, mandante_nombre)
         mensaje_series = None
-        if mensajes_personalizados:
+        descartadas = 0
+        seed_count = 0
+        if modo_carterizado_itau:
+            mensaje_series = _build_itau_carterizado_messages(df, mandante_nombre)
+            valid_mask = mensaje_series.fillna("").astype(str).str.strip() != ""
+            descartadas = int((~valid_mask).sum())
+            if not valid_mask.any():
+                return _sms_error("No hay filas SMS válidas para generar salida Itaú (revisa MASIVIDAD).")
+            df = df.loc[valid_mask].copy()
+            mensaje_series = mensaje_series.loc[valid_mask].copy()
+            mensaje = "SMS ITAU CARTERIZADO"
+            mensajes_personalizados = True
+        elif mensajes_personalizados:
             mensaje_col = _find_column(df, "mensaje")
             if not mensaje_col:
                 return _sms_error("Activaste múltiples mensajes pero no existe una columna 'Mensaje' en el archivo.")
@@ -309,16 +476,22 @@ def sms_athenas_process():
         if not mandante:
             return _sms_error("Mandante no encontrado en catálogo.")
 
+        mandante_token = _filename_token(mandante.nombre)
+
         if tipo_salida == "AXIA":
             carga = build_axia_output(df, mensaje=mensaje, mensajes_series=mensaje_series if mensajes_personalizados else None)
+            if modo_carterizado_itau and mensaje_series is not None:
+                carga, seed_count = _prepend_itau_seed_rows(carga, tipo_salida, mensaje_series)
             proceso_codigo = "SMS_AXIA"
             buf = df_to_xlsx_bytesio(carga, sheet_name="Hoja1", header=False)
-            nombre = f"carga_AXIA_SMS_{fecha_actual}.xlsx"
+            nombre = f"carga_AXIA_SMS_{mandante_token}_{fecha_actual}.xlsx"
         else:
             carga = build_athenas_output(df, mensaje=mensaje, mensajes_series=mensaje_series if mensajes_personalizados else None)
+            if modo_carterizado_itau and mensaje_series is not None:
+                carga, seed_count = _prepend_itau_seed_rows(carga, tipo_salida, mensaje_series)
             proceso_codigo = "SMS_ATHENAS"
             buf = df_to_xlsx_bytesio(carga, sheet_name="cargaAthenas")
-            nombre = f"cargaAthenas_SMS_{fecha_actual}.xlsx"
+            nombre = f"cargaAthenas_SMS_{mandante_token}_{fecha_actual}.xlsx"
 
         proceso = db_repos.fetch_proceso_by_codigo(proceso_codigo)
         if not proceso:
@@ -328,6 +501,13 @@ def sms_athenas_process():
         metadata: dict[str, Any] = {"formato": tipo_salida}
         if mensajes_personalizados:
             metadata["mensajes_personalizados"] = True
+        if modo_carterizado_itau:
+            metadata["modo_carterizado_itau"] = True
+            metadata["origen_tipo_sms"] = "MASIVIDAD"
+            if descartadas > 0:
+                metadata["filas_descartadas"] = descartadas
+            if seed_count > 0:
+                metadata["seed_rows"] = seed_count
         masividad_id = db_repos.log_masividad(
             mandante_id=mandante.id,
             proceso_id=proceso.id,

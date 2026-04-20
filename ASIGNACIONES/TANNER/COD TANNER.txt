@@ -1,0 +1,182 @@
+# PASO 1: Librerías
+import io
+import pandas as pd
+from google.colab import files
+
+# PASO 2: Subir archivo(s)
+subidos = files.upload()  # puedes subir uno o varios
+
+# PASO 3: Cargar en DataFrame según la extensión
+dfs = {}  # útil si subes más de un archivo
+for nombre, contenido in subidos.items():
+    nombre_lower = nombre.lower()
+    print(f"Leyendo: {nombre}")
+
+    if nombre_lower.endswith((".xlsx", ".xlsm", ".xltx", ".xltm")):
+        # Excel moderno -> usar openpyxl
+        df = pd.read_excel(io.BytesIO(contenido), engine="openpyxl")  # por defecto, primera hoja
+        # Si necesitas una hoja específica: df = pd.read_excel(io.BytesIO(contenido), engine="openpyxl", sheet_name="Hoja1")
+    elif nombre_lower.endswith(".xls"):
+        # Excel antiguo -> usar xlrd
+        df = pd.read_excel(io.BytesIO(contenido), engine="xlrd")
+    elif nombre_lower.endswith((".csv", ".txt")):
+        # CSV/TXT: primero intenta UTF-8 con BOM; si falla, Latin-1 (típico en ES/LA)
+        try:
+            df = pd.read_csv(io.BytesIO(contenido), sep=';', encoding='utf-8-sig', on_bad_lines='skip')
+        except UnicodeDecodeError:
+            df = pd.read_csv(io.BytesIO(contenido), sep=';', encoding='latin-1', on_bad_lines='skip')
+        # Si tu CSV usa coma como separador, puedes cambiar a sep=',' o dejar que lo infiera:
+        # df = pd.read_csv(io.BytesIO(contenido), sep=None, engine='python', encoding='utf-8-sig')
+    else:
+        raise ValueError(f"Extensión no soportada: {nombre}")
+
+    dfs[nombre] = df
+
+# Si solo subiste un archivo, toma ese DataFrame
+df = next(iter(dfs.values()))
+df.head()
+
+cols_a_convertir = ['DIAS_MORA', 'CUOTAS_MOROSAS_ACTUAL', 'SALDO_INSOLUTO_INI', 'VEHICULO_1_ANIO', 'RUT', 'VALOR_CUOTA','MONTO_ADEUDADO', 'TELEFONO_1', 'TELEFONO_2','TELEFONO_3' ]
+
+for col in cols_a_convertir:
+    if col in df.columns:
+        # Convierte a string y elimina SOLO si el .0 está al final
+        df[col] = df[col].astype('string').str.replace(r'\.0$', '', regex=True)
+
+df.head(5)
+
+#PASO 3
+from datetime import datetime
+
+columnas_a_trabajar = ['ID_CREDITO','RUT','DV','RAZON_SOCIAL','TRAMO_INI', 'ESTADO_JUDICIAL','VALOR_CUOTA',
+                       'FECHA_PROX_VCTO','MONTO_ADEUDADO','SALDO_INSOLUTO_INI','VEHICULO_1_PATENTE','VEHICULO_1_MARCA','TRIBUNAL','EMAIL_1','TELEFONO_1','TELEFONO_2','TELEFONO_3', 'CAMPANAS']
+
+columnas_CRM = ['Nro_Documento', 'RUT - DV', 'NOMBRE', 'AD1', 'NombreProducto', 'AD2', 'AD3', 'AD4', 'AD5', 'AD6', 'AD7',
+                'DEUDA TOTAL', 'AD11', 'AD8', 'AD9', 'AD10', 'DIRECCION', 'COMUNA', 'CIUDAD', 'REGION', 'DIRECCION_COMERCIAL', 'COMUNA_COMERCIAL',
+                'CIUDAD_COMERCIAL', 'REGION_COMERCIAL', 'EMAIL1', 'AD13', 'FONO1', 'FONO2', 'FONO3', 'FONO4', 'FONO5', 'FONO6', 'AD14', 'AD15', 'TIPO_DEUDOR', 'TIPO_PRODUCTO 1',
+                'AFINIDAD_1', 'NRO_PRODUCTO 1', 'FECHA_VEN_1', 'COD_SEG_1', 'ID_BANCO_1', 'TIPO_PRODUCTO_2', 'AFINIDAD_2', 'NRO_PRODUCTO_2', 'FECHA_VEN_2', 'COD_SEG_2', 'ID_BANCO_2',
+                'TIPO_PRODUCTO_3', 'AFINIDAD_3', 'NRO_PRODUCTO_3', 'FECHA_VEN_3', 'COD_SEG_3', 'ID_BANCO_3', 'TIPO_PRODUCTO_4', 'AFINIDAD_4', 'NRO_PRODUCTO_4', 'FECHA_VEN_4', 'COD_SEG_4', 'ID_BANCO_4',
+                'TIPO_PRODUCTO_5', 'AFINIDAD_5', 'NRO_PRODUCTO_5', 'FECHA_VEN_5', 'COD_SEG_5', 'ID_BANCO_5', 'PRIMER_NOMBRE', 'SEGUNDO_NOMBRE', 'APE_PATERNO', 'APE_MATERNO', 'EDAD', 'SEXO', 'FECHA_NAC',
+                'NUMERO', 'DEPARTAMENTO', 'POBLACION']
+
+df_crm = pd.DataFrame(columns=columnas_CRM)
+
+df_crm['Nro_Documento'] = df['ID_CREDITO']
+df_crm['RUT - DV'] = df['RUT'].astype(str).str.strip().str.cat(df['DV'].astype(str).str.strip(), sep='-', na_rep=' ')
+df_crm['NOMBRE'] = df['RAZON_SOCIAL']
+
+# ===== TRAMO_INI → NombreProducto (con AD3 normalizado) =====
+tramo_norm = (
+    df['TRAMO_INI']
+      .astype(str)
+      .str.strip()
+      .str.replace(r'[–—−]', '-', regex=True)   # guiones especiales → '-'
+      .str.replace(r'\s+', '', regex=True)      # quita espacios internos
+)
+df_crm['AD3'] = tramo_norm
+
+map_tramo_a_marca = {
+    '1-30': '1-30',
+    '31-60': '31-60',
+    '61-90': 'C4',
+    '91-120': '+90',
+    '121-150': '+90',
+    '151-180': '+90',
+    '181-210': '+90',
+    '211-240': '+90',
+    '241-270': '+90',
+    '271-300': '+90',
+    '301-330': '+90',
+    '331-360': '+90',
+    '361-390': '+90',
+    '366-730': '+90',
+    '731-1095': '+90',
+    '0-365': 'CASTIGO'
+}
+df_crm['NombreProducto'] = tramo_norm.map(map_tramo_a_marca).fillna('SIN MARCA')
+
+# (Opcional) avisar si hay valores no mapeados
+no_mapeados = sorted(set(tramo_norm.unique()) - set(map_tramo_a_marca.keys()))
+if no_mapeados:
+    print("⚠️ Valores de TRAMO_INI sin mapeo:", no_mapeados)
+
+# (Opcional) orden para filtros en Excel
+orden = ['CASTIGO', '1-30', '31-60', 'C4', '+90', 'SIN MARCA']
+df_crm['NombreProducto'] = pd.Categorical(df_crm['NombreProducto'], categories=orden, ordered=True)
+
+
+df_crm['AD3'] = df['TRAMO_INI']
+df_crm['AD4'] = df['ESTADO_JUDICIAL']
+df_crm['AD5'] = df['VALOR_CUOTA']
+df_crm['AD6'] = pd.to_datetime(df['FECHA_PROX_VCTO'], format='%d-%m-%Y', errors='coerce').dt.strftime('%d-%m-%Y')
+df_crm['DEUDA TOTAL'] = df['MONTO_ADEUDADO']
+df_crm['AD11'] = df['SALDO_INSOLUTO_INI']
+df_crm['AD8'] = df['VEHICULO_1_PATENTE']
+df_crm['AD9'] = df['CAMPANAS']
+df_crm['AD10'] = df['TRIBUNAL']
+df_crm['EMAIL1'] = df['EMAIL_1']
+df_crm['FONO1'] = df['TELEFONO_1']
+df_crm['FONO2'] = df['TELEFONO_2']
+df_crm['FONO3'] = df['TELEFONO_3']
+
+
+
+df_crm.head(5)
+
+# Paso 4 - Limpieza segura en TEXTO y FECHAS (NaT -> ' ')
+
+import pandas as pd
+
+df_crm = df_crm.copy()
+
+# 1) Columnas de TEXTO (object, string, category)
+text_cols = df_crm.select_dtypes(include=['object', 'string', 'category']).columns
+
+# A 'string' para evitar errores de categorical y permitir .str
+df_crm[text_cols] = df_crm[text_cols].astype('string')
+
+# Relleno, strip y reemplazos básicos SOLO en texto
+df_crm[text_cols] = df_crm[text_cols].fillna(' ')
+df_crm[text_cols] = df_crm[text_cols].apply(lambda s: s.str.strip())
+
+# Reemplazar cadenas problemáticas por espacio (incluye 'NaT' que a veces llega como texto)
+df_crm[text_cols] = df_crm[text_cols].replace(
+    {
+        '': ' ',
+        '-': ' ',
+        'NaT': ' ',   # cuando NaT quedó como string
+        'nan': ' ',
+        'None': ' ',
+        '<NA>': ' '
+    },
+    regex=False
+)
+
+# 2) Columnas de FECHAS (datetime64 y datetimetz)
+dt_cols = df_crm.select_dtypes(include=['datetime64[ns]', 'datetimetz']).columns
+
+# Formatea a string y deja ' ' donde haya NaT
+for col in dt_cols:
+    # Ajusta el formato si quieres (tu Excel mostraba "YYYY-MM-DD 00:00:00")
+    df_crm[col] = df_crm[col].dt.strftime('%Y-%m-%d %H:%M:%S')
+    df_crm[col] = df_crm[col].fillna(' ')
+
+# 3) Validaciones SOLO en texto y fechas astringeadas
+assert not df_crm[text_cols].isna().any().any(), "Aún hay nulos en columnas de texto."
+assert not df_crm[dt_cols].isna().any().any(), "Aún hay nulos en columnas de fechas."
+
+df_crm.head()
+
+
+# Paso 5 - Guardado de informe en Excel (todo texto)
+from datetime import datetime
+fecha_actual = datetime.now().strftime("%d-%m-%y")
+
+archivo_excel = f"ASIGNACION_TANNER_{fecha_actual}.xlsx"
+
+# Asegurar que todas las celdas se escriben como cadenas
+df_crm = df_crm.applymap(lambda x: str(x))
+# Guardar
+df_crm.to_excel(archivo_excel, index=False)
+# Descargar
+files.download(archivo_excel)

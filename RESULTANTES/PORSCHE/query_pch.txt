@@ -1,0 +1,34 @@
+select  'Phoenix' as 'Nombre de Agencia'
+       --  , LPAD(g.nroDocumento, 8, '0')  as 'Nro Contrato'
+       ,CASE
+        WHEN CHAR_LENGTH(g.nroDocumento) > 8 
+        THEN RIGHT(CAST(g.nroDocumento AS CHAR), 8)
+        ELSE 
+        LPAD(CAST(g.nroDocumento AS CHAR), 8, '0')
+        END AS 'Nro Contrato'
+       , LEFT(COALESCE((SELECT e.nombreCliente FROM cliente e WHERE e.rut = g.rut LIMIT 1), ''), 250) as 'Nombre de Cliente'
+     --  , coalesce((select nombreCliente from cliente e where rut = g.rut limit 1), '')  as 'Nombre de Cliente'
+       , coalesce((select concat(rut,'-',dv) from cliente e where rut = g.rut limit 1), '')  as 'RUT'
+       , coalesce((select tipoDeudor from documento where rut = g.rut and nroDocumento = g.nroDocumento and idCartera = g.idCartera), '') as 'Tramo de mora'
+       , 'Prejudicial' as 'Tipo de Cobranza'
+       , ifnull(date_format(g.fechaInsert, '%d-%m-%Y'), '')  as 'Fecha de Gestion'
+      -- , ifnull(CONCAT('56', t.telefono),g.fono)  as 'Telefono'
+       , ifnull(CONCAT('56', t.telefono),CONCAT('56', g.fono))  as 'Telefono'
+       , td.codigo as 'Codigo de Accion'
+       , td.nombre as 'Descripcion de Accion'
+       , r.codigo as 'Codigo de Resultado'
+       , r.nombre as 'Descripcion de Resultado'
+       , ifnull(date_format(c.fechaCompromiso, '%d-%m-%Y'), '') as 'Fecha de Agendamiento'
+      -- , LEFT(IFNULL(g.observaciones, ''), 255) AS Coment_Ges
+       , g.observaciones as 'Comentario de Gestion'         
+       ,ifnull(DATE_FORMAT(g.fechaInsert, '%H:%i:%s'), '') AS 'Hora de Gestion'
+ from gestion g
+ left join compromiso c on g.idGestion = c.idGestion
+ left join tipogestion tg on g.idTipoGestion = tg.idTipoGestion
+ left join tipodeudor td on g.idTipoDeudor = td.idTipoDeudor
+ left join respuesta r on g.idRespuesta = r.idRespuesta
+ left join telefono t on g.idTelefono = t.idTelefono
+ left join call_log cl on g.callid = cl.caller_code
+where g.idCartera = 528
+and g.idRespuesta not IN ('1')
+and g.fechaInsert BETWEEN '2026-04-15 00:00:00' and '2026-04-15 20:00:00'

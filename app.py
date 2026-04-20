@@ -6,10 +6,15 @@ from flask_cors import CORS
 from routes.sms import sms_bp
 from routes.ivr import ivr_bp
 from routes.gm import gm_bp
+from routes.bit_asignacion import bit_bp
+from routes.tanner_asignacion import tanner_bp
 from routes.sant_hipotecario import sant_hipotecario_bp
+from routes.porsche_asignacion import porsche_bp
 from routes.mail import mail_bp
 from routes.reports import reports_bp
 from routes.resultantes import resultantes_bp
+from routes.crm import crm_bp
+from routes.backoffice import backoffice_bp
 from frontend import FRONTEND_DIST, serve_react_app, ensure_frontend_build
 
 
@@ -20,10 +25,15 @@ def _register_frontend_routes(app: Flask) -> None:
         "/procesos/sms",
         "/procesos/ivr",
         "/procesos/mail",
+        "/procesos/crm",
         "/cargas",
         "/cargas/gm",
+        "/cargas/bit",
+        "/cargas/tanner",
         "/cargas/santander",
+        "/cargas/porsche",
         "/reportes",
+        "/backoffice/catalogos",
     ]
 
     for path in spa_paths:
@@ -60,10 +70,15 @@ def create_app():
     app.register_blueprint(sms_bp)
     app.register_blueprint(ivr_bp)
     app.register_blueprint(gm_bp)
+    app.register_blueprint(bit_bp)
+    app.register_blueprint(tanner_bp)
     app.register_blueprint(sant_hipotecario_bp)
+    app.register_blueprint(porsche_bp)
     app.register_blueprint(mail_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(resultantes_bp)
+    app.register_blueprint(crm_bp)
+    app.register_blueprint(backoffice_bp)
 
     _register_frontend_routes(app)
 

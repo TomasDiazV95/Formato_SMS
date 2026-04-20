@@ -1,8 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import InlineAlert from '../../components/InlineAlert'
 import { mandantes, mailTemplates } from '../../data/constants'
-import { submitMailTemplate, submitMailCrm, downloadMailTemplateSample, downloadMailCrmSample } from '../../api/mail'
+import { submitMailTemplate, downloadMailTemplateSample } from '../../api/mail'
+import { createCrmSession } from '../../api/crm'
+import { fetchProcessHistory } from '../../api/reports'
 import { triggerDownload, assertExcelResponse } from '../../utils/download'
 
 const initialTemplateState = {
@@ -10,24 +12,16 @@ const initialTemplateState = {
   template_code: '',
 }
 
-const initialCrmState = {
-  fecha: '',
-  hora_inicio: '',
-  hora_fin: '',
-  usuario: '',
-  observacion: '',
-}
-
 function MailPage() {
+  const navigate = useNavigate()
   const templateFileRef = useRef(null)
-  const crmFileRef = useRef(null)
 
   const [templateForm, setTemplateForm] = useState(initialTemplateState)
-  const [crmForm, setCrmForm] = useState(initialCrmState)
-  const [intervalo, setIntervalo] = useState('')
   const [status, setStatus] = useState({ type: 'info', message: '' })
+  const [crmSeedFile, setCrmSeedFile] = useState(null)
+  const [historyRows, setHistoryRows] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [loadingTemplate, setLoadingTemplate] = useState(false)
-  const [loadingCrm, setLoadingCrm] = useState(false)
 
   const filteredTemplates = useMemo(() => {
     if (!templateForm.mandante_template) return []
@@ -43,13 +37,8 @@ function MailPage() {
 
   const resetTemplateForm = () => {
     setTemplateForm(initialTemplateState)
+    setCrmSeedFile(null)
     if (templateFileRef.current) templateFileRef.current.value = ''
-  }
-
-  const resetCrmForm = () => {
-    setCrmForm(initialCrmState)
-    setIntervalo('')
-    if (crmFileRef.current) crmFileRef.current.value = ''
   }
 
   const handleTemplateChange = e => {
@@ -61,10 +50,21 @@ function MailPage() {
     setTemplateForm(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleCrmChange = e => {
-    const { name, value } = e.target
-    setCrmForm(prev => ({ ...prev, [name]: value }))
+  const loadHistory = async () => {
+    try {
+      setHistoryLoading(true)
+      const data = await fetchProcessHistory({ proceso: 'mail', limit: 20 })
+      setHistoryRows(Array.isArray(data?.items) ? data.items : [])
+    } catch {
+      setHistoryRows([])
+    } finally {
+      setHistoryLoading(false)
+    }
   }
+
+  useEffect(() => {
+    loadHistory()
+  }, [])
 
   const handleSubmitTemplate = async e => {
     e.preventDefault()
@@ -82,7 +82,8 @@ function MailPage() {
     }
 
     const formData = new FormData()
-    formData.append('file', templateFileRef.current.files[0])
+    const selectedFile = templateFileRef.current.files[0]
+    formData.append('file', selectedFile)
     formData.append('mandante_template', templateForm.mandante_template)
     formData.append('template_code', templateForm.template_code)
 
@@ -93,8 +94,42 @@ function MailPage() {
       const filename = response.headers['content-disposition']?.split('filename=')[1]?.replaceAll('"', '') || 'plantilla_mail.xlsx'
       triggerDownload(response.data, filename)
       updateStatus('success', 'Plantilla generada correctamente.')
+      setCrmSeedFile(selectedFile)
+      loadHistory()
     } catch (error) {
       updateStatus('danger', error?.message || 'Error generando la plantilla.')
+    } finally {
+      setLoadingTemplate(false)
+    }
+  }
+
+  const formatHistoryDate = value => {
+    if (!value) return '-'
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return String(value)
+    return parsed.toLocaleString('es-CL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  const handleContinueCrm = async () => {
+    if (!crmSeedFile) {
+      updateStatus('danger', 'Primero genera una plantilla para continuar en CRM.')
+      return
+    }
+    try {
+      setLoadingTemplate(true)
+      const response = await createCrmSession({ file: crmSeedFile, mode: 'mail', source: 'mail_template' })
+      if (response.status >= 400 || !response.data?.token) {
+        throw new Error(response.data?.message || 'No se pudo crear la sesión de CRM.')
+      }
+      navigate(`/procesos/crm?token=${encodeURIComponent(response.data.token)}&mode=mail`)
+    } catch (error) {
+      updateStatus('danger', error?.message || 'No se pudo abrir CRM unificado.')
     } finally {
       setLoadingTemplate(false)
     }
@@ -116,51 +151,13 @@ function MailPage() {
     }
   }
 
-  const handleCrmSample = async () => {
-    try {
-      const response = await downloadMailCrmSample()
-      await assertExcelResponse(response, 'No se pudo descargar el ejemplo CRM.')
-      const filename = response.headers['content-disposition']?.split('filename=')[1]?.replaceAll('"', '') || 'ejemplo_MAIL_CRM.xlsx'
-      triggerDownload(response.data, filename)
-      updateStatus('success', 'Ejemplo CRM descargado correctamente.')
-    } catch (error) {
-      updateStatus('danger', error?.message || 'No se pudo descargar el ejemplo CRM.')
-    }
-  }
-
-  const handleSubmitCrm = async e => {
-    e.preventDefault()
-    if (!crmFileRef.current?.files?.[0]) {
-      updateStatus('danger', 'Debes adjuntar un Excel para la carga CRM.')
-      return
-    }
-
-    const formData = new FormData()
-    formData.append('file', crmFileRef.current.files[0])
-    Object.entries(crmForm).forEach(([key, value]) => formData.append(key, value))
-    if (intervalo) formData.append('intervalo', intervalo)
-
-    try {
-      setLoadingCrm(true)
-      const response = await submitMailCrm(formData)
-      await assertExcelResponse(response, 'Error generando la carga CRM.')
-      const filename = response.headers['content-disposition']?.split('filename=')[1]?.replaceAll('"', '') || 'carga_MAIL_CRM.xlsx'
-      triggerDownload(response.data, filename)
-      updateStatus('success', 'Carga CRM generada correctamente.')
-    } catch (error) {
-      updateStatus('danger', error?.message || 'Error generando la carga CRM.')
-    } finally {
-      setLoadingCrm(false)
-    }
-  }
-
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 px-4 py-8">
       <div className="mx-auto max-w-5xl space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Proceso Mail</p>
-            <h1 className="text-3xl font-semibold text-slate-900">Plantillas y CRM</h1>
+            <h1 className="text-3xl font-semibold text-slate-900">Plantillas Mail</h1>
             <p className="mt-2 max-w-2xl text-slate-600">La lógica del backend se mantiene intacta; solo modernizamos la interfaz para generar las mismas salidas XLSX.</p>
           </div>
           <Link to="/procesos" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
@@ -228,6 +225,14 @@ function MailPage() {
               <button type="submit" className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500" disabled={loadingTemplate}>
                 {loadingTemplate ? 'Procesando…' : 'Generar plantilla'}
               </button>
+              <button
+                type="button"
+                className="rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={handleContinueCrm}
+                disabled={loadingTemplate || !crmSeedFile}
+              >
+                Continuar en CRM
+              </button>
               <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={resetTemplateForm}>
                 Limpiar campos
               </button>
@@ -248,75 +253,46 @@ function MailPage() {
         </section>
 
         <section className="rounded-3xl bg-white/90 p-6 shadow-sm ring-1 ring-slate-200">
-          <header className="mb-6 space-y-2">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold text-slate-900">Carga Mail CRM</h2>
-                <p className="text-sm text-slate-600">Agenda envíos masivos respetando fecha, horario e intervalo programado.</p>
-              </div>
-              <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">mail/crm</div>
+          <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">Historial de este proceso</h2>
+              <p className="text-sm text-slate-600">Registros recientes generados desde Mail.</p>
             </div>
-            <p className="text-xs text-slate-500">La lógica es la misma de services/mail_service.build_mail_crm_output.</p>
+            <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={loadHistory} disabled={historyLoading}>
+              {historyLoading ? 'Actualizando…' : 'Actualizar'}
+            </button>
           </header>
 
-          <form className="space-y-5" onSubmit={handleSubmitCrm}>
-            <div>
-              <label className="text-sm font-medium text-slate-700">Archivo Excel Base</label>
-              <input ref={crmFileRef} type="file" accept=".xlsx,.xls" className="mt-1 block w-full rounded-2xl border border-dashed border-slate-300 px-4 py-3 text-sm" required />
-              <p className="mt-2 text-xs text-slate-500">Debe incluir al menos columnas RUT, OPERACION y MAIL del cliente (EMAIL/DEST_EMAIL). Los correos de agentes no sirven.</p>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="text-sm font-medium text-slate-700">Fecha de gestión</label>
-                <input type="date" name="fecha" value={crmForm.fecha} onChange={handleCrmChange} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Hora inicio</label>
-                <input type="time" name="hora_inicio" value={crmForm.hora_inicio} onChange={handleCrmChange} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Hora fin</label>
-                <input type="time" name="hora_fin" value={crmForm.hora_fin} onChange={handleCrmChange} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="text-sm font-medium text-slate-700">Usuario CRM</label>
-                <input type="text" name="usuario" value={crmForm.usuario} onChange={handleCrmChange} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Ej: jriveros" required />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Observación</label>
-                <input type="text" name="observacion" value={crmForm.observacion} onChange={handleCrmChange} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Opcional" />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Intervalo (seg)</label>
-                <input type="number" min="1" value={intervalo} onChange={e => setIntervalo(e.target.value)} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Vacío = 5s" />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button type="submit" className="inline-flex items-center rounded-full bg-emerald-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500" disabled={loadingCrm}>
-                {loadingCrm ? 'Procesando…' : 'Generar CRM'}
-              </button>
-              <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={resetCrmForm}>
-                Limpiar campos
-              </button>
-              <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={handleCrmSample}>
-                Descargar ejemplo CRM
-              </button>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-              <p className="font-semibold text-slate-800">Formato de salida</p>
-              <ul className="mt-2 list-disc space-y-1 pl-5">
-                <li>Columnas: RUT, NRO_DOCUMENTO, FECHA_GESTION (YYYY-MM-DD HH:MM:SS), TELEFONO (vacío), OBSERVACION, USUARIO, CORREO.</li>
-                <li>El intervalo funciona igual que en SMS/IVR: por defecto 5s entre registros, o el valor que definas.</li>
-                <li>El archivo se descargará como carga_MAIL_CRM_dd-mm.xlsx.</li>
-              </ul>
-            </div>
-          </form>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] text-sm">
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="px-3 py-2 font-medium">Proceso</th>
+                  <th className="px-3 py-2 font-medium">Mandante</th>
+                  <th className="px-3 py-2 font-medium">Registros</th>
+                  <th className="px-3 py-2 font-medium">Fecha creación</th>
+                  <th className="px-3 py-2 font-medium">Archivo generado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-6 text-center text-slate-500">Aún no hay cargas registradas para Mail.</td>
+                  </tr>
+                ) : (
+                  historyRows.map(item => (
+                    <tr key={item.id} className="border-t border-slate-100">
+                      <td className="px-3 py-2 font-semibold text-slate-900">{item.proceso || '-'}</td>
+                      <td className="px-3 py-2 text-slate-600">{item.mandante || '-'}</td>
+                      <td className="px-3 py-2 text-slate-600">{Number(item.registros || 0).toLocaleString('es-CL')}</td>
+                      <td className="px-3 py-2 text-slate-600">{formatHistoryDate(item.fecha_creacion)}</td>
+                      <td className="px-3 py-2 text-slate-600">{item.archivo || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </main>

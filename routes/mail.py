@@ -1,8 +1,9 @@
 import pandas as pd
 from datetime import datetime
 from flask import Blueprint, request, send_file
+import re
+import unicodedata
 
-from services.mail_service import build_mail_crm_output, sample_mail_crm_output
 from services.mail_templates import MAIL_TEMPLATE_OPTIONS, build_mail_template, sample_mail_template
 from services.mandante_rules import apply_mandante_rules
 from services.constants import MANDANTE_CHOICES
@@ -16,6 +17,21 @@ mail_bp = Blueprint('mail', __name__)
 
 def _mail_error(message: str, status: int = 400):
     return api_error_response(message, 'mail.mail_page', status=status)
+
+
+def _filename_safe(value: str) -> str:
+    text = unicodedata.normalize('NFKD', value or '').encode('ascii', 'ignore').decode('ascii')
+    text = re.sub(r'[^A-Za-z0-9]+', '_', text).strip('_')
+    return text or 'MAIL_TEMPLATE'
+
+
+def _template_output_name(template_code: str, mandante_nombre: str) -> str:
+    template = next((item for item in MAIL_TEMPLATE_OPTIONS if item.code == template_code), None)
+    template_id = str(template.message_id) if template else '00000'
+    template_name = _filename_safe(template.label if template else template_code)
+    mandante_name = _filename_safe(mandante_nombre)
+    fecha_salida = datetime.now().strftime('%d-%m-%Y')
+    return f'{template_id}_{template_name}_{mandante_name}_{fecha_salida}.xlsx'
 
 
 def _build_mail_detalle(df: pd.DataFrame, template_code: str) -> list[dict[str, str | None]]:
@@ -67,7 +83,7 @@ def mail_template_process():
         df = pd.read_excel(file, dtype=str)
         df = apply_mandante_rules(df, mandante_nombre)
         salida = build_mail_template(df, template_code, mandante_nombre)
-        nombre = f'plantilla_{template_code}.xlsx'
+        nombre = _template_output_name(template_code, mandante_nombre)
         buf = df_to_xlsx_bytesio(salida, sheet_name='PlantillaMail')
 
         mandante = db_repos.fetch_mandante_by_nombre(mandante_nombre)
@@ -103,65 +119,6 @@ def mail_template_process():
     except Exception as e:
         return _mail_error(f'Ocurrió un error procesando el archivo: {e}', status=500)
 
-@mail_bp.post('/mail/crm')
-def mail_crm_process():
-    file = request.files.get('file')
-    usuario = (request.form.get('usuario') or '').strip()
-    observacion = (request.form.get('observacion') or '').strip()
-    fecha_str = (request.form.get('fecha') or '').strip()
-    hora_inicio = (request.form.get('hora_inicio') or '').strip()
-    hora_fin = (request.form.get('hora_fin') or '').strip()
-    intervalo_str = (request.form.get('intervalo') or '').strip()
-
-    intervalo = None
-    if intervalo_str:
-        try:
-            intervalo_val = int(intervalo_str)
-            if intervalo_val <= 0:
-                raise ValueError
-            intervalo = intervalo_val
-        except ValueError:
-            return _mail_error('El intervalo debe ser un entero positivo en segundos.')
-
-    if not file or file.filename == '':
-        return _mail_error('Debes subir un archivo Excel.')
-    if not usuario:
-        return _mail_error('Debes ingresar un Usuario.')
-    if not fecha_str or not hora_inicio or not hora_fin:
-        return _mail_error('Debes indicar FECHA DE GESTIÓN y el RANGO HORARIO.')
-
-    try:
-        fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
-    except ValueError:
-        return _mail_error('Formato de fecha inválido (usa AAAA-MM-DD).')
-
-    try:
-        df = pd.read_excel(file, dtype=str)
-        salida = build_mail_crm_output(
-            df=df,
-            fecha=fecha,
-            hora_inicio=hora_inicio,
-            hora_fin=hora_fin,
-            usuario_value=usuario,
-            observacion_value=observacion,
-            intervalo_segundos=intervalo,
-        )
-        fecha_salida = fecha.strftime('%d-%m')
-        buf = df_to_xlsx_bytesio(salida, sheet_name='cargaMailCRM')
-        nombre = f'carga_MAIL_CRM_{fecha_salida}.xlsx'
-
-        return send_file(
-            buf,
-            as_attachment=True,
-            download_name=nombre,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        )
-    except ValueError as e:
-        return _mail_error(str(e))
-    except Exception as e:
-        return _mail_error(f'Ocurrió un error procesando el archivo: {e}', status=500)
-
-
 @mail_bp.get('/mail/sample/template')
 def mail_template_sample():
     template_code = (request.args.get('template_code') or '').strip() or MAIL_TEMPLATE_OPTIONS[0].code
@@ -171,19 +128,6 @@ def mail_template_sample():
         return _mail_error(str(exc))
     nombre = f'ejemplo_MAIL_TEMPLATE_{template_code}.xlsx'
     buf = df_to_xlsx_bytesio(salida, sheet_name='PlantillaMail')
-    return send_file(
-        buf,
-        as_attachment=True,
-        download_name=nombre,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    )
-
-
-@mail_bp.get('/mail/sample/crm')
-def mail_crm_sample():
-    salida = sample_mail_crm_output()
-    nombre = 'ejemplo_MAIL_CRM.xlsx'
-    buf = df_to_xlsx_bytesio(salida, sheet_name='cargaMailCRM')
     return send_file(
         buf,
         as_attachment=True,

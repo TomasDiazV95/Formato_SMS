@@ -1,34 +1,29 @@
-import { useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import InlineAlert from '../../components/InlineAlert'
 import { mandantes } from '../../data/constants'
 import { campo1Options } from '../../data/ivrOptions'
-import { downloadIvrSample, submitIvrAthenas, submitIvrCrm } from '../../api/ivr'
-import { triggerDownload, assertExcelResponse, ZIP_MIME } from '../../utils/download'
+import { downloadIvrSample, fetchIvrCampo1Options, submitIvrAthenas } from '../../api/ivr'
+import { createCrmSession } from '../../api/crm'
+import { fetchProcessHistory } from '../../api/reports'
+import { triggerDownload, assertExcelResponse } from '../../utils/download'
 
 const initialIvrState = {
   mandante: '',
   campo1: '',
 }
 
-const initialCrmState = {
-  fecha: '',
-  hora_inicio: '',
-  hora_fin: '',
-  usuario: '',
-  observacion: '',
-}
-
 function IvrPage() {
+  const navigate = useNavigate()
   const [ivrData, setIvrData] = useState(initialIvrState)
-  const [crmData, setCrmData] = useState(initialCrmState)
-  const [intervaloCrm, setIntervaloCrm] = useState('')
-  const [autoUsuarios, setAutoUsuarios] = useState(false)
   const [status, setStatus] = useState({ type: 'info', message: '' })
+  const [campo1Catalog, setCampo1Catalog] = useState(campo1Options)
+  const [crmSeedFile, setCrmSeedFile] = useState(null)
+  const [historyRows, setHistoryRows] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const ivrFileRef = useRef(null)
-  const crmFileRef = useRef(null)
 
   const updateStatus = (type, message) => {
     setStatus({ type, message })
@@ -42,10 +37,35 @@ function IvrPage() {
     setIvrData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleCrmChange = e => {
-    const { name, value } = e.target
-    setCrmData(prev => ({ ...prev, [name]: value }))
+  const loadHistory = async () => {
+    try {
+      setHistoryLoading(true)
+      const data = await fetchProcessHistory({ proceso: 'ivr', limit: 20 })
+      setHistoryRows(Array.isArray(data?.items) ? data.items : [])
+    } catch {
+      setHistoryRows([])
+    } finally {
+      setHistoryLoading(false)
+    }
   }
+
+  useEffect(() => {
+    loadHistory()
+  }, [])
+
+  useEffect(() => {
+    const loadCampo1 = async () => {
+      try {
+        const items = await fetchIvrCampo1Options()
+        if (items.length > 0) {
+          setCampo1Catalog(items)
+        }
+      } catch {
+        setCampo1Catalog(campo1Options)
+      }
+    }
+    loadCampo1()
+  }, [])
 
   const handleSample = async () => {
     try {
@@ -63,7 +83,8 @@ function IvrPage() {
       return
     }
     const formData = new FormData()
-    formData.append('file', ivrFileRef.current.files[0])
+    const selectedFile = ivrFileRef.current.files[0]
+    formData.append('file', selectedFile)
     formData.append('mandante', ivrData.mandante)
     formData.append('campo1', ivrData.campo1)
     try {
@@ -73,6 +94,8 @@ function IvrPage() {
       const filename = response.headers['content-disposition']?.split('filename=')[1]?.replaceAll('"', '') || 'carga_IVR.xlsx'
       triggerDownload(response.data, filename)
       updateStatus('success', 'Carga IVR generada correctamente.')
+      setCrmSeedFile(selectedFile)
+      loadHistory()
     } catch (err) {
       const message = err?.message || err?.response?.data || 'Error generando la carga IVR.'
       updateStatus('danger', message)
@@ -81,27 +104,33 @@ function IvrPage() {
     }
   }
 
-  const handleSubmitCrm = async e => {
-    e.preventDefault()
-    if (!crmFileRef.current?.files?.[0]) {
-      updateStatus('danger', 'Debes adjuntar un archivo para la carga CRM.')
+  const formatHistoryDate = value => {
+    if (!value) return '-'
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return String(value)
+    return parsed.toLocaleString('es-CL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  const handleContinueCrm = async () => {
+    if (!crmSeedFile) {
+      updateStatus('danger', 'Primero genera una carga IVR para continuar en CRM.')
       return
     }
-    const formData = new FormData()
-    formData.append('file', crmFileRef.current.files[0])
-    Object.entries(crmData).forEach(([key, value]) => formData.append(key, value))
-    if (intervaloCrm) formData.append('intervalo', intervaloCrm)
-    if (autoUsuarios) formData.append('usar_usuarios_archivo', 'on')
     try {
       setLoading(true)
-      const response = await submitIvrCrm(formData)
-      await assertExcelResponse(response, 'Error generando la carga CRM.', autoUsuarios ? [ZIP_MIME] : [])
-      const filename = response.headers['content-disposition']?.split('filename=')[1]?.replaceAll('"', '') || 'carga_IVR_CRM.xlsx'
-      triggerDownload(response.data, filename)
-      updateStatus('success', 'Carga CRM generada correctamente.')
+      const response = await createCrmSession({ file: crmSeedFile, mode: 'sms_ivr', source: 'ivr' })
+      if (response.status >= 400 || !response.data?.token) {
+        throw new Error(response.data?.message || 'No se pudo crear la sesión CRM.')
+      }
+      navigate(`/procesos/crm?token=${encodeURIComponent(response.data.token)}&mode=sms_ivr`)
     } catch (err) {
-      const message = err?.message || err?.response?.data || 'Error generando la carga CRM.'
-      updateStatus('danger', message)
+      updateStatus('danger', err?.message || 'No se pudo abrir CRM unificado.')
     } finally {
       setLoading(false)
     }
@@ -113,7 +142,7 @@ function IvrPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Proceso IVR</p>
-            <h1 className="text-3xl font-semibold text-slate-900">Cargas IVR Athenas / CRM</h1>
+            <h1 className="text-3xl font-semibold text-slate-900">Cargas IVR Athenas</h1>
             <p className="mt-2 max-w-2xl text-slate-600">Sube la base y selecciona el CAMPO1 que corresponde a cada mandante.</p>
           </div>
           <Link to="/procesos" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
@@ -147,7 +176,7 @@ function IvrPage() {
                 <label className="text-sm font-medium text-slate-700">CAMPO1</label>
                 <select name="campo1" value={ivrData.campo1} onChange={handleIvrChange} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required>
                   <option value="">Seleccione CAMPO1</option>
-                  {campo1Options.map(opt => (
+                  {campo1Catalog.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
@@ -158,8 +187,17 @@ function IvrPage() {
               <button className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500" type="submit" disabled={loading}>
                 {loading ? 'Procesando…' : 'Generar archivo'}
               </button>
+              <button
+                type="button"
+                className="rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={handleContinueCrm}
+                disabled={loading || !crmSeedFile}
+              >
+                Continuar en CRM
+              </button>
               <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={() => {
                 setIvrData(initialIvrState)
+                setCrmSeedFile(null)
                 if (ivrFileRef.current) ivrFileRef.current.value = ''
               }}>
                 Limpiar campos
@@ -172,85 +210,46 @@ function IvrPage() {
         </section>
 
         <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <header className="mb-6">
-            <h2 className="text-xl font-semibold text-slate-900">Carga IVR CRM</h2>
-            <p className="text-sm text-slate-600">Define fechas, horarios e intervalo; el backend seguirá distribuyendo cada registro.</p>
-          </header>
-          <form className="space-y-4" onSubmit={handleSubmitCrm}>
+          <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <label className="text-sm font-medium text-slate-700">Archivo Excel Base</label>
-              <input ref={crmFileRef} type="file" accept=".xlsx,.xls" className="mt-1 block w-full rounded-2xl border border-dashed border-slate-300 px-4 py-3 text-sm" required />
+              <h2 className="text-xl font-semibold text-slate-900">Historial de este proceso</h2>
+              <p className="text-sm text-slate-600">Registros recientes generados desde IVR.</p>
             </div>
+            <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={loadHistory} disabled={historyLoading}>
+              {historyLoading ? 'Actualizando…' : 'Actualizar'}
+            </button>
+          </header>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="text-sm font-medium text-slate-700">Fecha de gestión</label>
-                <input type="date" name="fecha" value={crmData.fecha} onChange={handleCrmChange} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Hora inicio</label>
-                <input type="time" name="hora_inicio" value={crmData.hora_inicio} onChange={handleCrmChange} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Hora fin</label>
-                <input type="time" name="hora_fin" value={crmData.hora_fin} onChange={handleCrmChange} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="text-sm font-medium text-slate-700">Usuario</label>
-                <input
-                  type="text"
-                  name="usuario"
-                  value={crmData.usuario}
-                  onChange={handleCrmChange}
-                  className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm disabled:bg-slate-50"
-                  required={!autoUsuarios}
-                  disabled={autoUsuarios}
-                  placeholder={autoUsuarios ? 'Se tomará desde el Excel' : 'Ej: jriveros'}
-                />
-                <label className="mt-2 flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 px-3 py-2 text-sm text-slate-600">
-                  <input
-                    type="checkbox"
-                    className="h-5 w-5 rounded border-slate-300"
-                    checked={autoUsuarios}
-                    onChange={e => setAutoUsuarios(e.target.checked)}
-                  />
-                  <span>Múltiples Usuarios</span>
-                </label>
-                {autoUsuarios && (
-                  <p className="mt-1 text-xs text-slate-500">Incluye una columna USUARIO_CRM/USUARIO/AGENTE en el Excel para dividir las cargas y descargar un ZIP con un archivo por usuario.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] text-sm">
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="px-3 py-2 font-medium">Proceso</th>
+                  <th className="px-3 py-2 font-medium">Mandante</th>
+                  <th className="px-3 py-2 font-medium">Registros</th>
+                  <th className="px-3 py-2 font-medium">Fecha creación</th>
+                  <th className="px-3 py-2 font-medium">Archivo generado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-6 text-center text-slate-500">Aún no hay cargas registradas para IVR.</td>
+                  </tr>
+                ) : (
+                  historyRows.map(item => (
+                    <tr key={item.id} className="border-t border-slate-100">
+                      <td className="px-3 py-2 font-semibold text-slate-900">{item.proceso || '-'}</td>
+                      <td className="px-3 py-2 text-slate-600">{item.mandante || '-'}</td>
+                      <td className="px-3 py-2 text-slate-600">{Number(item.registros || 0).toLocaleString('es-CL')}</td>
+                      <td className="px-3 py-2 text-slate-600">{formatHistoryDate(item.fecha_creacion)}</td>
+                      <td className="px-3 py-2 text-slate-600">{item.archivo || '-'}</td>
+                    </tr>
+                  ))
                 )}
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Observación</label>
-                <input type="text" name="observacion" value={crmData.observacion} onChange={handleCrmChange} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Ej: IVR" />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700">Intervalo (seg)</label>
-                <input type="number" min="1" value={intervaloCrm} onChange={e => setIntervaloCrm(e.target.value)} className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" placeholder="Opcional" />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500" type="submit" disabled={loading}>
-                {loading ? 'Procesando…' : 'Generar CRM'}
-              </button>
-              <button
-                type="button"
-                className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600"
-                onClick={() => {
-                  setCrmData(initialCrmState)
-                  setIntervaloCrm('')
-                  setAutoUsuarios(false)
-                  if (crmFileRef.current) crmFileRef.current.value = ''
-                }}
-              >
-                Limpiar campos
-              </button>
-            </div>
-          </form>
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </main>

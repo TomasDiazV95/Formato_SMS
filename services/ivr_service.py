@@ -3,21 +3,11 @@ import pandas as pd
 from datetime import datetime, timedelta, date, time
 from typing import cast
 import io
+from services import campo1_catalog
 
-# Opciones para el select del front
-CAMPO1_CHOICES = [
-    ("ITAÚ VENCIDA",                  "PHOENIXIVRITAUVENCIDA"),
-    ("ITAÚ CASTIGO",                  "PHOENIXIVRITAUCASTIGO"),
-    ("CAJA 18",                       "PHOENIXIVRCAJA18_3"),
-    ("BANCO INTERNACIONAL",           "PHOENIX_BINTERNACIONAL"),
-    ("SANTANDER HIPOTECARIO",         "PHOENIXIVRSANTANDERHIPO"),
-    ("SANTANDER CONSUMER TERRENO",    "PHOENIXSC_ICOMERCIAL"),
-    ("SANTANDER CONSUMER TELEFONÍA",  "PHOENIXSC_ICOMERCIAL"),
-    ("SANTANDER CONSUMER JUDICIAL",   "PHOENIXSC_ICOMERCIAL"),
-    ("GENERAL MOTORS",                "PHOENIXGMPREJUDICIAL"),
-    ("LA ARAUCANA",                   "PHOENIXIVRARAUCANA"),
-    ("TANNER",                        "PHOENIXTANNER_IVR"),
-]
+
+def get_campo1_choices() -> list[tuple[str, str]]:
+    return campo1_catalog.list_choices(active_only=True)
 
 SEED_PHONE_IVR = "976900353"
 
