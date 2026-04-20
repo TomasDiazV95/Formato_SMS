@@ -1,0 +1,10 @@
+Progreso (16-04-2026)
+=====================
+
+- CRM unificado: se completo la integracion backend/frontend del modulo `/procesos/crm` con modo `sms_ivr` y `mail`.
+- CRM unificado: se habilito sesion por token (`/crm/session`) para continuar desde SMS, IVR y Mail sin volver a subir archivo.
+- CRM unificado: se dejo flujo manual alternativo para subir archivo directo cuando no existe token.
+- Procesos SMS, IVR y Mail: se agrego boton `Continuar en CRM` despues de generar salida.
+- Se removieron formularios CRM legacy en SMS/IVR/Mail y se centralizo la carga CRM en un unico modulo.
+- Se retiraron endpoints legacy asociados (`/sms/crm`, `/ivr_crm/process`, `/mail/crm`, `/mail/sample/crm`) para evitar duplicidad de flujos.
+- Validacion tecnica: compilacion Python y build React correctos tras la centralizacion.

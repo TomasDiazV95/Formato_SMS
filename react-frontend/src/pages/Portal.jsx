@@ -5,6 +5,7 @@ const cards = [
   { title: 'Cargas', description: 'Módulos GM y Santander', to: '/cargas', icon: '📦' },
   { title: 'Reportes', description: 'Consolidados y filtros por mandante', to: '/reportes', icon: '📊' },
   { title: 'Resultantes', description: 'Gestiones por fecha y mandante', to: '/resultantes', icon: '🧾' },
+  { title: 'Backoffice', description: 'Catalogos y parametros base', to: '/backoffice/catalogos', icon: '🗂️' },
 ]
 
 function Portal() {
@@ -17,7 +18,7 @@ function Portal() {
           <p className="mt-3 text-slate-600">Selecciona la sección que necesitas. Todos los procesos siguen conectados al backend actual.</p>
         </header>
 
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
           {cards.map(card => (
             <Link
               key={card.title}

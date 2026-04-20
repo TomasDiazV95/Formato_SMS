@@ -18,3 +18,17 @@ Avance actual (15-04-2026)
 - Se adapto la query SQL de Tanner usando el contenido entregado (gestion + discador con UNION ALL), filtrando por cartera y rango de fechas.
 - Conexion externa configurada y probada contra base asterisk (host 200.39.137.217:3306, usuario skalajcic).
 - Pruebas realizadas: conexion OK, query Tanner OK (122 filas para 2026-01-07), build frontend OK y compilacion Python OK.
+
+Avance adicional (15-04-2026 - tarde)
+--------------------------------------
+
+- SMS Itau Vencida: se cambio la logica para leer tipo de gestion desde columna MASIVIDAD (SMS MOROSIDAD / SMS COMPROMISO DE PAGO / SMS COMPROMISO ROTO), sin selector manual por formulario.
+- SMS Itau Vencida: el mensaje final ahora se arma por fila usando plantilla segun MASIVIDAD y telefono del ejecutivo segun CARTERIZADO (lookup en ejecutivos_phoenix/alias con tolerancia de nombres).
+- SMS Itau Vencida: se integro semilla automatica desde archivo SMS_ITAU_VENCIDA/SEMILLA ITAU VENCIDA.txt y se reemplazo en este modo cualquier semilla hardcodeada anterior.
+- SMS Itau Vencida: filas no validas (ej. MASIVIDAD distinta de SMS o carterizado sin telefono) se descartan sin detener todo el proceso; se registra metadata de descartadas/semillas cuando aplica.
+- Se genero script de carga para ejecutivos Itau Vencida: inserts_ejecutivos_itau_vencida.sql (upsert + alias recomendados).
+- Mail Itau Vencida: nueva plantilla ITAU_VENCIDA_MAIL (message_id 84824) incorporada en backend y frontend.
+- Mail Itau Vencida: procesamiento de base con encabezado desplazado, filtro MASIVIDAD=EMAIL, mapeo de columnas origen y construccion de layout final segun plantilla entregada.
+- Mail Itau Vencida: semillas amarillas se cargan automaticamente desde PLANTILLAS MAIL/ITAU VENCIDA/84824 ITAU VENCIDA MAIL/MAIL_VENCIDA_20260413.xlsx y se anteponen al archivo final.
+- Mail Itau Vencida: MES_CURSO y ANO_CURSO quedaron dinamicos segun fecha actual; campos fijos y orden de columnas se respetan como layout oficial.
+- Validaciones finales: build frontend OK y compilacion Python OK en modulos tocados (SMS/Mail).

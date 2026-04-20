@@ -1,0 +1,94 @@
+# Paso 1 - Librerías
+import io
+import chardet
+import pandas as pd
+import datetime
+from google.colab import files
+import numpy as np
+
+# Carga Archivo
+archivo = files.upload()
+nombre_archivo = list(archivo.keys())[0]
+
+# Detectar codificación del archivo
+with open(nombre_archivo, 'rb') as f:
+    result = chardet.detect(f.read())
+encoding = result['encoding']
+
+# Leer el CSV con delimitador ';' **sin** convertir vacíos a NaN y **todo** en texto
+df = pd.read_csv(
+    nombre_archivo,
+    encoding=encoding,
+    sep=';',
+    dtype=str,                 # <- fuerza texto
+    keep_default_na=False,     # <- evita que '' sea NaN
+    na_filter=False,           # <- no filtra NA en lectura
+    on_bad_lines='skip'
+)
+
+df.head(5)
+
+
+cols_a_convertir = ['RUT']
+
+for col in cols_a_convertir:
+    if col in df.columns:
+        df[col] = df[col].str.replace('.0', '', regex=False)
+
+df.head(5)
+
+
+# Paso 3 - Construcción de df_crm en texto, respetando el origen
+columnas_a_trabajar = [
+    'RUT','DV','PORC_DCTO_PUT','PORC_DCTO_AP','PORC_ABONO_EXIGIDO_RENE',
+    'PORC_ABONO_EXIGIDO_AP','FECHA_TOPE_OFERTA','CAMPANA','DSCTO_GTOS_COBRANZAS','MTO_TRANSFERIR'
+]
+
+columnas_CRM = [
+    'rut','PORC_DCTO_PUT','PORC_DCTO_AP','PORC_ABONO_EXIGIDO_RENE',
+    'PORC_ABONO_EXIGIDO_AP','FECHA_TOPE_OFERTA','Campana','DSCTO_GTOS_COBRANZAS','MTO_TRANSFERIR'
+]
+
+df_crm = pd.DataFrame(columns=columnas_CRM)
+
+df_crm['rut'] = df['RUT'].str.strip() + '-' + df['DV'].str.strip()
+
+df_crm['PORC_DCTO_PUT']           = df['PORC_DCTO_PUT']
+df_crm['PORC_DCTO_AP']            = df['PORC_DCTO_AP']
+df_crm['PORC_ABONO_EXIGIDO_RENE'] = df['PORC_ABONO_EXIGIDO_RENE']
+df_crm['PORC_ABONO_EXIGIDO_AP']   = df['PORC_ABONO_EXIGIDO_AP']
+df_crm['FECHA_TOPE_OFERTA']       = df['FECHA_TOPE_OFERTA']
+df_crm['Campana']                 = df['CAMPANA']
+df_crm['DSCTO_GTOS_COBRANZAS']    = df['DSCTO_GTOS_COBRANZAS']
+df_crm['MTO_TRANSFERIR']          = df['MTO_TRANSFERIR']
+
+df_crm.head(5)
+
+
+# Paso 4 - Limpieza en modo texto
+df_crm = df_crm.apply(lambda s: s.str.strip())
+
+df_crm = df_crm.replace('', ' ')
+df_crm = df_crm.replace('-', ' ')
+
+
+#cols = ['col_nan_8', 'col_nan_9']
+#df_crm[cols] = df_crm[cols].fillna('')  # o ' ' si prefieres espacio
+
+
+assert not df_crm.isna().any().any(), "Aún hay celdas nulas (NaN/None)."
+assert not (df_crm == '').any().any(), "Aún hay celdas vacías ('')."
+
+
+# Paso 5 - Guardado de informe en Excel (todo texto)
+from datetime import datetime
+fecha_actual = datetime.now().strftime("%d-%m-%y")
+
+archivo_excel = f"Info_adi_{fecha_actual}.xlsx"
+
+# Asegurar que todas las celdas se escriben como cadenas
+df_crm = df_crm.applymap(lambda x: str(x))
+# Guardar
+df_crm.to_excel(archivo_excel, index=False)
+# Descargar
+files.download(archivo_excel)

@@ -1,0 +1,68 @@
+[
+  {
+    "id": 1,
+    "label": "ITAU VENCIDA",
+    "value": "PHOENIXIVRITAUVENCIDA",
+    "active": true
+  },
+  {
+    "id": 2,
+    "label": "ITAU CASTIGO",
+    "value": "PHOENIXIVRITAUCASTIGO",
+    "active": true
+  },
+  {
+    "id": 3,
+    "label": "CAJA 18",
+    "value": "PHOENIXIVRCAJA18_3",
+    "active": true
+  },
+  {
+    "id": 4,
+    "label": "BANCO INTERNACIONAL",
+    "value": "PHOENIX_BINTERNACIONAL",
+    "active": true
+  },
+  {
+    "id": 5,
+    "label": "SANTANDER HIPOTECARIO",
+    "value": "PHOENIXIVRSANTANDERHIPO",
+    "active": true
+  },
+  {
+    "id": 6,
+    "label": "SANTANDER CONSUMER TERRENO",
+    "value": "PHOENIXSC_ICOMERCIAL",
+    "active": true
+  },
+  {
+    "id": 7,
+    "label": "SANTANDER CONSUMER TELEFONIA",
+    "value": "PHOENIXSC_ICOMERCIAL",
+    "active": true
+  },
+  {
+    "id": 8,
+    "label": "SANTANDER CONSUMER JUDICIAL",
+    "value": "PHOENIXSC_ICOMERCIAL",
+    "active": true
+  },
+  {
+    "id": 9,
+    "label": "GENERAL MOTORS",
+    "value": "PHOENIXGMPREJUDICIAL",
+    "active": true
+  },
+  {
+    "id": 10,
+    "label": "LA ARAUCANA",
+    "value": "PHOENIXIVRARAUCANA",
+    "active": true
+  },
+  {
+    "id": 11,
+    "label": "TANNER",
+    "value": "PHOENIXTANNER_IVR",
+    "active": true
+  }
+]
