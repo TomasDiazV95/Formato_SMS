@@ -3,18 +3,20 @@ import os
 from flask import Flask, abort, send_from_directory
 from flask_cors import CORS
 
-from routes.sms import sms_bp
-from routes.ivr import ivr_bp
-from routes.gm import gm_bp
-from routes.bit_asignacion import bit_bp
-from routes.tanner_asignacion import tanner_bp
-from routes.sant_hipotecario import sant_hipotecario_bp
-from routes.santander_consumer import santander_consumer_bp
-from routes.mail import mail_bp
-from routes.reports import reports_bp
-from routes.resultantes import resultantes_bp
-from routes.crm import crm_bp
-from routes.backoffice import backoffice_bp
+from modules import (
+    backoffice_bp,
+    bit_bp,
+    crm_bp,
+    gm_bp,
+    ivr_bp,
+    mail_bp,
+    reports_bp,
+    resultantes_bp,
+    sant_hipotecario_bp,
+    santander_consumer_bp,
+    sms_bp,
+    tanner_bp,
+)
 from frontend import FRONTEND_DIST, serve_react_app, ensure_frontend_build
 
 #caca
