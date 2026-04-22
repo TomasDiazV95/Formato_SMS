@@ -1,3 +1,3 @@
-from routes.tanner_asignacion import tanner_bp
+from modules.cargas.tanner.routes import tanner_bp
 
 __all__ = ["tanner_bp"]
