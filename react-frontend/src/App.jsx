@@ -13,6 +13,7 @@ import SantanderPage from './pages/cargas/SantanderPage'
 import PorschePage from './pages/cargas/PorschePage'
 import BitPage from './pages/cargas/BitPage'
 import TannerPage from './pages/cargas/TannerPage'
+import BackofficeCatalogos from './pages/BackofficeCatalogos'
 
 function App() {
   return (
