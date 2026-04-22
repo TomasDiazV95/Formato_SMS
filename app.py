@@ -17,7 +17,7 @@ from routes.crm import crm_bp
 from routes.backoffice import backoffice_bp
 from frontend import FRONTEND_DIST, serve_react_app, ensure_frontend_build
 
-
+#caca
 def _register_frontend_routes(app: Flask) -> None:
     spa_paths = [
         "/",
