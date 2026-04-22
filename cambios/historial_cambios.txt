@@ -88,3 +88,24 @@ Cambios realizados por Felipe entre el viernes 20 y el miércoles 25 de marzo de
 5. Utilidades
    - Conexión a MySQL (`utils/db.py`) lee el `.env` automáticamente; se añadió `services/db_repos.py` con fetchers/repositorios y registro de masividades.
    - `services/mail_templates.py` centraliza la lógica de plantillas y normaliza encabezados (RUT, DV, teléfono, etc.).
+
+## Miercoles 22 de abril 2026
+
+Cambios realizados para cierre de arquitectura modular
+======================================================
+
+1. Migracion modular por dominios (backend)
+   - Se movio la logica operativa a `modules/` por dominio: procesos, cargas, reportes, resultantes y backoffice.
+   - Se completo la migracion de Santander Consumer a `modules/procesos/santander_consumer/routes.py`.
+
+2. Migracion modular por dominios (frontend)
+   - Se movio la logica de vistas a `react-frontend/src/modules/` por dominio.
+   - Home y Procesos quedaron como codigo real en `modules/home` y `modules/procesos`.
+
+3. Limpieza final de legacy wrappers
+   - Se removieron wrappers legacy de backend (`routes/*.py`).
+   - Se removieron wrappers legacy de frontend (`react-frontend/src/pages/**`).
+
+4. Validacion tecnica
+   - Build frontend OK con `npm run build`.
+   - Verificacion de carga backend OK con `py -c "import app"`.
