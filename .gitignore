@@ -1,0 +1,16 @@
+# Python cache / compiled artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs and temporary caches
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Frontend generated artifacts
+react-frontend/node_modules/
+react-frontend/dist/
+react-frontend/.vite/

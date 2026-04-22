@@ -21,6 +21,27 @@ URL principal:
 
 - `http://localhost:5013`
 
+## 1.1) Mapa rapido de codigo (arquitectura modular)
+
+Backend:
+
+- `modules/procesos/` -> SMS, IVR, Mail, CRM, Santander Consumer.
+- `modules/cargas/` -> GM, BIT, Tanner, Porsche, Santander Hipotecario.
+- `modules/reportes/`, `modules/resultantes/`, `modules/backoffice/`.
+
+Frontend:
+
+- `react-frontend/src/modules/procesos/`
+- `react-frontend/src/modules/cargas/`
+- `react-frontend/src/modules/reportes/`
+- `react-frontend/src/modules/resultantes/`
+- `react-frontend/src/modules/backoffice/`
+- `react-frontend/src/modules/home/`
+
+Nota:
+
+- La estructura legacy de `routes/` y `react-frontend/src/pages/` fue retirada en la limpieza final.
+
 ## 2) Checklist pre-operacion
 
 - Validar que exista `react-frontend/dist/index.html`.
@@ -63,6 +84,7 @@ URL principal:
 2. Ejecutar lint/build frontend.
 3. Probar flujo minimo: SMS -> CRM, IVR -> CRM, Mail -> CRM, Reportes.
 4. Registrar avances en `cambios/` usando la plantilla semanal.
+5. Si se mueve codigo de modulo, validar imports cruzados y ejecutar build/import check antes de commit.
 
 ## 6) Flujo minimo de validacion funcional
 
