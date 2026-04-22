@@ -1,3 +1,3 @@
-from routes.backoffice import backoffice_bp
+from modules.backoffice.routes import backoffice_bp
 
 __all__ = ["backoffice_bp"]
