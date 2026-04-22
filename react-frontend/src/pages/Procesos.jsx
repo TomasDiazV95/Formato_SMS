@@ -4,6 +4,7 @@ const procesos = [
   { title: 'SMS', description: 'Masividades Athenas/AXIA + CRM', to: '/procesos/sms', icon: '📩', disabled: false },
   { title: 'IVR', description: 'Cargas Athenas y CRM', to: '/procesos/ivr', icon: '📞', disabled: false },
   { title: 'Mail', description: 'Plantillas y carga CRM', to: '/procesos/mail', icon: '✉️', disabled: false },
+  { title: 'CRM (Formulario 2)', description: 'Creacion de archivo final CRM', to: '/procesos/crm', icon: '🧩', disabled: false },
   { title: 'Santander Consumer', description: 'Terreno desde BD (tmp_bench_STC)', to: '/procesos/santander-consumer', icon: '🏦', disabled: false },
 ]
 
@@ -15,12 +16,12 @@ function Procesos() {
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Procesos</p>
             <h1 className="text-3xl font-semibold text-slate-900">Generadores disponibles</h1>
-            <p className="mt-2 text-slate-600">SMS, IVR y Mail ya corren en React reutilizando los mismos endpoints Flask.</p>
+            <p className="mt-2 text-slate-600">SMS, IVR, Mail y CRM (Formulario 2) ya corren en React reutilizando los mismos endpoints Flask.</p>
           </div>
           <Link to="/" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
           {procesos.map(proc => (
             proc.disabled ? (
               <div key={proc.title} className="rounded-3xl bg-white p-6 opacity-50 ring-1 ring-slate-200">
