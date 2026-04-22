@@ -25,6 +25,7 @@ def _register_frontend_routes(app: Flask) -> None:
         "/procesos/sms",
         "/procesos/ivr",
         "/procesos/mail",
+        "/procesos/crm",
         "/procesos/santander-consumer",
         "/cargas",
         "/cargas/gm",
