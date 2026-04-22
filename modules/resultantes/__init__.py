@@ -1,3 +1,3 @@
-from routes.resultantes import resultantes_bp
+from modules.resultantes.routes import resultantes_bp
 
 __all__ = ["resultantes_bp"]
