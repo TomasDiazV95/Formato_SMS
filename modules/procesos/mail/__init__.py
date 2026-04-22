@@ -1,3 +1,3 @@
-from routes.mail import mail_bp
+from modules.procesos.mail.routes import mail_bp
 
 __all__ = ["mail_bp"]
