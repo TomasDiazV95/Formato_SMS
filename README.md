@@ -25,9 +25,9 @@ Se agrego una capa de organizacion por dominios para ubicar rapido cada modulo s
 
 `react-frontend/src/App.jsx` usa imports desde `src/modules/` para centralizar navegacion por dominio.
 
-## Nota de compatibilidad
+## Estado de migracion
 
-Las rutas y servicios existentes se mantienen operativos. Esta reorganizacion es una fase segura para mejorar ubicacion de codigo y mantenimiento.
+La limpieza final ya se aplico: las rutas legacy/wrappers fueron retiradas y el flujo operativo queda centralizado en `modules/` (backend) y `react-frontend/src/modules/` (frontend).
 
 ## Santander Consumer (SQL Server)
 
