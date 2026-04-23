@@ -17,7 +17,7 @@ from modules import (
     sms_bp,
     tanner_bp,
 )
-from frontend import FRONTEND_DIST, serve_react_app, ensure_frontend_build
+from frontend import FRONTEND_DIST, FRONTEND_PUBLIC, serve_react_app, ensure_frontend_build
 
 #caca
 def _register_frontend_routes(app: Flask) -> None:
@@ -52,11 +52,13 @@ def _register_frontend_routes(app: Flask) -> None:
 
     @app.route("/favicon.svg")
     def serve_frontend_favicon():
-        return send_from_directory(FRONTEND_DIST, "favicon.svg")
+        source_dir = FRONTEND_DIST if (FRONTEND_DIST / "favicon.svg").exists() else FRONTEND_PUBLIC
+        return send_from_directory(source_dir, "favicon.svg")
 
     @app.route("/icons.svg")
     def serve_frontend_icons():
-        return send_from_directory(FRONTEND_DIST, "icons.svg")
+        source_dir = FRONTEND_DIST if (FRONTEND_DIST / "icons.svg").exists() else FRONTEND_PUBLIC
+        return send_from_directory(source_dir, "icons.svg")
 
 
 def create_app():
