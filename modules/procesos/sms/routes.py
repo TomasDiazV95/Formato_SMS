@@ -22,6 +22,8 @@ from utils import api_error_response
 from frontend import serve_react_app
 
 sms_bp = Blueprint("sms", __name__)
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+ITAU_SMS_DIR = PROJECT_ROOT / "SMS_ITAU_VENCIDA"
 
 
 def _sms_error(message: str, status: int = 400):
@@ -134,8 +136,7 @@ def _load_itau_sms_template(tipo_sms: str) -> str:
     filename = ITAU_SMS_TEMPLATE_FILES.get((tipo_sms or "").strip().upper())
     if not filename:
         raise ValueError("Tipo de SMS Itaú no soportado.")
-    base_dir = Path(__file__).resolve().parent.parent / "SMS_ITAU_VENCIDA"
-    file_path = base_dir / filename
+    file_path = ITAU_SMS_DIR / filename
     if not file_path.exists():
         raise ValueError(f"No se encontró la plantilla Itaú: {filename}")
     text = file_path.read_text(encoding="utf-8").strip()
@@ -295,7 +296,7 @@ def _seed_type_from_message(message: str) -> str | None:
 
 
 def _load_itau_seed_rows() -> list[dict[str, str]]:
-    seed_path = Path(__file__).resolve().parent.parent / "SMS_ITAU_VENCIDA" / ITAU_SEED_FILE
+    seed_path = ITAU_SMS_DIR / ITAU_SEED_FILE
     if not seed_path.exists():
         return []
 
