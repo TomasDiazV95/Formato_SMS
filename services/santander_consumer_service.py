@@ -220,7 +220,48 @@ def _resolve_template(template_key: str) -> SantanderConsumerTemplate:
     return template
 
 
-def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: str) -> pd.DataFrame:
+SUPERVISOR_REGIONES = {
+    "name_from": "Maricel Galvez",
+    "mail_from": "mgalvez@info.phoenixserviceinfo.cl",
+    "CORREO": "mgalvez@phoenixservice.cl",
+    "CELULAR": "967581695",
+}
+
+SUPERVISOR_RM = {
+    "name_from": "Juan Pablo Rios",
+    "mail_from": "jrios@info.phoenixserviceinfo.cl",
+    "CORREO": "jrios@phoenixservice.cl",
+    "CELULAR": "972194298",
+}
+
+
+def _apply_supervisor_override(df: pd.DataFrame, asignacion_mode: str) -> pd.DataFrame:
+    mode = (asignacion_mode or "normal").strip().lower()
+    if mode not in {"normal", "supervisor_regiones", "supervisor_rm"}:
+        mode = "normal"
+    if mode == "normal" or df.empty:
+        return df
+
+    out = df.copy()
+    region_series = out["REGION"].fillna("").astype(str).str.strip().str.upper()
+    is_rm = region_series.eq("REGION METROPOLITANA")
+
+    if mode == "supervisor_regiones":
+        mask = ~is_rm
+        supervisor = SUPERVISOR_REGIONES
+    else:
+        mask = is_rm
+        supervisor = SUPERVISOR_RM
+
+    out.loc[mask, "name_from"] = supervisor["name_from"]
+    out.loc[mask, "EJECUTIVO"] = supervisor["name_from"]
+    out.loc[mask, "mail_from"] = supervisor["mail_from"]
+    out.loc[mask, "CORREO"] = supervisor["CORREO"]
+    out.loc[mask, "CELULAR"] = supervisor["CELULAR"]
+    return out
+
+
+def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: str, asignacion_mode: str = "normal") -> pd.DataFrame:
     base = df.copy()
     template = _resolve_template(template_key)
     op_col = _find_operation_column(base)
@@ -375,9 +416,10 @@ def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: s
                 }
             )
 
-    return pd.DataFrame(out_rows, columns=OUTPUT_COLUMNS)
+    result = pd.DataFrame(out_rows, columns=OUTPUT_COLUMNS)
+    return _apply_supervisor_override(result, asignacion_mode)
 
 
-def build_santander_consumer_terreno_from_excel(file_storage, *, template_key: str) -> pd.DataFrame:
+def build_santander_consumer_terreno_from_excel(file_storage, *, template_key: str, asignacion_mode: str = "normal") -> pd.DataFrame:
     df = pd.read_excel(file_storage, dtype=str)
-    return build_santander_consumer_terreno_output(df, template_key=template_key)
+    return build_santander_consumer_terreno_output(df, template_key=template_key, asignacion_mode=asignacion_mode)

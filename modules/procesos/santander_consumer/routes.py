@@ -26,13 +26,20 @@ def santander_consumer_page():
 def santander_consumer_terreno_process():
     file = request.files.get("file")
     template_key = (request.form.get("template_key") or "").strip()
+    asignacion_mode = (request.form.get("asignacion_mode") or "normal").strip().lower()
+    if asignacion_mode not in {"normal", "supervisor_regiones", "supervisor_rm"}:
+        asignacion_mode = "normal"
     if not file or file.filename == "":
         return _sc_error("Debes subir un archivo Excel.")
     if not template_key:
         return _sc_error("Debes seleccionar una plantilla.")
 
     try:
-        salida = build_santander_consumer_terreno_from_excel(file, template_key=template_key)
+        salida = build_santander_consumer_terreno_from_excel(
+            file,
+            template_key=template_key,
+            asignacion_mode=asignacion_mode,
+        )
         fecha = datetime.now().strftime("%d-%m")
         nombre = f"Santander_Consumer_Terreno_{fecha}.xlsx"
         buf = df_to_xlsx_bytesio(salida, sheet_name="SantanderConsumer")
