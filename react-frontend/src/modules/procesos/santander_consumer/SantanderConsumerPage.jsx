@@ -10,6 +10,7 @@ function SantanderConsumerPage() {
   const fileRef = useRef(null)
   const [loading, setLoading] = useState(false)
   const [templateKey, setTemplateKey] = useState('')
+  const [asignacionMode, setAsignacionMode] = useState('normal')
   const [status, setStatus] = useState({ type: 'info', message: '' })
 
   const updateStatus = (type, message) => {
@@ -22,6 +23,7 @@ function SantanderConsumerPage() {
   const resetForm = () => {
     if (fileRef.current) fileRef.current.value = ''
     setTemplateKey('')
+    setAsignacionMode('normal')
   }
 
   const handleSubmit = async (e) => {
@@ -39,6 +41,7 @@ function SantanderConsumerPage() {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('template_key', templateKey)
+    formData.append('asignacion_mode', asignacionMode)
 
     try {
       setLoading(true)
@@ -86,6 +89,34 @@ function SantanderConsumerPage() {
                 ))}
               </select>
               <p className="mt-2 text-xs text-slate-500">Para 3 cuotas y 2 cuotas se usa el mismo message_id (90818) y cambia NRO_CUOTAS.</p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-slate-700">Asignacion de supervisor</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAsignacionMode('normal')}
+                  className={`rounded-full px-4 py-2 text-sm ${asignacionMode === 'normal' ? 'bg-slate-900 text-white' : 'border border-slate-300 text-slate-700'}`}
+                >
+                  Normal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAsignacionMode('supervisor_regiones')}
+                  className={`rounded-full px-4 py-2 text-sm ${asignacionMode === 'supervisor_regiones' ? 'bg-slate-900 text-white' : 'border border-slate-300 text-slate-700'}`}
+                >
+                  Regiones - Supervisor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAsignacionMode('supervisor_rm')}
+                  className={`rounded-full px-4 py-2 text-sm ${asignacionMode === 'supervisor_rm' ? 'bg-slate-900 text-white' : 'border border-slate-300 text-slate-700'}`}
+                >
+                  RM - Supervisor
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">Regiones aplica supervisor para todo excepto REGION METROPOLITANA. RM aplica supervisor solo para REGION METROPOLITANA.</p>
             </div>
 
             <div>
