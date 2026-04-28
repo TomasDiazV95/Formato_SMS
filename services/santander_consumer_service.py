@@ -10,7 +10,6 @@ import pandas as pd
 from services import ejecutivos_repo
 from services.santander_consumer_templates import SantanderConsumerTemplate, get_santander_consumer_template
 from utils.db_sqlserver import get_stc_connection
-from utils.process_support import ProcessError, ensure_env_vars, raise_missing_columns, read_excel_or_raise
 
 
 OUTPUT_COLUMNS = [
@@ -55,10 +54,6 @@ OPERATION_COLUMN_ALIASES = {
     "nro_documento",
     "id_credito",
     "op",
-}
-
-SC_OPERATION_ALIAS_MAP = {
-    "OPERACION": OPERATION_COLUMN_ALIASES,
 }
 
 
@@ -153,40 +148,30 @@ def _fetch_tmp_bench_rows(operations: list[str]) -> dict[str, dict[str, object]]
     rows_by_operation: dict[str, dict[str, object]] = {}
     chunk_size = 500
 
-    try:
-        with get_stc_connection() as conn:
-            cur = conn.cursor()
-            for i in range(0, len(operations), chunk_size):
-                chunk = operations[i:i + chunk_size]
-                placeholders = ", ".join("?" for _ in chunk)
-                query = query_template.format(placeholders=placeholders)
-                cur.execute(query, chunk)
-                for row in cur.fetchall():
-                    op_key = _normalize_operation(row[0])
-                    if not op_key:
-                        continue
-                    rows_by_operation[op_key] = {
-                        "fld_OPERACION": row[0],
-                        "fld_RUT": row[1],
-                        "fld_NOMBRE": row[2],
-                        "fld_COBRADOR": row[3],
-                        "fld_MARCA": row[4],
-                        "fld_PATENTE": row[5],
-                        "fld_DEUDA_INI": row[6],
-                        "fld_COMUNA": row[7],
-                        "fld_REGION": row[8],
-                        "fld_FECHA": row[9],
-                        "fecha_carga": row[10],
-                    }
-    except Exception as exc:
-        raise ProcessError(
-            "Santander Consumer",
-            "Consulta SQL Server",
-            "No se pudo consultar tmp_bench_STC.",
-            detail=f"Operaciones solicitadas: {len(operations)}. Error original: {exc}",
-            status=500,
-            error_type="integration",
-        ) from exc
+    with get_stc_connection() as conn:
+        cur = conn.cursor()
+        for i in range(0, len(operations), chunk_size):
+            chunk = operations[i:i + chunk_size]
+            placeholders = ", ".join("?" for _ in chunk)
+            query = query_template.format(placeholders=placeholders)
+            cur.execute(query, chunk)
+            for row in cur.fetchall():
+                op_key = _normalize_operation(row[0])
+                if not op_key:
+                    continue
+                rows_by_operation[op_key] = {
+                    "fld_OPERACION": row[0],
+                    "fld_RUT": row[1],
+                    "fld_NOMBRE": row[2],
+                    "fld_COBRADOR": row[3],
+                    "fld_MARCA": row[4],
+                    "fld_PATENTE": row[5],
+                    "fld_DEUDA_INI": row[6],
+                    "fld_COMUNA": row[7],
+                    "fld_REGION": row[8],
+                    "fld_FECHA": row[9],
+                    "fecha_carga": row[10],
+                }
 
     return rows_by_operation
 
@@ -214,40 +199,24 @@ def _fetch_emails_by_rut(ruts: list[str]) -> dict[str, str]:
 
     result: dict[str, str] = {}
     chunk_size = 1000
-    try:
-        with get_stc_connection() as conn:
-            cur = conn.cursor()
-            for i in range(0, len(ruts), chunk_size):
-                chunk = ruts[i:i + chunk_size]
-                placeholders = ", ".join("?" for _ in chunk)
-                query = query_template.format(placeholders=placeholders)
-                cur.execute(query, chunk)
-                for row in cur.fetchall():
-                    rut_key = _rut_only_numbers(row[0])
-                    if rut_key:
-                        result[rut_key] = str(row[1] or "").strip()
-    except Exception as exc:
-        raise ProcessError(
-            "Santander Consumer",
-            "Consulta SQL Server",
-            "No se pudo consultar emails_carga.",
-            detail=f"RUTs solicitados: {len(ruts)}. Error original: {exc}",
-            status=500,
-            error_type="integration",
-        ) from exc
+    with get_stc_connection() as conn:
+        cur = conn.cursor()
+        for i in range(0, len(ruts), chunk_size):
+            chunk = ruts[i:i + chunk_size]
+            placeholders = ", ".join("?" for _ in chunk)
+            query = query_template.format(placeholders=placeholders)
+            cur.execute(query, chunk)
+            for row in cur.fetchall():
+                rut_key = _rut_only_numbers(row[0])
+                if rut_key:
+                    result[rut_key] = str(row[1] or "").strip()
     return result
 
 
 def _resolve_template(template_key: str) -> SantanderConsumerTemplate:
     template = get_santander_consumer_template(template_key)
     if not template:
-        raise ProcessError(
-            "Santander Consumer",
-            "Selección plantilla",
-            "Plantilla no válida para Santander Consumer.",
-            detail=f"template_key={template_key}",
-            status=400,
-        )
+        raise ValueError("Plantilla no válida para Santander Consumer.")
     return template
 
 
@@ -256,29 +225,11 @@ def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: s
     template = _resolve_template(template_key)
     op_col = _find_operation_column(base)
     if not op_col:
-        raise_missing_columns(
-            module="Santander Consumer",
-            stage="Validación columnas",
-            df=base,
-            missing_fields=["OPERACION"],
-            alias_map=SC_OPERATION_ALIAS_MAP,
-        )
+        raise ValueError("El Excel no contiene una columna de operación (ej: OPERACION, NRO_OPERACION, NUM_OP).")
 
     operation_values = base[op_col].map(_normalize_operation)
     if operation_values.eq("").all():
-        raise ProcessError(
-            "Santander Consumer",
-            "Validación columnas",
-            "La columna de operación está vacía.",
-            detail=f"Columna detectada: {op_col}",
-            status=400,
-        )
-
-    ensure_env_vars(
-        "Santander Consumer",
-        "Configuración SQL Server",
-        ["STC_DB_SERVER", "STC_DB_NAME", "STC_DB_USER"],
-    )
+        raise ValueError("La columna de operación está vacía.")
 
     ops_to_query = list(dict.fromkeys([op for op in operation_values.tolist() if op]))
     db_rows = _fetch_tmp_bench_rows(ops_to_query)
@@ -428,5 +379,5 @@ def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: s
 
 
 def build_santander_consumer_terreno_from_excel(file_storage, *, template_key: str) -> pd.DataFrame:
-    df = read_excel_or_raise(file_storage, module="Santander Consumer", stage="Lectura archivo")
+    df = pd.read_excel(file_storage, dtype=str)
     return build_santander_consumer_terreno_output(df, template_key=template_key)

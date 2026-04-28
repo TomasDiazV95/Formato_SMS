@@ -9,8 +9,7 @@ from services.mandante_rules import apply_mandante_rules
 from services.constants import MANDANTE_CHOICES
 from services import db_repos
 from utils.excel_export import df_to_xlsx_bytesio
-from utils import ProcessError, api_error_response, api_process_error_response
-from utils.process_support import read_excel_or_raise
+from utils import api_error_response
 from frontend import serve_react_app
 
 mail_bp = Blueprint('mail', __name__)
@@ -81,7 +80,7 @@ def mail_template_process():
         return _mail_error('Debes seleccionar una plantilla.')
 
     try:
-        df = read_excel_or_raise(file, module='Mail', stage='Lectura archivo')
+        df = pd.read_excel(file, dtype=str)
         df = apply_mandante_rules(df, mandante_nombre)
         salida = build_mail_template(df, template_code, mandante_nombre)
         nombre = _template_output_name(template_code, mandante_nombre)
@@ -115,8 +114,6 @@ def mail_template_process():
             download_name=nombre,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
-    except ProcessError as exc:
-        return api_process_error_response(exc, 'mail.mail_page')
     except ValueError as e:
         return _mail_error(str(e))
     except Exception as e:

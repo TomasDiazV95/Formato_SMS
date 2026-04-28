@@ -4,7 +4,6 @@ import InlineAlert from '../../components/InlineAlert'
 import { resultantesMandantes } from '../../data/constants'
 import { downloadResultante } from '../../api/resultantes'
 import { assertExcelResponse, triggerDownload } from '../../utils/download'
-import useStatusMessage from '../../hooks/useStatusMessage'
 
 const initialDates = Object.fromEntries(
   resultantesMandantes.map(item => [item.code, { inicio: '', fin: '' }]),
@@ -18,7 +17,14 @@ function Resultantes() {
   const [dates, setDates] = useState(initialDates)
   const [modes, setModes] = useState(initialModes)
   const [loadingCode, setLoadingCode] = useState('')
-  const { status, updateStatus, clearStatus } = useStatusMessage()
+  const [status, setStatus] = useState({ type: 'info', message: '' })
+
+  const updateStatus = (type, message) => {
+    setStatus({ type, message })
+    if (message) {
+      setTimeout(() => setStatus({ type: 'info', message: '' }), 6000)
+    }
+  }
 
   const handleDateChange = (code, key, value) => {
     setDates(prev => ({
@@ -87,7 +93,7 @@ function Resultantes() {
           <Link to="/" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
         </div>
 
-        {status.message && <InlineAlert variant={status.type} onDismiss={clearStatus}>{status.message}</InlineAlert>}
+        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
 
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {resultantesMandantes.map(item => {

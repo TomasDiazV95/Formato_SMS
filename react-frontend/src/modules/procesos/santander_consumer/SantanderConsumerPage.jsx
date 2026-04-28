@@ -5,13 +5,19 @@ import InlineAlert from '../../../components/InlineAlert'
 import { submitSantanderConsumerTerreno } from '../../../api/santanderConsumer'
 import { santanderConsumerTemplates } from '../../../data/santanderConsumerTemplates'
 import { assertExcelResponse, triggerDownload } from '../../../utils/download'
-import useStatusMessage from '../../../hooks/useStatusMessage'
 
 function SantanderConsumerPage() {
   const fileRef = useRef(null)
   const [loading, setLoading] = useState(false)
   const [templateKey, setTemplateKey] = useState('')
-  const { status, updateStatus, clearStatus } = useStatusMessage()
+  const [status, setStatus] = useState({ type: 'info', message: '' })
+
+  const updateStatus = (type, message) => {
+    setStatus({ type, message })
+    if (message) {
+      setTimeout(() => setStatus({ type: 'info', message: '' }), 6000)
+    }
+  }
 
   const resetForm = () => {
     if (fileRef.current) fileRef.current.value = ''
@@ -60,7 +66,7 @@ function SantanderConsumerPage() {
           <Link to="/procesos" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
         </div>
 
-        {status.message && <InlineAlert variant={status.type} onDismiss={clearStatus}>{status.message}</InlineAlert>}
+        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
 
         <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <form className="space-y-5" onSubmit={handleSubmit}>

@@ -18,8 +18,7 @@ from services.constants import MANDANTE_CHOICES, COLUMN_MAP
 from services.mandante_rules import apply_mandante_rules
 from services import db_repos, ejecutivos_repo
 from utils.excel_export import df_to_xlsx_bytesio
-from utils import ProcessError, api_error_response, api_process_error_response
-from utils.process_support import ensure_paths_exist, read_excel_or_raise
+from utils import api_error_response
 from frontend import serve_react_app
 
 sms_bp = Blueprint("sms", __name__)
@@ -144,11 +143,6 @@ def _load_itau_sms_template(tipo_sms: str) -> str:
     if not text:
         raise ValueError(f"La plantilla Itaú está vacía: {filename}")
     return text
-
-
-def _validate_itau_dependencies() -> None:
-    required_files = [ITAU_SMS_DIR / name for name in ITAU_SMS_TEMPLATE_FILES.values()]
-    ensure_paths_exist("SMS", "Dependencias Itaú", required_files)
 
 
 def _strip_trailing_phone(template_text: str) -> str:
@@ -448,13 +442,12 @@ def sms_athenas_process():
         return _sms_error("El modo carterizado Itaú solo está habilitado para mandante Itau Vencida.")
 
     try:
-        df = read_excel_or_raise(file, module="SMS", stage="Lectura archivo")
+        df = pd.read_excel(file, dtype=str)
         df = apply_mandante_rules(df, mandante_nombre)
         mensaje_series = None
         descartadas = 0
         seed_count = 0
         if modo_carterizado_itau:
-            _validate_itau_dependencies()
             mensaje_series = _build_itau_carterizado_messages(df, mandante_nombre)
             valid_mask = mensaje_series.fillna("").astype(str).str.strip() != ""
             descartadas = int((~valid_mask).sum())
@@ -548,7 +541,5 @@ def sms_athenas_process():
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
-    except ProcessError as exc:
-        return api_process_error_response(exc, "sms.sms_page")
     except Exception as e:
         return _sms_error(f"Ocurrió un error procesando el archivo: {e}", status=500)

@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import InlineAlert from '../../../components/InlineAlert'
 import { processSantander, downloadSantanderCrm, downloadSantanderMasiv } from '../../../api/santander'
 import { triggerDownload } from '../../../utils/download'
-import useStatusMessage from '../../../hooks/useStatusMessage'
 
 const initialResult = {
   token: '',
@@ -14,9 +13,16 @@ const initialResult = {
 function SantanderPage() {
   const archivoRef = useRef(null)
   const [masividades, setMasividades] = useState(false)
-  const { status, updateStatus, clearStatus } = useStatusMessage()
+  const [status, setStatus] = useState({ type: 'info', message: '' })
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(initialResult)
+
+  const updateStatus = (type, message) => {
+    setStatus({ type, message })
+    if (message) {
+      setTimeout(() => setStatus({ type: 'info', message: '' }), 6000)
+    }
+  }
 
   const resetForm = () => {
     if (archivoRef.current) archivoRef.current.value = ''
@@ -87,7 +93,7 @@ function SantanderPage() {
           <Link to="/cargas" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
         </div>
 
-        {status.message && <InlineAlert variant={status.type} onDismiss={clearStatus}>{status.message}</InlineAlert>}
+        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
 
         <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <form className="space-y-5" onSubmit={handleSubmit}>

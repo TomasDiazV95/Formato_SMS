@@ -6,7 +6,7 @@ from flask import Blueprint, request, send_file
 
 from frontend import serve_react_app
 from services.santander_consumer_service import build_santander_consumer_terreno_from_excel
-from utils import ProcessError, api_error_response, api_process_error_response
+from utils import api_error_response
 from utils.excel_export import df_to_xlsx_bytesio
 
 
@@ -42,8 +42,6 @@ def santander_consumer_terreno_process():
             download_name=nombre,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-    except ProcessError as exc:
-        return api_process_error_response(exc, "santander_consumer.santander_consumer_page")
     except ValueError as exc:
         return _sc_error(str(exc))
     except Exception as exc:

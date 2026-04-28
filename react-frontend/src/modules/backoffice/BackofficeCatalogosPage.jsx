@@ -148,14 +148,7 @@ function BackofficeCatalogos() {
           </div>
         </div>
 
-        {status.message && (
-          <InlineAlert
-            variant={status.type}
-            onDismiss={() => setStatus({ type: 'info', message: '' })}
-          >
-            {status.message}
-          </InlineAlert>
-        )}
+        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
 
         {Array.isArray(payload?.warnings) && payload.warnings.length > 0 && (
           <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
