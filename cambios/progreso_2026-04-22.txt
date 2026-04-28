@@ -1,0 +1,30 @@
+Progreso (22-04-2026)
+=====================
+
+- Cierre de migracion modular por fases 2.1 a 2.9, manteniendo operatividad del sistema durante la transicion.
+
+- Procesos:
+  - CRM movido a `modules/procesos/crm/routes.py` y `react-frontend/src/modules/procesos/crm/CrmPage.jsx`.
+  - SMS movido a `modules/procesos/sms/routes.py` y `react-frontend/src/modules/procesos/sms/SmsPage.jsx`.
+  - IVR movido a `modules/procesos/ivr/routes.py` y `react-frontend/src/modules/procesos/ivr/IvrPage.jsx`.
+  - Mail movido a `modules/procesos/mail/routes.py` y `react-frontend/src/modules/procesos/mail/MailPage.jsx`.
+  - Santander Consumer movido a `modules/procesos/santander_consumer/routes.py` y `react-frontend/src/modules/procesos/santander_consumer/SantanderConsumerPage.jsx`.
+
+- Cargas:
+  - GM, BIT, Tanner, Porsche y Santander Hipotecario migrados a `modules/cargas/*/routes.py`.
+  - Vistas de cargas migradas a `react-frontend/src/modules/cargas/*`.
+
+- Reportes, Resultantes y Backoffice:
+  - Backend movido a `modules/reportes/routes.py`, `modules/resultantes/routes.py` y `modules/backoffice/routes.py`.
+  - Frontend movido a `react-frontend/src/modules/reportes/ReportesPage.jsx`, `react-frontend/src/modules/resultantes/ResultantesPage.jsx` y `react-frontend/src/modules/backoffice/BackofficeCatalogosPage.jsx`.
+
+- Limpieza final:
+  - Se retiraron wrappers legacy en backend (`routes/*.py`) y frontend (`react-frontend/src/pages/**`).
+  - Se consolidaron Home y Procesos como codigo real en `react-frontend/src/modules/home/PortalPage.jsx` y `react-frontend/src/modules/procesos/ProcesosPage.jsx`.
+
+- Validacion tecnica de cierre:
+  - Build frontend OK (`npm run build`).
+  - Import backend OK (`py -c "import app"`).
+
+- Pendiente recomendado post-cierre:
+  - Ajustar `.gitignore` para excluir `__pycache__/` y `*.pyc` y evitar ruido en futuros commits.

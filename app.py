@@ -3,21 +3,23 @@ import os
 from flask import Flask, abort, send_from_directory
 from flask_cors import CORS
 
-from routes.sms import sms_bp
-from routes.ivr import ivr_bp
-from routes.gm import gm_bp
-from routes.bit_asignacion import bit_bp
-from routes.tanner_asignacion import tanner_bp
-from routes.sant_hipotecario import sant_hipotecario_bp
-from routes.santander_consumer import santander_consumer_bp
-from routes.mail import mail_bp
-from routes.reports import reports_bp
-from routes.resultantes import resultantes_bp
-from routes.crm import crm_bp
-from routes.backoffice import backoffice_bp
-from frontend import FRONTEND_DIST, serve_react_app, ensure_frontend_build
+from modules import (
+    backoffice_bp,
+    bit_bp,
+    crm_bp,
+    gm_bp,
+    ivr_bp,
+    mail_bp,
+    reports_bp,
+    resultantes_bp,
+    sant_hipotecario_bp,
+    santander_consumer_bp,
+    sms_bp,
+    tanner_bp,
+)
+from frontend import FRONTEND_DIST, FRONTEND_PUBLIC, serve_react_app, ensure_frontend_build
 
-
+#caca
 def _register_frontend_routes(app: Flask) -> None:
     spa_paths = [
         "/",
@@ -25,6 +27,7 @@ def _register_frontend_routes(app: Flask) -> None:
         "/procesos/sms",
         "/procesos/ivr",
         "/procesos/mail",
+        "/procesos/crm",
         "/procesos/santander-consumer",
         "/cargas",
         "/cargas/gm",
@@ -49,11 +52,13 @@ def _register_frontend_routes(app: Flask) -> None:
 
     @app.route("/favicon.svg")
     def serve_frontend_favicon():
-        return send_from_directory(FRONTEND_DIST, "favicon.svg")
+        source_dir = FRONTEND_DIST if (FRONTEND_DIST / "favicon.svg").exists() else FRONTEND_PUBLIC
+        return send_from_directory(source_dir, "favicon.svg")
 
     @app.route("/icons.svg")
     def serve_frontend_icons():
-        return send_from_directory(FRONTEND_DIST, "icons.svg")
+        source_dir = FRONTEND_DIST if (FRONTEND_DIST / "icons.svg").exists() else FRONTEND_PUBLIC
+        return send_from_directory(source_dir, "icons.svg")
 
 
 def create_app():

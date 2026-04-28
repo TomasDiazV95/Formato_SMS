@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import date, datetime
 import re
+import unicodedata
+from difflib import SequenceMatcher
 
 import pandas as pd
 
@@ -39,6 +41,8 @@ OUTPUT_COLUMNS = [
     "ANO_OFERTA",
 ]
 
+SC_EXECUTIVE_MANDANTE = "Santander Consumer Terreno"
+
 OPERATION_COLUMN_ALIASES = {
     "operacion",
     "operación",
@@ -75,6 +79,17 @@ def _normalize_operation(value: object) -> str:
 
 def _normalize_agent_text(value: object) -> str:
     return " ".join(str(value or "").split()).strip()
+
+
+def _ascii_fold(value: object) -> str:
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    return text.encode("ascii", "ignore").decode("ascii")
+
+
+def _token_key(value: object) -> str:
+    parts = [part for part in _ascii_fold(value).lower().split() if part]
+    parts.sort()
+    return " ".join(parts)
 
 
 def _rut_only_numbers(value: object) -> str:
@@ -234,12 +249,57 @@ def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: s
     exec_cache: dict[str, ejecutivos_repo.Ejecutivo | None] = {}
 
     def _get_ejecutivo(nombre: str) -> ejecutivos_repo.Ejecutivo | None:
-        normalized = _normalize_agent_text(nombre)
-        if not normalized:
+        raw = _normalize_agent_text(nombre)
+        if not raw:
             return None
-        cache_key = normalized.lower()
+
+        cache_key = _ascii_fold(raw).lower()
         if cache_key not in exec_cache:
-            exec_cache[cache_key] = ejecutivos_repo.fetch_by_mandante_and_nombre("Santander Consumer", normalized)
+            candidates = [
+                raw,
+                raw.lower(),
+                raw.upper(),
+                _ascii_fold(raw),
+                _ascii_fold(raw).lower(),
+                _ascii_fold(raw).upper(),
+            ]
+
+            found = None
+            seen: set[str] = set()
+            for candidate in candidates:
+                candidate = _normalize_agent_text(candidate)
+                if not candidate or candidate in seen:
+                    continue
+                seen.add(candidate)
+                found = ejecutivos_repo.fetch_by_mandante_and_nombre(SC_EXECUTIVE_MANDANTE, candidate)
+                if found:
+                    break
+
+            if not found:
+                target = _ascii_fold(raw).lower().strip()
+                target_tokens = _token_key(raw)
+                best_match = None
+                best_score = 0.0
+                for ejecutivo in ejecutivos_repo.list_ejecutivos(mandante=SC_EXECUTIVE_MANDANTE, activos=True):
+                    options = [
+                        _ascii_fold(ejecutivo.nombre_mostrar or "").lower().strip(),
+                        (ejecutivo.nombre_clave or "").replace("_", " ").lower().strip(),
+                        _token_key(ejecutivo.nombre_mostrar or ""),
+                        _token_key((ejecutivo.nombre_clave or "").replace("_", " ")),
+                    ]
+                    for option in options:
+                        if not option:
+                            continue
+                        score = max(
+                            SequenceMatcher(None, target, option).ratio(),
+                            SequenceMatcher(None, target_tokens, option).ratio(),
+                        )
+                        if score > best_score:
+                            best_score = score
+                            best_match = ejecutivo
+                found = best_match if best_match and best_score >= 0.92 else None
+
+            exec_cache[cache_key] = found
         return exec_cache[cache_key]
 
     out_rows: list[dict[str, str]] = []
@@ -249,7 +309,6 @@ def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: s
             rut_normalized = _rut_only_numbers(row.get("fld_RUT"))
             base_name = _normalize_agent_text(row.get("fld_COBRADOR"))
             ejecutivo = _get_ejecutivo(base_name)
-            name_from = _normalize_agent_text(ejecutivo.nombre_mostrar if ejecutivo else base_name)
             correo_ejecutivo = (ejecutivo.correo or "").strip() if ejecutivo else ""
             reenviador = (ejecutivo.reenviador or "").strip() if ejecutivo else ""
             celular = (ejecutivo.telefono or "").strip() if ejecutivo else ""
@@ -266,8 +325,8 @@ def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: s
                     "dest_email": dest_email,
                     "NRO_OPERACION": str(row.get("fld_OPERACION") or "").strip(),
                     "CLIENTE": str(row.get("fld_NOMBRE") or "").strip(),
-                    "name_from": name_from,
-                    "EJECUTIVO": name_from,
+                    "name_from": base_name,
+                    "EJECUTIVO": base_name,
                     "mail_from": reenviador,
                     "CORREO": correo_ejecutivo,
                     "CELULAR": celular,

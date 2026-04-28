@@ -119,6 +119,18 @@ AGENTE_COLUMN_ALIASES = {
     "nombre agente",
 }
 
+TANNER_REQUIRED_COLUMN_LABELS = {
+    "RUT+DV": {"rut+dv", "rut-dv", "rut"},
+    "OPERACION": {"nro_operacion", "operacion", "operación", "op", "id_credito"},
+    "dest_email": {"dest_email", "email", "correo", "mail", "dest_mail"},
+    "NOMBRE_AGENTE": AGENTE_COLUMN_ALIASES,
+}
+
+TANNER_CONTACT_COLUMN_LABELS = {
+    "MAIL_AGENTE": {"mail_agente", "correo_agente"},
+    "PHONO_AGENTE": {"phono_agente", "fono_agente", "telefono_agente", "telefono", "teléfono", "telefono1"},
+}
+
 
 def _normalize_agent_text(value: str) -> str:
     return " ".join((value or "").split()).strip()
@@ -285,23 +297,53 @@ def _build_tanner_medios_pago(df: pd.DataFrame, template: MailTemplate, mandante
     base = df.copy()
     base.columns = [str(col).strip() for col in base.columns]
 
-    rut_col = _find_column(base, {"rut+dv", "rut-dv", "rut"})
+    rut_col = _find_column(base, TANNER_REQUIRED_COLUMN_LABELS["RUT+DV"])
     dv_col = None
     if rut_col and "rut+dv" not in rut_col.lower().replace(" ", ""):
         dv_col = _find_column(base, {"dv", "digito", "dígito", "dv_rut"})
-    op_col = _find_column(base, {"nro_operacion", "operacion", "operación", "op", "id_credito"})
-    dest_col = _find_column(base, {"dest_email", "email", "correo", "mail", "dest_mail"})
+    op_col = _find_column(base, TANNER_REQUIRED_COLUMN_LABELS["OPERACION"])
+    dest_col = _find_column(base, TANNER_REQUIRED_COLUMN_LABELS["dest_email"])
     name_from_col = _find_column(base, {"name_from", "nombre_remitente"})
-    mail_agente_col = _find_column(base, {"mail_agente", "correo_agente"})
-    nombre_agente_col = _find_column(base, AGENTE_COLUMN_ALIASES)
-    phono_col = _find_column(base, {"phono_agente", "fono_agente", "telefono_agente", "telefono", "teléfono", "telefono1"})
+    mail_agente_col = _find_column(base, TANNER_CONTACT_COLUMN_LABELS["MAIL_AGENTE"])
+    nombre_agente_col = _find_column(base, TANNER_REQUIRED_COLUMN_LABELS["NOMBRE_AGENTE"])
+    phono_col = _find_column(base, TANNER_CONTACT_COLUMN_LABELS["PHONO_AGENTE"])
 
-    if not (rut_col and op_col and dest_col and nombre_agente_col):
-        raise ValueError("Faltan columnas requeridas para la plantilla de Tanner.")
+    missing_required = [
+        logical_name
+        for logical_name, col in (
+            ("RUT+DV", rut_col),
+            ("OPERACION", op_col),
+            ("dest_email", dest_col),
+            ("NOMBRE_AGENTE", nombre_agente_col),
+        )
+        if col is None
+    ]
+    if missing_required:
+        missing_details = {name: TANNER_REQUIRED_COLUMN_LABELS[name] for name in missing_required}
+        raise ValueError(
+            "Faltan columnas requeridas para la plantilla de Tanner: "
+            + ", ".join(missing_required)
+            + ". Encabezados aceptados: "
+            + _format_expected_columns(missing_details)
+        )
 
     require_fallback_columns = mandante is None
     if require_fallback_columns and (not mail_agente_col or not phono_col):
-        raise ValueError("Faltan columnas de contacto del agente en el archivo de origen.")
+        missing_contact = [
+            logical_name
+            for logical_name, col in (
+                ("MAIL_AGENTE", mail_agente_col),
+                ("PHONO_AGENTE", phono_col),
+            )
+            if col is None
+        ]
+        missing_details = {name: TANNER_CONTACT_COLUMN_LABELS[name] for name in missing_contact}
+        raise ValueError(
+            "Faltan columnas de contacto del agente en el archivo de origen: "
+            + ", ".join(missing_contact)
+            + ". Encabezados aceptados: "
+            + _format_expected_columns(missing_details)
+        )
 
     rut_series = base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
     if rut_col and "rut+dv" not in rut_col.lower().replace(" ", "") and dv_col:
@@ -891,5 +933,13 @@ def _find_column(df: pd.DataFrame, candidates: set[str]) -> Optional[str]:
         if key in lowered:
             return lowered[key]
     return None
+
+
+def _format_expected_columns(field_map: dict[str, set[str]]) -> str:
+    parts = []
+    for logical_name, aliases in field_map.items():
+        alias_list = ", ".join(sorted(aliases))
+        parts.append(f"{logical_name} ({alias_list})")
+    return "; ".join(parts)
 
 
