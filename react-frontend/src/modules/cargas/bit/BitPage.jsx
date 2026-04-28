@@ -3,19 +3,13 @@ import { Link } from 'react-router-dom'
 import InlineAlert from '../../../components/InlineAlert'
 import { submitBitProcess } from '../../../api/bit'
 import { triggerDownload } from '../../../utils/download'
+import useStatusMessage from '../../../hooks/useStatusMessage'
 
 function BitPage() {
   const archivoRef = useRef(null)
   const [campanaNueva, setCampanaNueva] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [status, setStatus] = useState({ type: 'info', message: '' })
-
-  const updateStatus = (type, message) => {
-    setStatus({ type, message })
-    if (message) {
-      setTimeout(() => setStatus({ type: 'info', message: '' }), 6000)
-    }
-  }
+  const { status, updateStatus, clearStatus } = useStatusMessage()
 
   const resetForm = () => {
     if (archivoRef.current) archivoRef.current.value = ''
@@ -68,7 +62,7 @@ function BitPage() {
           </div>
         </section>
 
-        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
+        {status.message && <InlineAlert variant={status.type} onDismiss={clearStatus}>{status.message}</InlineAlert>}
 
         <section className="rounded-3xl border border-sky-100 bg-white p-6 shadow-sm">
           <form className="space-y-5" onSubmit={handleSubmit}>

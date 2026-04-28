@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import InlineAlert from '../../../components/InlineAlert'
 import { submitGmProcess } from '../../../api/gm'
 import { triggerDownload } from '../../../utils/download'
+import useStatusMessage from '../../../hooks/useStatusMessage'
 
 const initialSwitches = {
   comparar: false,
@@ -14,15 +15,8 @@ function GmPage() {
   const archivoAnteriorRef = useRef(null)
 
   const [switches, setSwitches] = useState(initialSwitches)
-  const [status, setStatus] = useState({ type: 'info', message: '' })
+  const { status, updateStatus, clearStatus } = useStatusMessage()
   const [loading, setLoading] = useState(false)
-
-  const updateStatus = (type, message) => {
-    setStatus({ type, message })
-    if (message) {
-      setTimeout(() => setStatus({ type: 'info', message: '' }), 6000)
-    }
-  }
 
   const handleToggle = name => {
     setSwitches(prev => ({ ...prev, [name]: !prev[name] }))
@@ -101,7 +95,7 @@ function GmPage() {
           <Link to="/cargas" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
         </div>
 
-        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
+        {status.message && <InlineAlert variant={status.type} onDismiss={clearStatus}>{status.message}</InlineAlert>}
 
         <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <header className="mb-6">

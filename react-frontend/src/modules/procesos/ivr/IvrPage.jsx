@@ -7,6 +7,7 @@ import { downloadIvrSample, fetchIvrCampo1Options, submitIvrAthenas } from '../.
 import { createCrmSession } from '../../../api/crm'
 import { fetchProcessHistory } from '../../../api/reports'
 import { triggerDownload, assertExcelResponse } from '../../../utils/download'
+import useStatusMessage from '../../../hooks/useStatusMessage'
 
 const initialIvrState = {
   mandante: '',
@@ -16,7 +17,7 @@ const initialIvrState = {
 function IvrPage() {
   const navigate = useNavigate()
   const [ivrData, setIvrData] = useState(initialIvrState)
-  const [status, setStatus] = useState({ type: 'info', message: '' })
+  const { status, updateStatus, clearStatus } = useStatusMessage()
   const [campo1Catalog, setCampo1Catalog] = useState(campo1Options)
   const [crmSeedFile, setCrmSeedFile] = useState(null)
   const [historyRows, setHistoryRows] = useState([])
@@ -24,13 +25,6 @@ function IvrPage() {
   const [loading, setLoading] = useState(false)
 
   const ivrFileRef = useRef(null)
-
-  const updateStatus = (type, message) => {
-    setStatus({ type, message })
-    if (message) {
-      setTimeout(() => setStatus({ type: 'info', message: '' }), 6000)
-    }
-  }
 
   const handleIvrChange = e => {
     const { name, value } = e.target
@@ -148,7 +142,7 @@ function IvrPage() {
           <Link to="/procesos" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
         </div>
 
-        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
+        {status.message && <InlineAlert variant={status.type} onDismiss={clearStatus}>{status.message}</InlineAlert>}
 
         <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <header className="mb-6">

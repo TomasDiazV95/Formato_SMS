@@ -4,6 +4,7 @@ import InlineAlert from '../../../components/InlineAlert'
 import { mandantes } from '../../../data/constants'
 import { submitCrmCarga } from '../../../api/crm'
 import { triggerDownload, assertExcelResponse, ZIP_MIME } from '../../../utils/download'
+import useStatusMessage from '../../../hooks/useStatusMessage'
 
 const initialFormState = {
   fecha: '',
@@ -25,7 +26,7 @@ function CrmPage() {
   const [intervalo, setIntervalo] = useState('')
   const [multiUsuarios, setMultiUsuarios] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [status, setStatus] = useState({ type: 'info', message: '' })
+  const { status, updateStatus, clearStatus } = useStatusMessage()
 
   const hasSession = token.length > 0
   const modeLabel = mode === 'mail' ? 'Mail' : 'SMS/IVR'
@@ -34,13 +35,6 @@ function CrmPage() {
     if (mode === 'mail') return true
     return !multiUsuarios
   }, [mode, multiUsuarios])
-
-  const updateStatus = (type, message) => {
-    setStatus({ type, message })
-    if (message) {
-      setTimeout(() => setStatus({ type: 'info', message: '' }), 6000)
-    }
-  }
 
   const handleChange = event => {
     const { name, value } = event.target
@@ -107,7 +101,7 @@ function CrmPage() {
           <Link to="/procesos" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
         </div>
 
-        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
+        {status.message && <InlineAlert variant={status.type} onDismiss={clearStatus}>{status.message}</InlineAlert>}
 
         <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <header className="mb-6 space-y-2">

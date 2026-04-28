@@ -13,6 +13,7 @@ import pandas as pd
 from openpyxl import load_workbook
 
 from services import ejecutivos_repo
+from utils.process_support import raise_missing_columns
 
 TEMPLATE_COLUMNS_TANNER = [
     "INSTITUCIÓN",
@@ -129,6 +130,34 @@ TANNER_REQUIRED_COLUMN_LABELS = {
 TANNER_CONTACT_COLUMN_LABELS = {
     "MAIL_AGENTE": {"mail_agente", "correo_agente"},
     "PHONO_AGENTE": {"phono_agente", "fono_agente", "telefono_agente", "telefono", "teléfono", "telefono1"},
+}
+
+
+ITAU_REQUIRED_COLUMN_LABELS = {
+    "Oper": {"oper", "operacion", "nro_operacion", "id_credito"},
+    "RUT": {"rut", "rut_cliente", "id_cliente"},
+    "DV": {"dv1", "dv", "digito", "dígito", "dv_rut"},
+    "Nombre": {"nombre", "nombre_cliente", "cliente", "contacto"},
+    "MASIVIDAD": {"masividad", "tipo", "canal"},
+    "EMAIL": {"email", "mail", "correo", "dest_email", "dest_mail"},
+    "CARTERIZADO": AGENTE_COLUMN_ALIASES,
+}
+
+SCJ_REQUIRED_COLUMN_LABELS = {
+    "RUT": {"rut+dv", "rut", "rut_cliente", "id_cliente"},
+    "NUM_OP": {"num_op", "nro_operacion", "operacion", "operación", "op", "id_credito"},
+    "dest_email": {"dest_email", "email", "correo", "mail", "dest_mail"},
+}
+
+SC_TELEFONIA_REQUIRED_COLUMN_LABELS = {
+    "CLIENTE": {"nombre_cliente", "cliente", "nombre"},
+    "OPERACION": {"nro_operacion", "operacion", "operación", "op", "num_op"},
+    "MAIL": {"mail", "email", "correo", "dest_email", "dest_mail"},
+}
+
+SC_TELEFONIA_MP_REQUIRED_COLUMN_LABELS = {
+    "RUT": {"rut", "rut_cliente", "id_cliente"},
+    "MAIL": {"mail", "email", "correo", "dest_email", "dest_mail"},
 }
 
 
@@ -609,7 +638,13 @@ def _build_itau_vencida(df: pd.DataFrame, template: MailTemplate, mandante: Opti
     }
     missing = [name for name, col in required.items() if col is None]
     if missing:
-        raise ValueError("Faltan columnas requeridas para plantilla Itau Vencida: " + ", ".join(missing))
+        raise_missing_columns(
+            module="Mail",
+            stage="Plantilla Itau Vencida",
+            df=base,
+            missing_fields=missing,
+            alias_map=ITAU_REQUIRED_COLUMN_LABELS,
+        )
 
     oper_col = str(oper_col)
     rut_col = str(rut_col)
@@ -718,7 +753,21 @@ def _build_scj_cobranza(df: pd.DataFrame, template: MailTemplate, mandante: Opti
     phono_col = _find_column(base, {"phono_agente", "fono_agente", "telefono_agente", "telefono"})
 
     if not (rut_col and op_col and dest_col):
-        raise ValueError("Faltan columnas requeridas para la plantilla de Santander Consumer Judicial.")
+        raise_missing_columns(
+            module="Mail",
+            stage="Plantilla Santander Consumer Judicial",
+            df=base,
+            missing_fields=[
+                logical_name
+                for logical_name, col in (
+                    ("RUT", rut_col),
+                    ("NUM_OP", op_col),
+                    ("dest_email", dest_col),
+                )
+                if col is None
+            ],
+            alias_map=SCJ_REQUIRED_COLUMN_LABELS,
+        )
 
     rut_series = base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
     if rut_col and "rut+dv" not in rut_col.lower().replace(" ", "") and dv_col:
@@ -851,7 +900,21 @@ def _build_sc_telefonia_descuento(df: pd.DataFrame, template: MailTemplate) -> p
     email_col = _find_column(base, {"mail", "email", "correo", "dest_email", "dest_mail"})
 
     if not (cliente_col and oper_col and email_col):
-        raise ValueError("Faltan columnas requeridas para Santander Consumer Telefonía (cliente, operacion, mail).")
+        raise_missing_columns(
+            module="Mail",
+            stage="Plantilla Santander Consumer Telefonía",
+            df=base,
+            missing_fields=[
+                logical_name
+                for logical_name, col in (
+                    ("CLIENTE", cliente_col),
+                    ("OPERACION", oper_col),
+                    ("MAIL", email_col),
+                )
+                if col is None
+            ],
+            alias_map=SC_TELEFONIA_REQUIRED_COLUMN_LABELS,
+        )
 
     cliente = base[cliente_col].fillna("").astype(str).str.strip()
     oper = base[oper_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
@@ -885,7 +948,20 @@ def _build_sc_telefonia_medios_pago(df: pd.DataFrame, template: MailTemplate) ->
     email_col = _find_column(base, {"mail", "email", "correo", "dest_email", "dest_mail"})
 
     if not (rut_col and email_col):
-        raise ValueError("Faltan columnas requeridas para Medios de Pago Telefonía (RUT y MAIL).")
+        raise_missing_columns(
+            module="Mail",
+            stage="Plantilla Medios de Pago Telefonía",
+            df=base,
+            missing_fields=[
+                logical_name
+                for logical_name, col in (
+                    ("RUT", rut_col),
+                    ("MAIL", email_col),
+                )
+                if col is None
+            ],
+            alias_map=SC_TELEFONIA_MP_REQUIRED_COLUMN_LABELS,
+        )
 
     rut = base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
     dest_email = base[email_col].fillna("").astype(str).str.strip()

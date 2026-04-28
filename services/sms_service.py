@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, date, time, timedelta
 
 from services.constants import COLUMN_MAP
+from utils.process_support import raise_missing_columns
 
 REQUIRED_COLUMNS = {"RUT", "OP", "FONO"}
 SEED_PHONE = "976900353"
@@ -48,7 +49,13 @@ def _prepare_base_df(df: pd.DataFrame) -> pd.DataFrame:
         else:
             rename_map[column] = logical
     if missing:
-        raise ValueError(f"Faltan columnas en el Excel: {', '.join(sorted(missing))}")
+        raise_missing_columns(
+            module="SMS",
+            stage="Validación columnas",
+            df=base,
+            missing_fields=sorted(missing),
+            alias_map=ALIAS_GROUPS,
+        )
 
     base = base.rename(columns=rename_map)
     header_mask = (

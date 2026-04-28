@@ -3,18 +3,12 @@ import { Link } from 'react-router-dom'
 import InlineAlert from '../../../components/InlineAlert'
 import { submitTannerProcess } from '../../../api/tanner'
 import { assertExcelResponse, triggerDownload } from '../../../utils/download'
+import useStatusMessage from '../../../hooks/useStatusMessage'
 
 function TannerPage() {
   const archivoRef = useRef(null)
   const [loading, setLoading] = useState(false)
-  const [status, setStatus] = useState({ type: 'info', message: '' })
-
-  const updateStatus = (type, message) => {
-    setStatus({ type, message })
-    if (message) {
-      setTimeout(() => setStatus({ type: 'info', message: '' }), 6000)
-    }
-  }
+  const { status, updateStatus, clearStatus } = useStatusMessage()
 
   const resetForm = () => {
     if (archivoRef.current) archivoRef.current.value = ''
@@ -66,7 +60,7 @@ function TannerPage() {
           </div>
         </section>
 
-        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
+        {status.message && <InlineAlert variant={status.type} onDismiss={clearStatus}>{status.message}</InlineAlert>}
 
         <section className="rounded-3xl border border-amber-100 bg-white p-6 shadow-sm">
           <form className="space-y-5" onSubmit={handleSubmit}>

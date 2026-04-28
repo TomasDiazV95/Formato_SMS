@@ -6,6 +6,7 @@ import { submitMailTemplate, downloadMailTemplateSample } from '../../../api/mai
 import { createCrmSession } from '../../../api/crm'
 import { fetchProcessHistory } from '../../../api/reports'
 import { triggerDownload, assertExcelResponse } from '../../../utils/download'
+import useStatusMessage from '../../../hooks/useStatusMessage'
 
 const initialTemplateState = {
   mandante_template: '',
@@ -17,7 +18,7 @@ function MailPage() {
   const templateFileRef = useRef(null)
 
   const [templateForm, setTemplateForm] = useState(initialTemplateState)
-  const [status, setStatus] = useState({ type: 'info', message: '' })
+  const { status, updateStatus, clearStatus } = useStatusMessage()
   const [crmSeedFile, setCrmSeedFile] = useState(null)
   const [historyRows, setHistoryRows] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
@@ -27,13 +28,6 @@ function MailPage() {
     if (!templateForm.mandante_template) return []
     return mailTemplates.filter(tpl => tpl.mandante === templateForm.mandante_template)
   }, [templateForm.mandante_template])
-
-  const updateStatus = (type, message) => {
-    setStatus({ type, message })
-    if (message) {
-      setTimeout(() => setStatus({ type: 'info', message: '' }), 6000)
-    }
-  }
 
   const resetTemplateForm = () => {
     setTemplateForm(initialTemplateState)
@@ -163,7 +157,7 @@ function MailPage() {
           <Link to="/procesos" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
         </div>
 
-        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
+        {status.message && <InlineAlert variant={status.type} onDismiss={clearStatus}>{status.message}</InlineAlert>}
 
         <section className="rounded-3xl bg-white/90 p-6 shadow-sm ring-1 ring-slate-200">
           <header className="mb-6 space-y-2">

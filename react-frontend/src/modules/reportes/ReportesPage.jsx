@@ -11,6 +11,7 @@ import {
   fetchProcesoVsMes,
 } from '../../api/reports'
 import { triggerDownload, assertExcelResponse } from '../../utils/download'
+import useStatusMessage from '../../hooks/useStatusMessage'
 
 const currencyFormat = new Intl.NumberFormat('es-CL', {
   style: 'currency',
@@ -55,7 +56,7 @@ function Reportes() {
   const [ranking, setRanking] = useState([])
   const [matrix, setMatrix] = useState({ periodos: [], items: [] })
   const [loading, setLoading] = useState(false)
-  const [status, setStatus] = useState({ type: 'info', message: '' })
+  const { status, updateStatus, clearStatus } = useStatusMessage()
   const [downloading, setDownloading] = useState(false)
   const [downloadingDetalle, setDownloadingDetalle] = useState(false)
   const [detalleFilters, setDetalleFilters] = useState(initialDetalle)
@@ -73,13 +74,6 @@ function Reportes() {
     if (!resumen.length) return null
     return [...resumen].sort((a, b) => Number(b.costo_total || 0) - Number(a.costo_total || 0))[0]
   }, [resumen])
-
-  const updateStatus = (type, message) => {
-    setStatus({ type, message })
-    if (message) {
-      setTimeout(() => setStatus({ type: 'info', message: '' }), 7000)
-    }
-  }
 
   const normalizedQuery = useMemo(
     () => ({
@@ -191,7 +185,7 @@ function Reportes() {
           </div>
         </div>
 
-        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
+        {status.message && <InlineAlert variant={status.type} onDismiss={clearStatus}>{status.message}</InlineAlert>}
 
         <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <div className="grid gap-4 md:grid-cols-4">
