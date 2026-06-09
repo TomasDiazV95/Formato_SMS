@@ -24,13 +24,9 @@ function BackofficeCatalogos() {
   const [savingCampo1, setSavingCampo1] = useState(false)
   const [status, setStatus] = useState({ type: 'info', message: '' })
 
-  const mandantesDb = payload?.catalogs?.mandantes?.db || []
   const mandantesApp = payload?.catalogs?.mandantes?.app_constants || []
-  const procesosDb = payload?.catalogs?.procesos?.db || []
   const templates = payload?.catalogs?.mail_templates || []
 
-  const activeMandantes = useMemo(() => mandantesDb.filter(item => item.activo), [mandantesDb])
-  const activeProcesos = useMemo(() => procesosDb.filter(item => item.activo), [procesosDb])
   const activeCampo1 = useMemo(() => campo1Items.filter(item => item.active), [campo1Items])
 
   const loadCatalogos = async () => {
@@ -161,16 +157,11 @@ function BackofficeCatalogos() {
           </section>
         )}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-3">
           <article className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Mandantes DB</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">{mandantesDb.length}</p>
-            <p className="mt-1 text-sm text-slate-500">Activos: {activeMandantes.length}</p>
-          </article>
-          <article className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Procesos DB</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">{procesosDb.length}</p>
-            <p className="mt-1 text-sm text-slate-500">Activos: {activeProcesos.length}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Mandantes locales</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">{mandantesApp.length}</p>
+            <p className="mt-1 text-sm text-slate-500">Usados en formularios</p>
           </article>
           <article className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">CAMPO1 IVR</p>
@@ -260,80 +251,6 @@ function BackofficeCatalogos() {
                           </button>
                         </div>
                       </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <header className="mb-4">
-            <h2 className="text-xl font-semibold text-slate-900">Mandantes (base de datos)</h2>
-            <p className="text-sm text-slate-600">Fuente principal para catalogo operativo. Incluye codigo y estado activo.</p>
-          </header>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-sm">
-              <thead>
-                <tr className="text-left text-slate-500">
-                  <th className="px-3 py-2 font-medium">ID</th>
-                  <th className="px-3 py-2 font-medium">Codigo</th>
-                  <th className="px-3 py-2 font-medium">Nombre</th>
-                  <th className="px-3 py-2 font-medium">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mandantesDb.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-3 py-6 text-center text-slate-500">Sin datos de mandantes en base.</td>
-                  </tr>
-                ) : (
-                  mandantesDb.map(item => (
-                    <tr key={`${item.id}-${item.codigo}`} className="border-t border-slate-100">
-                      <td className="px-3 py-2 text-slate-700">{item.id}</td>
-                      <td className="px-3 py-2 font-semibold text-slate-900">{item.codigo}</td>
-                      <td className="px-3 py-2 text-slate-700">{item.nombre}</td>
-                      <td className="px-3 py-2 text-slate-700">{item.activo ? 'Activo' : 'Inactivo'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <header className="mb-4">
-            <h2 className="text-xl font-semibold text-slate-900">Procesos (base de datos)</h2>
-            <p className="text-sm text-slate-600">Incluye tipo de proceso y costo unitario configurado.</p>
-          </header>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-sm">
-              <thead>
-                <tr className="text-left text-slate-500">
-                  <th className="px-3 py-2 font-medium">ID</th>
-                  <th className="px-3 py-2 font-medium">Codigo</th>
-                  <th className="px-3 py-2 font-medium">Descripcion</th>
-                  <th className="px-3 py-2 font-medium">Tipo</th>
-                  <th className="px-3 py-2 font-medium">Costo unitario</th>
-                  <th className="px-3 py-2 font-medium">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {procesosDb.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-6 text-center text-slate-500">Sin datos de procesos en base.</td>
-                  </tr>
-                ) : (
-                  procesosDb.map(item => (
-                    <tr key={`${item.id}-${item.codigo}`} className="border-t border-slate-100">
-                      <td className="px-3 py-2 text-slate-700">{item.id}</td>
-                      <td className="px-3 py-2 font-semibold text-slate-900">{item.codigo}</td>
-                      <td className="px-3 py-2 text-slate-700">{item.descripcion}</td>
-                      <td className="px-3 py-2 text-slate-700">{item.tipo}</td>
-                      <td className="px-3 py-2 text-slate-700">{Number(item.costo_unitario || 0).toLocaleString('es-CL')}</td>
-                      <td className="px-3 py-2 text-slate-700">{item.activo ? 'Activo' : 'Inactivo'}</td>
                     </tr>
                   ))
                 )}

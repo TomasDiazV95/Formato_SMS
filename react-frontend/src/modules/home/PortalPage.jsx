@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 const cards = [
   { title: 'Procesos', description: 'SMS, IVR y Mail', to: '/procesos', icon: '⚙️' },
   { title: 'Cargas', description: 'Módulos GM y Santander', to: '/cargas', icon: '📦' },
-  { title: 'Reportes', description: 'Consolidados y filtros por mandante', to: '/reportes', icon: '📊' },
   { title: 'Resultantes', description: 'Gestiones por fecha y mandante', to: '/resultantes', icon: '🧾' },
   { title: 'Backoffice', description: 'Catalogos y parametros base', to: '/backoffice/catalogos', icon: '🗂️' },
 ]
@@ -18,7 +17,7 @@ function Portal() {
           <p className="mt-3 text-slate-600">Selecciona la sección que necesitas. Todos los procesos siguen conectados al backend actual.</p>
         </header>
 
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           {cards.map(card => (
             <Link
               key={card.title}

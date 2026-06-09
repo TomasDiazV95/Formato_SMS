@@ -12,13 +12,13 @@ SPA para los modulos operativos del sistema Formato_SMS.
 ## Integracion con Flask
 
 - Flask sirve el build desde `react-frontend/dist`.
-- Rutas SPA principales: `/`, `/procesos/*`, `/cargas/*`, `/reportes`, `/resultantes`, `/backoffice/catalogos`.
+- Rutas SPA principales: `/`, `/procesos/*`, `/cargas/*`, `/resultantes`, `/backoffice/catalogos`.
 - APIs se consumen con Axios usando `VITE_API_BASE_URL` (default: `http://localhost:5013`).
 
 ## Estructura principal
 
-- `src/pages/`: vistas por modulo.
-- `src/api/`: clientes Axios por dominio (`sms`, `ivr`, `mail`, `crm`, `reports`, `resultantes`, `backoffice`).
+- `src/modules/`: vistas por dominio.
+- `src/api/`: clientes Axios por dominio (`sms`, `ivr`, `mail`, `crm`, `resultantes`, `backoffice`).
 - `src/components/`: componentes UI reutilizables.
 - `src/data/`: constantes de mandantes, plantillas y opciones.
 

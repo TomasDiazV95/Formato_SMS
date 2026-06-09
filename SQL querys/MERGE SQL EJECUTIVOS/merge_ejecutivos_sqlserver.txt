@@ -1,0 +1,127 @@
+-- MERGE ejecutivos base Phoenix / Tanner / Santander Consumer Judicial
+MERGE dbo.tbl_ejecutivos_phoenix AS target
+USING (
+    VALUES
+        ('Tanner', 'ariel_silva', 'Ariel Oliver Silva Aliste', 'asilva@phlegal.cl', '966252228', 'asilva@info.phoenixserviceinfo.cl'),
+        ('Tanner', 'marnolis_perez', 'Marnolis Coromoto Perez Araujo', 'mperez@phlegal.cl', '979289776', 'mperez@info.phoenixserviceinfo.cl'),
+        ('Tanner', 'elizabeth_cabrera', 'Elizabeth Alejandra Cabrera Villegas', 'Ecabrera@phlegal.cl', '930609666', 'ecabrera@info.phoenixserviceinfo.cl'),
+        ('Tanner', 'martina_parra', 'Martina Antonia Parra Villar', 'mparra@phlegal.cl', '930609666', 'mparra@info.phoenixserviceinfo.cl'),
+        ('Tanner', 'nataly_rivera', 'Nataly Andrea Rivera Paredes', 'Nrivera@phlegal.cl', '930609666', 'nrivera@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Judicial', 'ariel_silva', 'Ariel Oliver Silva Aliste', 'asilva@phlegal.cl', '966252228', 'asilva@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Judicial', 'marnolis_perez', 'Marnolis Coromoto Perez Araujo', 'mperez@phlegal.cl', '979289776', 'mperez@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Judicial', 'elizabeth_cabrera', 'Elizabeth Alejandra Cabrera Villegas', 'Ecabrera@phlegal.cl', '930609666', 'ecabrera@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Judicial', 'martina_parra', 'Martina Antonia Parra Villar', 'mparra@phlegal.cl', '930609666', 'mparra@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Judicial', 'nataly_rivera', 'Nataly Andrea Rivera Paredes', 'Nrivera@phlegal.cl', '930609666', 'nrivera@info.phoenixserviceinfo.cl')
+) AS source (mandante, nombre_clave, nombre_mostrar, correo, telefono, reenviador)
+ON target.mandante = source.mandante
+AND target.nombre_clave = source.nombre_clave
+WHEN MATCHED THEN
+    UPDATE SET
+        nombre_mostrar = source.nombre_mostrar,
+        correo = source.correo,
+        telefono = source.telefono,
+        reenviador = source.reenviador,
+        activo = 1,
+        fecha_actualizacion = SYSDATETIME()
+WHEN NOT MATCHED THEN
+    INSERT (mandante, nombre_clave, nombre_mostrar, correo, telefono, reenviador, activo)
+    VALUES (source.mandante, source.nombre_clave, source.nombre_mostrar, source.correo, source.telefono, source.reenviador, 1);
+
+-- MERGE ejecutivos Itau Vencida
+MERGE dbo.tbl_ejecutivos_phoenix AS target
+USING (
+    VALUES
+        ('Itau Vencida', 'analitt_karina_olivar_riveros', 'Analitt Karina Olivar Riveros', 'aolivar@phoenixservice.cl', '979382039', 'aolivar@info.phoenixserviceinfo.cl'),
+        ('Itau Vencida', 'cesar_escobar_gonzalez', 'Cesar Escobar Gonzalez', 'Cescobar@phoenixservice.cl', '949925366', 'cescobar@info.phoenixserviceinfo.cl'),
+        ('Itau Vencida', 'duchka_uribe_martinez', 'Duchka Uribe Martinez', 'duribe@phoenixservice.cl', '956719890', 'duribe@info.phoenixserviceinfo.cl'),
+        ('Itau Vencida', 'jessica_carolina_diaz_mata', 'Jessica Carolina Diaz Mata', 'jdiaz@phoenixservice.cl', '981804485', 'jdiaz@info.phoenixserviceinfo.cl'),
+        ('Itau Vencida', 'katterine_parraguez_riquelme', 'Katterine Parraguez Riquelme', 'kparraguez@phoenixservice.cl', '959629301', 'kparraguez@info.phoenixserviceinfo.cl'),
+        ('Itau Vencida', 'monica_alejandra_colarte_carrasco', 'Monica Alejandra Colarte Carrasco', 'mcolarte@phoenixservice.cl', '972150239', 'mcolarte@info.phoenixserviceinfo.cl'),
+        ('Itau Vencida', 'pilar_javiera_aracena_ceron', 'Pilar Javiera Aracena  Ceron', 'paracena@phoenixservice.cl', '946980356', 'paracena@info.phoenixserviceinfo.cl'),
+        ('Itau Vencida', 'veronica_margarita_vega_bustos', 'Veronica Margarita Vega Bustos', 'vvega@phoenixservice.cl', '993884467', 'vvega@info.phoenixserviceinfo.cl'),
+        ('Itau Vencida', 'yasna_uribe_martinez', 'Yasna Uribe Martinez', 'yuribe@phoenixservice.cl', '944710186', 'yuribe@info.phoenixserviceinfo.cl'),
+        ('Itau Vencida', 'nicolle_milla', 'Nicolle Milla', 'nmilla@phoenixservice.cl', '961286439', 'kavendano@info.phoenixserviceinfo.cl'),
+        ('Itau Vencida', 'carmina_urrutia_urrutia', 'Carmina Urrutia Urrutia', 'Currutia@phoenixservice.cl', '922027692', 'Currutia@info.phoenixserviceinfo.cl'),
+        ('Itau Vencida', 'karen_avendano_calderon', 'Karen Avendano Calderon', 'kavendano@phoenixservice.cl', '938731034', 'kavendano@info.phoenixserviceinfo.cl')
+) AS source (mandante, nombre_clave, nombre_mostrar, correo, telefono, reenviador)
+ON target.mandante = source.mandante
+AND target.nombre_clave = source.nombre_clave
+WHEN MATCHED THEN
+    UPDATE SET
+        nombre_mostrar = source.nombre_mostrar,
+        correo = source.correo,
+        telefono = source.telefono,
+        reenviador = source.reenviador,
+        activo = 1,
+        fecha_actualizacion = SYSDATETIME()
+WHEN NOT MATCHED THEN
+    INSERT (mandante, nombre_clave, nombre_mostrar, correo, telefono, reenviador, activo)
+    VALUES (source.mandante, source.nombre_clave, source.nombre_mostrar, source.correo, source.telefono, source.reenviador, 1);
+
+-- MERGE ejecutivos Santander Consumer Terreno
+MERGE dbo.tbl_ejecutivos_phoenix AS target
+USING (
+    VALUES
+        ('Santander Consumer Terreno', 'antonio_zuniga', 'Antonio Zuniga', 'azuniga@phoenixservice.cl', '957416484', 'azuniga@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'asenlly_romina_palma_nava', 'Asenlly Romina Palma Nava', 'apalma@phoenixservice.cl', '953323927', 'apalma@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'betsabe_orellana', 'Betsabe Orellana', 'borellana@phoenixservice.cl', '959026256', 'borellana@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'carolina_sanchez', 'Carolina Sanchez', 'csanchez@phoenixservice.cl', '991720093', 'csanchez@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'cecilia_faundez', 'Cecilia Faundez', 'cfaundez@phoenixservice.cl', '940348264', 'cfaundez@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'claudia_aravena', 'Claudia Aravena', 'caravena@phoenixservice.cl', '946146034', 'caravena@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'claudia_pinto', 'Claudia Pinto', 'cpinto@phoenixservice.cl', '957421064', 'cpinto@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'claudio_andres_cadis_cadis', 'Claudio Andres Cadis Cadis', 'ccadis@phoenixservice.cl', '964229954', 'ccadis@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'cristian_san_martin', 'Cristian San Martin', 'csanmartin@phoenixservice.cl', '942493871', 'csanmartin@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'daniela_alvarado', 'Daniela Alvarado', 'dalvarado@phoenixservice.cl', '982234267', 'dalvarado@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'dario_medel', 'Dario Medel', 'dmedel@phoenixservice.cl', '932553481', 'dmedel@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'ernesto_soto', 'Ernesto Soto', 'esoto@phoenixservice.cl', '976096735', 'esoto@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'erwin_nawrath', 'Erwin Nawrath', 'enawrath@phoenixservice.cl', '982151476', 'enawrath@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'frank_rivera', 'Frank Rivera', 'frivera@phoenixservice.cl', '989438107', 'frivera@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'gonzalo_marin', 'Gonzalo Marin', 'gmarin@phoenixservice.cl', '945662366', 'gmarin@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'hector_avila', 'Hector Avila', 'havila@phoenixservice.cl', '989609533', 'havila@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'hector_barra_garcia', 'Hector Barra Garcia', 'hbarra@phoenixservice.cl', '950109323', 'hbarra@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'hector_tirapegui', 'Hector Tirapegui', 'htirapegui@phoenixservice.cl', '987754272', 'htirapegui@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'ivan_olivares', 'Ivan Olivares', 'iolivares@phoenixservice.cl', '979769949', 'iolivares@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'jesus_olivares', 'Jesus Olivares', 'jolivares@phoenixservice.cl', '930315743', 'jolivares@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'jimmy_contreras', 'Jimmy Contreras', 'jcontreras@phoenixservice.cl', '999456290', 'jcontreras@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'jocelyn_berrios', 'Jocelyn Berrios', 'jberrios@phoenixservice.cl', '975695022', 'jberrios@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'jonathan_jimenez', 'Jonathan Jimenez', 'jjimenez@phoenixservice.cl', '979388441', 'jjimenez@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'jorge_canales', 'Jorge Canales', 'jcanales@phoenixservice.cl', '934629818', 'jcanales@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'juan_mora', 'Juan Mora', 'jmora@phoenixservice.cl', '932900648', 'jmora@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'karina_urrutia', 'Karina Urrutia', 'kurrutia@phoenixservice.cl', '932570004', 'kurrutia@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'leonardo_jeldres', 'Leonardo Jeldres', 'ljeldres@phoenixservice.cl', '998016580', 'ljeldres@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'luis_leiva', 'Luis Leiva', 'lleiva@phoenixservice.cl', '990500146', 'lleiva@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'marcelo_robledo', 'Marcelo Robledo', 'mrobledo@phoenixservice.cl', '974767500', 'mrobledo@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'marco_cabrera', 'Marco Cabrera', 'mcabrera@phoenixservice.cl', '992250307', 'mcabrera@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'marco_pacheco', 'Marco Pacheco', 'mpacheco@phoenixservice.cl', '989559827', 'mpacheco@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'maria_isabel_ortega', 'Maria Isabel Ortega', 'mortega@phoenixservice.cl', '983752994', 'mortega@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'maricel_galvez_guzman', 'Maricel Galvez Guzman', 'mgalvez@phoenixservice.cl', '968726686', 'mgalvez@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'marlexis_colmenares', 'Marlexis Colmenares', 'crosas@phoenixservice.cl', '992629899', 'crosas@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'michelle_neira', 'Michelle Neira', 'mneira@phoenixservice.cl', '992366169', 'mneira@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'nelson_araya', 'Nelson Araya', 'naraya@phoenixservice.cl', '995933566', 'naraya@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'pamela_spencer', 'Pamela Spencer', 'pspencer@phoenixservice.cl', '989012967', 'pspencer@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'raphael_salinas', 'Raphael Salinas', 'rsalinas@phoenixservice.cl', '999499826', 'rsalinas@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'raul_perez', 'Raul Perez', 'rperez@phoenixservice.cl', '976798267', 'rperez@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'roberto_soto', 'Roberto Soto', 'rsoto@phoenixservice.cl', '973252118', 'rsoto@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'robinson_blanco', 'Robinson Blanco', 'rblanco@phoenixservice.cl', '977909607', 'rblanco@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'rodrigo_manriquez', 'Rodrigo Manríquez', 'rmanriquez@phoenixservice.cl', '954162985', 'rmanriquez@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'romina_beiza', 'Romina Beiza', 'rbeiza@pheonixservice.cl', '940490292', 'rbeiza@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'santos_cruz', 'Santos Cruz', 'scruz@phoenixservice.cl', '948073240', 'scruz@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'sebastian_moraga', 'Sebastian Moraga', 'smoraga@phoenixservice.cl', '961498124', 'smoraga@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'sergio_rozas', 'Sergio Rozas', 'srozas@phoenixservice.cl', '975135917', 'srozas@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'susan_gutierrez', 'Susan Gutierrez', 'sgutierrez@phoenixservice.cl', '964070995', 'sgutierrez@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'valentina_rochow', 'Valentina Rochow', 'vrochow@phoenixservice.cl', '957434677', 'vrochow@info.phoenixserviceinfo.cl'),
+        ('Santander Consumer Terreno', 'viviana_garrido', 'Viviana Garrido', 'vgarrido@phoenixservice.cl', '977940058', 'vgarrido@info.phoenixserviceinfo.cl')
+) AS source (mandante, nombre_clave, nombre_mostrar, correo, telefono, reenviador)
+ON target.mandante = source.mandante
+AND target.nombre_clave = source.nombre_clave
+WHEN MATCHED THEN
+    UPDATE SET
+        nombre_mostrar = source.nombre_mostrar,
+        correo = source.correo,
+        telefono = source.telefono,
+        reenviador = source.reenviador,
+        activo = 1,
+        fecha_actualizacion = SYSDATETIME()
+WHEN NOT MATCHED THEN
+    INSERT (mandante, nombre_clave, nombre_mostrar, correo, telefono, reenviador, activo)
+    VALUES (source.mandante, source.nombre_clave, source.nombre_mostrar, source.correo, source.telefono, source.reenviador, 1);

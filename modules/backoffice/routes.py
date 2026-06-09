@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 from frontend import serve_react_app
-from services import campo1_catalog, db_repos, mail_templates
+from services import campo1_catalog, mail_templates
 from services.constants import MANDANTE_CHOICES
 
 
@@ -19,41 +19,6 @@ def backoffice_catalogos_page():
 
 @backoffice_bp.get("/api/backoffice/catalogos")
 def backoffice_catalogos_data():
-    warnings: list[str] = []
-
-    mandantes_db: list[dict] = []
-    procesos_db: list[dict] = []
-
-    try:
-        mandantes_raw = db_repos.fetch_mandantes_catalog()
-        mandantes_db = [
-            {
-                "id": row.get("id"),
-                "codigo": row.get("codigo"),
-                "nombre": row.get("nombre"),
-                "activo": bool(row.get("activo", 0)),
-            }
-            for row in mandantes_raw
-        ]
-    except Exception:
-        warnings.append("No se pudo consultar el catalogo de mandantes en base de datos.")
-
-    try:
-        procesos_raw = db_repos.fetch_procesos_catalog()
-        procesos_db = [
-            {
-                "id": row.get("id"),
-                "codigo": row.get("codigo"),
-                "descripcion": row.get("descripcion"),
-                "tipo": row.get("tipo"),
-                "costo_unitario": float(row.get("costo_unitario") or 0),
-                "activo": bool(row.get("activo", 0)),
-            }
-            for row in procesos_raw
-        ]
-    except Exception:
-        warnings.append("No se pudo consultar el catalogo de procesos en base de datos.")
-
     templates = [
         {
             "code": item.code,
@@ -68,14 +33,10 @@ def backoffice_catalogos_data():
 
     payload = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
-        "warnings": warnings,
+        "warnings": [],
         "catalogs": {
             "mandantes": {
-                "db": mandantes_db,
                 "app_constants": MANDANTE_CHOICES,
-            },
-            "procesos": {
-                "db": procesos_db,
             },
             "ivr_campo1": campo1_catalog.list_items(active_only=False),
             "mail_templates": templates,

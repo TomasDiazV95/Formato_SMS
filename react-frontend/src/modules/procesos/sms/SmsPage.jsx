@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { mandantes, formatoSalida } from '../../../data/constants'
 import { submitSmsMasivo, downloadSmsSample } from '../../../api/sms'
 import { createCrmSession } from '../../../api/crm'
-import { fetchProcessHistory } from '../../../api/reports'
 import { triggerDownload, assertExcelResponse } from '../../../utils/download'
 import InlineAlert from '../../../components/InlineAlert'
 
@@ -20,8 +19,6 @@ function SmsPage() {
   const [itauCarterizado, setItauCarterizado] = useState(false)
   const [status, setStatus] = useState({ type: 'info', message: '' })
   const [crmSeedFile, setCrmSeedFile] = useState(null)
-  const [historyRows, setHistoryRows] = useState([])
-  const [historyLoading, setHistoryLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const masivoFileRef = useRef(null)
 
@@ -36,22 +33,6 @@ function SmsPage() {
     const { name, value } = e.target
     setMasivoData(prev => ({ ...prev, [name]: value }))
   }
-
-  const loadHistory = async () => {
-    try {
-      setHistoryLoading(true)
-      const data = await fetchProcessHistory({ proceso: 'sms', limit: 20 })
-      setHistoryRows(Array.isArray(data?.items) ? data.items : [])
-    } catch {
-      setHistoryRows([])
-    } finally {
-      setHistoryLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadHistory()
-  }, [])
 
   const handleSampleDownload = async type => {
     try {
@@ -88,26 +69,12 @@ function SmsPage() {
       triggerDownload(response.data, filename)
       updateStatus('success', 'Archivo generado correctamente.')
       setCrmSeedFile(selectedFile)
-      loadHistory()
     } catch (err) {
       const message = err?.message || err?.response?.data || 'Error generando el archivo.'
       updateStatus('danger', message)
     } finally {
       setLoading(false)
     }
-  }
-
-  const formatHistoryDate = value => {
-    if (!value) return '-'
-    const parsed = new Date(value)
-    if (Number.isNaN(parsed.getTime())) return String(value)
-    return parsed.toLocaleString('es-CL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
   }
 
   const handleContinueCrm = async () => {
@@ -277,48 +244,6 @@ function SmsPage() {
           </form>
         </section>
 
-        <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">Historial de este proceso</h2>
-              <p className="text-sm text-slate-600">Registros recientes generados desde SMS.</p>
-            </div>
-            <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={loadHistory} disabled={historyLoading}>
-              {historyLoading ? 'Actualizando…' : 'Actualizar'}
-            </button>
-          </header>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-sm">
-              <thead>
-                <tr className="text-left text-slate-500">
-                  <th className="px-3 py-2 font-medium">Proceso</th>
-                  <th className="px-3 py-2 font-medium">Mandante</th>
-                  <th className="px-3 py-2 font-medium">Registros</th>
-                  <th className="px-3 py-2 font-medium">Fecha creación</th>
-                  <th className="px-3 py-2 font-medium">Archivo generado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-slate-500">Aún no hay cargas registradas para SMS.</td>
-                  </tr>
-                ) : (
-                  historyRows.map(item => (
-                    <tr key={item.id} className="border-t border-slate-100">
-                      <td className="px-3 py-2 font-semibold text-slate-900">{item.proceso || '-'}</td>
-                      <td className="px-3 py-2 text-slate-600">{item.mandante || '-'}</td>
-                      <td className="px-3 py-2 text-slate-600">{Number(item.registros || 0).toLocaleString('es-CL')}</td>
-                      <td className="px-3 py-2 text-slate-600">{formatHistoryDate(item.fecha_creacion)}</td>
-                      <td className="px-3 py-2 text-slate-600">{item.archivo || '-'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
       </div>
     </main>
   )
