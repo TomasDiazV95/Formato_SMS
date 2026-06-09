@@ -5,7 +5,6 @@ import { mandantes } from '../../../data/constants'
 import { campo1Options } from '../../../data/ivrOptions'
 import { downloadIvrSample, fetchIvrCampo1Options, submitIvrAthenas } from '../../../api/ivr'
 import { createCrmSession } from '../../../api/crm'
-import { fetchProcessHistory } from '../../../api/reports'
 import { triggerDownload, assertExcelResponse } from '../../../utils/download'
 
 const initialIvrState = {
@@ -19,8 +18,6 @@ function IvrPage() {
   const [status, setStatus] = useState({ type: 'info', message: '' })
   const [campo1Catalog, setCampo1Catalog] = useState(campo1Options)
   const [crmSeedFile, setCrmSeedFile] = useState(null)
-  const [historyRows, setHistoryRows] = useState([])
-  const [historyLoading, setHistoryLoading] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const ivrFileRef = useRef(null)
@@ -36,22 +33,6 @@ function IvrPage() {
     const { name, value } = e.target
     setIvrData(prev => ({ ...prev, [name]: value }))
   }
-
-  const loadHistory = async () => {
-    try {
-      setHistoryLoading(true)
-      const data = await fetchProcessHistory({ proceso: 'ivr', limit: 20 })
-      setHistoryRows(Array.isArray(data?.items) ? data.items : [])
-    } catch {
-      setHistoryRows([])
-    } finally {
-      setHistoryLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadHistory()
-  }, [])
 
   useEffect(() => {
     const loadCampo1 = async () => {
@@ -95,26 +76,12 @@ function IvrPage() {
       triggerDownload(response.data, filename)
       updateStatus('success', 'Carga IVR generada correctamente.')
       setCrmSeedFile(selectedFile)
-      loadHistory()
     } catch (err) {
       const message = err?.message || err?.response?.data || 'Error generando la carga IVR.'
       updateStatus('danger', message)
     } finally {
       setLoading(false)
     }
-  }
-
-  const formatHistoryDate = value => {
-    if (!value) return '-'
-    const parsed = new Date(value)
-    if (Number.isNaN(parsed.getTime())) return String(value)
-    return parsed.toLocaleString('es-CL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
   }
 
   const handleContinueCrm = async () => {
@@ -209,48 +176,6 @@ function IvrPage() {
           </form>
         </section>
 
-        <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">Historial de este proceso</h2>
-              <p className="text-sm text-slate-600">Registros recientes generados desde IVR.</p>
-            </div>
-            <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={loadHistory} disabled={historyLoading}>
-              {historyLoading ? 'Actualizando…' : 'Actualizar'}
-            </button>
-          </header>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-sm">
-              <thead>
-                <tr className="text-left text-slate-500">
-                  <th className="px-3 py-2 font-medium">Proceso</th>
-                  <th className="px-3 py-2 font-medium">Mandante</th>
-                  <th className="px-3 py-2 font-medium">Registros</th>
-                  <th className="px-3 py-2 font-medium">Fecha creación</th>
-                  <th className="px-3 py-2 font-medium">Archivo generado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-slate-500">Aún no hay cargas registradas para IVR.</td>
-                  </tr>
-                ) : (
-                  historyRows.map(item => (
-                    <tr key={item.id} className="border-t border-slate-100">
-                      <td className="px-3 py-2 font-semibold text-slate-900">{item.proceso || '-'}</td>
-                      <td className="px-3 py-2 text-slate-600">{item.mandante || '-'}</td>
-                      <td className="px-3 py-2 text-slate-600">{Number(item.registros || 0).toLocaleString('es-CL')}</td>
-                      <td className="px-3 py-2 text-slate-600">{formatHistoryDate(item.fecha_creacion)}</td>
-                      <td className="px-3 py-2 text-slate-600">{item.archivo || '-'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
       </div>
     </main>
   )

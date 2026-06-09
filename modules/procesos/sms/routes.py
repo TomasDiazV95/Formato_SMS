@@ -2,7 +2,6 @@
 import pandas as pd
 from datetime import datetime
 from flask import Blueprint, request, send_file, abort
-from typing import Any
 import re
 import unicodedata
 from pathlib import Path
@@ -14,9 +13,9 @@ from services.sms_service import (
     sample_athenas_df,
     sample_axia_df,
 )
-from services.constants import MANDANTE_CHOICES, COLUMN_MAP
+from services.constants import COLUMN_MAP
 from services.mandante_rules import apply_mandante_rules
-from services import db_repos, ejecutivos_repo
+from services import ejecutivos_repo
 from utils.excel_export import df_to_xlsx_bytesio
 from utils import api_error_response
 from frontend import serve_react_app
@@ -52,34 +51,6 @@ def _find_column(df: pd.DataFrame, logical: str) -> str | None:
         if key in normalized:
             return normalized[key]
     return None
-
-
-def _build_sms_detalle(df: pd.DataFrame, mensaje: str, tipo_salida: str, mensajes_series: pd.Series | None = None) -> list[dict[str, str | None]]:
-    if df is None or df.empty:
-        return []
-    rut_col = _find_column(df, "rut")
-    telefono_col = _find_column(df, "telefono")
-    op_col = _find_column(df, "operacion")
-    mensajes = None
-    if mensajes_series is not None:
-        mensajes = (
-            mensajes_series.reindex(df.index)
-            .fillna("")
-            .astype(str)
-            .str.strip()
-        )
-        mensajes = mensajes.where(mensajes != "", mensaje)
-    detalles = []
-    for idx, row in df.iterrows():
-        mensaje_row = mensajes.get(idx, mensaje) if mensajes is not None else mensaje
-        detalles.append({
-            "rut": str(row.get(rut_col, "")).strip() if rut_col else None,
-            "telefono": str(row.get(telefono_col, "")).strip() if telefono_col else None,
-            "operacion": str(row.get(op_col, "")).strip() if op_col else None,
-            "mensaje": mensaje_row,
-            "extra": {"salida": tipo_salida},
-        })
-    return detalles
 
 
 ITAU_SMS_TEMPLATE_FILES = {
@@ -445,12 +416,9 @@ def sms_athenas_process():
         df = pd.read_excel(file, dtype=str)
         df = apply_mandante_rules(df, mandante_nombre)
         mensaje_series = None
-        descartadas = 0
-        seed_count = 0
         if modo_carterizado_itau:
             mensaje_series = _build_itau_carterizado_messages(df, mandante_nombre)
             valid_mask = mensaje_series.fillna("").astype(str).str.strip() != ""
-            descartadas = int((~valid_mask).sum())
             if not valid_mask.any():
                 return _sms_error("No hay filas SMS válidas para generar salida Itaú (revisa MASIVIDAD).")
             df = df.loc[valid_mask].copy()
@@ -472,67 +440,20 @@ def sms_athenas_process():
             mensaje_series = mensaje_series.where(mensaje_series != "", mensaje)
 
         fecha_actual = datetime.now().strftime("%d-%m")
-
-        mandante = db_repos.fetch_mandante_by_nombre(mandante_nombre)
-        if not mandante:
-            return _sms_error("Mandante no encontrado en catálogo.")
-
-        mandante_token = _filename_token(mandante.nombre)
+        mandante_token = _filename_token(mandante_nombre)
 
         if tipo_salida == "AXIA":
             carga = build_axia_output(df, mensaje=mensaje, mensajes_series=mensaje_series if mensajes_personalizados else None)
             if modo_carterizado_itau and mensaje_series is not None:
-                carga, seed_count = _prepend_itau_seed_rows(carga, tipo_salida, mensaje_series)
-            proceso_codigo = "SMS_AXIA"
+                carga, _ = _prepend_itau_seed_rows(carga, tipo_salida, mensaje_series)
             buf = df_to_xlsx_bytesio(carga, sheet_name="Hoja1", header=False)
             nombre = f"carga_AXIA_SMS_{mandante_token}_{fecha_actual}.xlsx"
         else:
             carga = build_athenas_output(df, mensaje=mensaje, mensajes_series=mensaje_series if mensajes_personalizados else None)
             if modo_carterizado_itau and mensaje_series is not None:
-                carga, seed_count = _prepend_itau_seed_rows(carga, tipo_salida, mensaje_series)
-            proceso_codigo = "SMS_ATHENAS"
+                carga, _ = _prepend_itau_seed_rows(carga, tipo_salida, mensaje_series)
             buf = df_to_xlsx_bytesio(carga, sheet_name="cargaAthenas")
             nombre = f"cargaAthenas_SMS_{mandante_token}_{fecha_actual}.xlsx"
-
-        proceso = db_repos.fetch_proceso_by_codigo(proceso_codigo)
-        if not proceso:
-            return _sms_error("No se logró identificar el proceso para registrar costos.", status=500)
-
-        total_registros = max(len(carga) - 1, 0)
-        metadata: dict[str, Any] = {"formato": tipo_salida}
-        if mensajes_personalizados:
-            metadata["mensajes_personalizados"] = True
-        if modo_carterizado_itau:
-            metadata["modo_carterizado_itau"] = True
-            metadata["origen_tipo_sms"] = "MASIVIDAD"
-            if descartadas > 0:
-                metadata["filas_descartadas"] = descartadas
-            if seed_count > 0:
-                metadata["seed_rows"] = seed_count
-        masividad_id = db_repos.log_masividad(
-            mandante_id=mandante.id,
-            proceso_id=proceso.id,
-            total_registros=total_registros,
-            costo_unitario=proceso.costo_unitario,
-            usuario_app="sms",
-            archivo_generado=nombre,
-            observacion=mensaje,
-            metadata=metadata,
-        )
-
-        detalles = _build_sms_detalle(
-            df,
-            mensaje,
-            tipo_salida,
-            mensaje_series if mensajes_personalizados else None,
-        )
-        if masividad_id and detalles:
-            db_repos.bulk_insert_masividad_detalle(
-                masividad_log_id=masividad_id,
-                proceso_codigo=proceso.codigo,
-                mandante_nombre=mandante.nombre,
-                registros=detalles,
-            )
 
         return send_file(
             buf,

@@ -10,7 +10,7 @@ from modules import (
     gm_bp,
     ivr_bp,
     mail_bp,
-    reports_bp,
+    porsche_bp,
     resultantes_bp,
     sant_hipotecario_bp,
     santander_consumer_bp,
@@ -19,7 +19,6 @@ from modules import (
 )
 from frontend import FRONTEND_DIST, FRONTEND_PUBLIC, serve_react_app, ensure_frontend_build
 
-#caca
 def _register_frontend_routes(app: Flask) -> None:
     spa_paths = [
         "/",
@@ -35,7 +34,6 @@ def _register_frontend_routes(app: Flask) -> None:
         "/cargas/tanner",
         "/cargas/santander",
         "/cargas/porsche",
-        "/reportes",
         "/backoffice/catalogos",
     ]
 
@@ -77,10 +75,10 @@ def create_app():
     app.register_blueprint(gm_bp)
     app.register_blueprint(bit_bp)
     app.register_blueprint(tanner_bp)
+    app.register_blueprint(porsche_bp)
     app.register_blueprint(sant_hipotecario_bp)
     app.register_blueprint(santander_consumer_bp)
     app.register_blueprint(mail_bp)
-    app.register_blueprint(reports_bp)
     app.register_blueprint(resultantes_bp)
     app.register_blueprint(crm_bp)
     app.register_blueprint(backoffice_bp)

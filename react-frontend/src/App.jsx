@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Portal from './modules/home/PortalPage'
 import Procesos from './modules/procesos/ProcesosPage'
 import Cargas from './modules/cargas/CargasPage'
-import Reportes from './modules/reportes/ReportesPage'
 import Resultantes from './modules/resultantes/ResultantesPage'
 import SmsPage from './modules/procesos/sms/SmsPage'
 import IvrPage from './modules/procesos/ivr/IvrPage'
@@ -31,7 +30,6 @@ function App() {
       <Route path="/cargas/porsche" element={<PorschePage />} />
       <Route path="/cargas/bit" element={<BitPage />} />
       <Route path="/cargas/tanner" element={<TannerPage />} />
-      <Route path="/reportes" element={<Reportes />} />
       <Route path="/backoffice/catalogos" element={<BackofficeCatalogos />} />
       <Route path="/resultantes" element={<Resultantes />} />
       <Route path="/procesos/sms" element={<SmsPage />} />

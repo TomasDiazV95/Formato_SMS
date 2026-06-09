@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import InlineAlert from '../../../components/InlineAlert'
 import { mandantes, mailTemplates } from '../../../data/constants'
 import { submitMailTemplate, downloadMailTemplateSample } from '../../../api/mail'
 import { createCrmSession } from '../../../api/crm'
-import { fetchProcessHistory } from '../../../api/reports'
 import { triggerDownload, assertExcelResponse } from '../../../utils/download'
 
 const initialTemplateState = {
@@ -19,8 +18,6 @@ function MailPage() {
   const [templateForm, setTemplateForm] = useState(initialTemplateState)
   const [status, setStatus] = useState({ type: 'info', message: '' })
   const [crmSeedFile, setCrmSeedFile] = useState(null)
-  const [historyRows, setHistoryRows] = useState([])
-  const [historyLoading, setHistoryLoading] = useState(false)
   const [loadingTemplate, setLoadingTemplate] = useState(false)
 
   const filteredTemplates = useMemo(() => {
@@ -49,22 +46,6 @@ function MailPage() {
     }
     setTemplateForm(prev => ({ ...prev, [name]: value }))
   }
-
-  const loadHistory = async () => {
-    try {
-      setHistoryLoading(true)
-      const data = await fetchProcessHistory({ proceso: 'mail', limit: 20 })
-      setHistoryRows(Array.isArray(data?.items) ? data.items : [])
-    } catch {
-      setHistoryRows([])
-    } finally {
-      setHistoryLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadHistory()
-  }, [])
 
   const handleSubmitTemplate = async e => {
     e.preventDefault()
@@ -95,25 +76,11 @@ function MailPage() {
       triggerDownload(response.data, filename)
       updateStatus('success', 'Plantilla generada correctamente.')
       setCrmSeedFile(selectedFile)
-      loadHistory()
     } catch (error) {
       updateStatus('danger', error?.message || 'Error generando la plantilla.')
     } finally {
       setLoadingTemplate(false)
     }
-  }
-
-  const formatHistoryDate = value => {
-    if (!value) return '-'
-    const parsed = new Date(value)
-    if (Number.isNaN(parsed.getTime())) return String(value)
-    return parsed.toLocaleString('es-CL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
   }
 
   const handleContinueCrm = async () => {
@@ -252,48 +219,6 @@ function MailPage() {
           </form>
         </section>
 
-        <section className="rounded-3xl bg-white/90 p-6 shadow-sm ring-1 ring-slate-200">
-          <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">Historial de este proceso</h2>
-              <p className="text-sm text-slate-600">Registros recientes generados desde Mail.</p>
-            </div>
-            <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={loadHistory} disabled={historyLoading}>
-              {historyLoading ? 'Actualizando…' : 'Actualizar'}
-            </button>
-          </header>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-sm">
-              <thead>
-                <tr className="text-left text-slate-500">
-                  <th className="px-3 py-2 font-medium">Proceso</th>
-                  <th className="px-3 py-2 font-medium">Mandante</th>
-                  <th className="px-3 py-2 font-medium">Registros</th>
-                  <th className="px-3 py-2 font-medium">Fecha creación</th>
-                  <th className="px-3 py-2 font-medium">Archivo generado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-slate-500">Aún no hay cargas registradas para Mail.</td>
-                  </tr>
-                ) : (
-                  historyRows.map(item => (
-                    <tr key={item.id} className="border-t border-slate-100">
-                      <td className="px-3 py-2 font-semibold text-slate-900">{item.proceso || '-'}</td>
-                      <td className="px-3 py-2 text-slate-600">{item.mandante || '-'}</td>
-                      <td className="px-3 py-2 text-slate-600">{Number(item.registros || 0).toLocaleString('es-CL')}</td>
-                      <td className="px-3 py-2 text-slate-600">{formatHistoryDate(item.fecha_creacion)}</td>
-                      <td className="px-3 py-2 text-slate-600">{item.archivo || '-'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
       </div>
     </main>
   )

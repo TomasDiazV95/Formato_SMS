@@ -6,9 +6,7 @@ import re
 import unicodedata
 
 from services.ivr_service import build_ivr_output, get_campo1_choices, sample_ivr_df
-from services.constants import MANDANTE_CHOICES
 from services.mandante_rules import apply_mandante_rules
-from services import db_repos
 from utils.excel_export import df_to_xlsx_bytesio
 from utils import api_error_response
 from frontend import serve_react_app
@@ -18,22 +16,6 @@ ivr_bp = Blueprint("ivr", __name__)
 
 def _ivr_error(message: str, status: int = 400):
     return api_error_response(message, "ivr.ivr_page", status=status)
-
-
-def _build_ivr_detalle(df: pd.DataFrame, campo1: str) -> list[dict[str, str | None]]:
-    if df is None or df.empty:
-        return []
-    registros = df.iloc[1:] if len(df) > 1 else pd.DataFrame()
-    detalles = []
-    for _, row in registros.iterrows():
-        detalles.append({
-            "rut": str(row.get("ID_CLIENTE", "")).strip() or None,
-            "telefono": str(row.get("TELEFONO", "")).strip() or None,
-            "operacion": str(row.get("OPCIONAL", "")).strip() or None,
-            "mensaje": str(row.get("MENSAJE", "")).strip() or None,
-            "extra": {"campo1": campo1},
-        })
-    return detalles
 
 
 def _filename_token(value: str) -> str:
@@ -88,36 +70,8 @@ def ivr_process():
         fecha = datetime.now().strftime("%d-%m")
         buf = df_to_xlsx_bytesio(out, sheet_name="Hoja1")
 
-        mandante = db_repos.fetch_mandante_by_nombre(mandante_nombre)
-        if not mandante:
-            return _ivr_error("Mandante no encontrado en catálogo.")
-
-        mandante_token = _filename_token(mandante.nombre)
+        mandante_token = _filename_token(mandante_nombre)
         name = f"carga_IVR_ATHENAS_{mandante_token}_{fecha}.xlsx"
-
-        proceso = db_repos.fetch_proceso_by_codigo("IVR_ATHENAS")
-        if not proceso:
-            return _ivr_error("No se logró identificar el proceso para registrar costos.", status=500)
-
-        total_registros = max(len(out) - 1, 0)
-        masividad_id = db_repos.log_masividad(
-            mandante_id=mandante.id,
-            proceso_id=proceso.id,
-            total_registros=total_registros,
-            costo_unitario=proceso.costo_unitario,
-            usuario_app="ivr",
-            archivo_generado=name,
-            observacion="IVR Athenas",
-            metadata={"campo1": campo1},
-        )
-        detalles = _build_ivr_detalle(out, campo1)
-        if masividad_id and detalles:
-            db_repos.bulk_insert_masividad_detalle(
-                masividad_log_id=masividad_id,
-                proceso_codigo=proceso.codigo,
-                mandante_nombre=mandante.nombre,
-                registros=detalles,
-            )
 
         return send_file(
             buf,
