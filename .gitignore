@@ -10,10 +10,18 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
+# Local environment files / secrets
+.env
+react-frontend/.env.production
+
 # Frontend generated artifacts
 react-frontend/node_modules/
 react-frontend/dist/
 react-frontend/.vite/
 
-echo __pycache__/ >> .gitignore
-echo *.pyc >> .gitignore
+# Generated operational files
+outputs/
+comparacion/
+PRUEBAS/
+*.png
+*.PNG

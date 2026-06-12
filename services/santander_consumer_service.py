@@ -42,6 +42,10 @@ OUTPUT_COLUMNS = [
 ]
 
 SC_EXECUTIVE_MANDANTE = "Santander Consumer Terreno"
+SPANISH_MONTHS = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+]
 
 OPERATION_COLUMN_ALIASES = {
     "operacion",
@@ -275,7 +279,7 @@ def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: s
     ops_to_query = list(dict.fromkeys([op for op in operation_values.tolist() if op]))
     db_rows = _fetch_tmp_bench_rows(ops_to_query)
     now = datetime.now()
-    mes_curso = str(now.month)
+    mes_curso = SPANISH_MONTHS[now.month - 1]
     ano_curso = str(now.year)
     ruts_to_query = list(
         dict.fromkeys(
