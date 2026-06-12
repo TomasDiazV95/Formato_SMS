@@ -58,6 +58,10 @@ OUTPUT_COLUMNS = [
 ]
 
 SC_EXECUTIVE_MANDANTE = "Santander Consumer Terreno"
+SPANISH_MONTHS = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+]
 
 OPERATION_COLUMN_ALIASES = {
     "operacion",
