@@ -33,23 +33,23 @@ def _fake_ejecutivo(nombre: str = "Ariel Silva") -> Ejecutivo:
 
 
 def validate_sms_itau() -> None:
-    from modules.procesos.sms import routes as sms_routes
+    from services import sms_itau_vencida
 
-    original_fetch = sms_routes.ejecutivos_repo.fetch_by_mandante_and_nombre
-    original_list = sms_routes.ejecutivos_repo.list_ejecutivos
+    original_fetch = sms_itau_vencida.ejecutivos_repo.fetch_by_mandante_and_nombre
+    original_list = sms_itau_vencida.ejecutivos_repo.list_ejecutivos
     try:
-        sms_routes.ejecutivos_repo.fetch_by_mandante_and_nombre = lambda mandante, nombre: _fake_ejecutivo(nombre)
-        sms_routes.ejecutivos_repo.list_ejecutivos = lambda mandante=None, activos=True: [_fake_ejecutivo()]
+        sms_itau_vencida.ejecutivos_repo.fetch_by_mandante_and_nombre = lambda mandante, nombre: _fake_ejecutivo(nombre)
+        sms_itau_vencida.ejecutivos_repo.list_ejecutivos = lambda mandante=None, activos=True: [_fake_ejecutivo()]
         df = pd.DataFrame(
             {
                 "CARTERIZADO": ["Ariel Silva"],
                 "MASIVIDAD": ["SMS MOROSIDAD"],
             }
         )
-        messages = sms_routes._build_itau_carterizado_messages(df, "Itau Vencida")
+        messages = sms_itau_vencida.build_itau_carterizado_messages(df, "Itau Vencida")
     finally:
-        sms_routes.ejecutivos_repo.fetch_by_mandante_and_nombre = original_fetch
-        sms_routes.ejecutivos_repo.list_ejecutivos = original_list
+        sms_itau_vencida.ejecutivos_repo.fetch_by_mandante_and_nombre = original_fetch
+        sms_itau_vencida.ejecutivos_repo.list_ejecutivos = original_list
 
     assert len(messages) == 1, "SMS Itau debe generar un mensaje"
     assert "Itau" in messages.iloc[0], "SMS Itau no contiene texto esperado"

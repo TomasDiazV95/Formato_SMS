@@ -10,7 +10,7 @@ if str(ROOT) not in sys.path:
 
 def main() -> None:
     from modules import backoffice_bp, cargas_bp, procesos_bp, resultantes_bp
-    from modules.procesos.sms import routes as sms_routes
+    from services import sms_itau_vencida
     from repositories import ejecutivos_repo, resultantes_repo
     from services import mail_templates
     from services import santander_consumer_templates
@@ -25,9 +25,9 @@ def main() -> None:
     assert len(mail_templates._load_itau_seed_rows()) > 0, "Sin semillas Mail Itau"
     assert santander_consumer_templates.SANTANDER_CONSUMER_TEMPLATES, "Sin templates Santander Consumer"
 
-    sms_config = sms_routes._load_itau_sms_config()
+    sms_config = sms_itau_vencida.load_itau_sms_config()
     assert sms_config and sms_config.get("templates"), "Sin config SMS Itau"
-    assert sms_routes._load_itau_seed_rows(), "Sin semillas SMS Itau"
+    assert sms_itau_vencida.load_itau_seed_rows(), "Sin semillas SMS Itau"
 
     assert hasattr(ejecutivos_repo, "fetch_by_mandante_and_nombre")
     assert hasattr(resultantes_repo, "fetch_tanner_resultantes")
