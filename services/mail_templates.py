@@ -8,12 +8,12 @@ from typing import Optional, cast
 from difflib import SequenceMatcher
 import re
 import unicodedata
-from pathlib import Path
 
 import pandas as pd
 from openpyxl import load_workbook
 
 from repositories import ejecutivos_repo
+from utils.paths import archive_path, config_path, PROJECT_ROOT
 
 TEMPLATE_COLUMNS_TANNER = [
     "INSTITUCIÓN",
@@ -207,12 +207,12 @@ _DEFAULT_MAIL_TEMPLATE_OPTIONS: list[MailTemplate] = [
 
 
 def _load_mail_templates_from_config() -> list[MailTemplate]:
-    config_path = Path(__file__).resolve().parent.parent / "config" / "mail_templates.json"
-    if not config_path.exists():
+    path = config_path("mail_templates.json")
+    if not path.exists():
         return _DEFAULT_MAIL_TEMPLATE_OPTIONS
 
     try:
-        raw_items = json.loads(config_path.read_text(encoding="utf-8"))
+        raw_items = json.loads(path.read_text(encoding="utf-8"))
         templates = [
             MailTemplate(
                 code=str(item["code"]).strip(),
@@ -579,11 +579,11 @@ def _apply_current_itau_period(row: dict[str, str]) -> dict[str, str]:
 
 
 def _load_itau_seed_rows_from_config() -> list[dict[str, str]]:
-    config_path = Path(__file__).resolve().parent.parent / "config" / "mail_itau_vencida_seeds.json"
-    if not config_path.exists():
+    path = config_path("mail_itau_vencida_seeds.json")
+    if not path.exists():
         return []
     try:
-        raw_items = json.loads(config_path.read_text(encoding="utf-8"))
+        raw_items = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return []
     if not isinstance(raw_items, list):
@@ -604,10 +604,9 @@ def _load_itau_seed_rows() -> list[dict[str, str]]:
     if config_seeds:
         return config_seeds
 
-    project_root = Path(__file__).resolve().parent.parent
     path_candidates = [
-        project_root / "archive" / "mail_itau_vencida_excel_seed" / "MAIL_VENCIDA_20260413.xlsx",
-        project_root / "PLANTILLAS MAIL" / "ITAU VENCIDA" / "84824 ITAU VENCIDA MAIL" / "MAIL_VENCIDA_20260413.xlsx",
+        archive_path("mail_itau_vencida_excel_seed", "MAIL_VENCIDA_20260413.xlsx"),
+        PROJECT_ROOT / "PLANTILLAS MAIL" / "ITAU VENCIDA" / "84824 ITAU VENCIDA MAIL" / "MAIL_VENCIDA_20260413.xlsx",
     ]
     path = next((candidate for candidate in path_candidates if candidate.exists()), None)
     if not path:

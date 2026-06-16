@@ -5,13 +5,13 @@ from datetime import date, datetime
 import re
 import unicodedata
 from difflib import SequenceMatcher
-from pathlib import Path
 
 import pandas as pd
 
 from repositories import ejecutivos_repo
 from services.santander_consumer_templates import SantanderConsumerTemplate, get_santander_consumer_template
 from utils.db_sqlserver import get_stc_connection
+from utils.paths import config_path
 
 
 OUTPUT_COLUMNS = [
@@ -246,12 +246,12 @@ def _load_supervisors() -> dict[str, dict[str, str]]:
         "supervisor_regiones": _DEFAULT_SUPERVISOR_REGIONES,
         "supervisor_rm": _DEFAULT_SUPERVISOR_RM,
     }
-    config_path = Path(__file__).resolve().parent.parent / "config" / "santander_consumer_supervisors.json"
-    if not config_path.exists():
+    path = config_path("santander_consumer_supervisors.json")
+    if not path.exists():
         return defaults
 
     try:
-        raw = json.loads(config_path.read_text(encoding="utf-8"))
+        raw = json.loads(path.read_text(encoding="utf-8"))
         loaded = {}
         for key, fallback in defaults.items():
             item = raw.get(key) or {}

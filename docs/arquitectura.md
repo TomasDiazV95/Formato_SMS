@@ -15,6 +15,7 @@ Este proyecto es una aplicacion Flask + React para generar archivos operativos d
 - `data/`: persistencia local pequena, actualmente catalogo CAMPO1.
 - `storage/`: salidas generadas locales ignoradas por Git.
 - `archive/`: respaldos historicos/legacy locales ignorados por Git.
+- `scripts/`: validaciones tecnicas de configuracion y runtime.
 
 ## Backend
 
@@ -32,8 +33,9 @@ Regla de diseno actual:
 - Los `repositories/` encapsulan lecturas/escrituras en bases de datos.
 - `config/*.json` contiene parametros simples que no requieren cambio de codigo.
 - `utils/excel_export.py` centraliza exportacion XLSX/ZIP.
+- `utils/paths.py` centraliza rutas principales del proyecto.
 
-Por compatibilidad, algunos imports antiguos desde `services/*_repo.py` siguen disponibles como wrappers. El codigo nuevo debe preferir `repositories/`.
+La capa de datos activa es `repositories/`. Los wrappers legacy `services/*_repo.py` fueron retirados.
 
 ## Frontend
 
@@ -65,3 +67,5 @@ El build productivo queda en `react-frontend/dist` y Flask lo sirve como SPA.
 ## Direccion futura
 
 La siguiente mejora arquitectonica recomendada es ampliar gradualmente `config/` o mover parametros administrables a Backoffice/SQL Server cuando exista necesidad operacional.
+
+Antes de refactors mayores, ejecutar `scripts/validate_configs.py`, `scripts/validate_runtime.py`, `python -m compileall app.py modules services utils repositories` y `npm run build`.

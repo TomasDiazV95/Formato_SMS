@@ -19,15 +19,15 @@ from services.mandante_rules import apply_mandante_rules
 from repositories import ejecutivos_repo
 from utils.excel_export import df_to_xlsx_bytesio
 from utils import api_error_response
+from utils.paths import archive_path, config_path, PROJECT_ROOT
 from frontend import serve_react_app
 
 sms_bp = Blueprint("sms", __name__)
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
 ITAU_SMS_DIRS = [
-    PROJECT_ROOT / "archive" / "sms_itau_vencida_txt",
+    archive_path("sms_itau_vencida_txt"),
     PROJECT_ROOT / "SMS_ITAU_VENCIDA",
 ]
-ITAU_SMS_CONFIG_PATH = PROJECT_ROOT / "config" / "sms_itau_vencida.json"
+ITAU_SMS_CONFIG_PATH = config_path("sms_itau_vencida.json")
 
 
 def _sms_error(message: str, status: int = 400):

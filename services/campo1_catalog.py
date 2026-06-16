@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import threading
-from pathlib import Path
 from typing import Any
+
+from utils.paths import data_path
 
 
 DEFAULT_CAMPO1_ITEMS = [
@@ -21,7 +22,7 @@ DEFAULT_CAMPO1_ITEMS = [
 ]
 
 
-_CATALOG_PATH = Path(__file__).resolve().parent.parent / "data" / "campo1_catalog.json"
+_CATALOG_PATH = data_path("campo1_catalog.json")
 _LOCK = threading.Lock()
 
 

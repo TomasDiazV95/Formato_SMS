@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
+
+from utils.paths import config_path
 
 
 @dataclass(frozen=True)
@@ -25,12 +26,12 @@ _DEFAULT_SANTANDER_CONSUMER_TEMPLATES: tuple[SantanderConsumerTemplate, ...] = (
 
 
 def _load_templates_from_config() -> tuple[SantanderConsumerTemplate, ...]:
-    config_path = Path(__file__).resolve().parent.parent / "config" / "santander_consumer_templates.json"
-    if not config_path.exists():
+    path = config_path("santander_consumer_templates.json")
+    if not path.exists():
         return _DEFAULT_SANTANDER_CONSUMER_TEMPLATES
 
     try:
-        raw_items = json.loads(config_path.read_text(encoding="utf-8"))
+        raw_items = json.loads(path.read_text(encoding="utf-8"))
         templates = tuple(
             SantanderConsumerTemplate(
                 key=str(item["key"]).strip(),

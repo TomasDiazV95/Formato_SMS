@@ -71,7 +71,7 @@ Los respaldos legacy quedan en `archive/` y se usan solo como fallback temporal 
 - `archive/sms_itau_vencida_txt/`: textos y semilla TXT para SMS Itau Vencida.
 - `archive/mail_itau_vencida_excel_seed/MAIL_VENCIDA_20260413.xlsx`: filas semilla Excel para Mail Itau Vencida.
 
-El codigo conserva busqueda secundaria en las rutas antiguas por compatibilidad local si reaparecen, pero no deben considerarse fuente principal.
+El codigo conserva busqueda secundaria en `archive/` y en las rutas antiguas por compatibilidad local si reaparecen, pero no deben considerarse fuente principal. Esta decision se mantiene hasta completar pruebas operativas reales de SMS/Mail Itau Vencida.
 
 ## Respaldos operativos conservados
 

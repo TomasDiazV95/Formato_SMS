@@ -23,6 +23,7 @@ Aplicacion operativa Flask + React para generar archivos de SMS, IVR, Mail, CRM,
 - `data/`: persistencia local simple, actualmente CAMPO1.
 - `storage/`: salidas generadas locales, ignoradas por Git.
 - `archive/`: respaldos historicos/legacy locales, ignorados por Git.
+- `scripts/`: validaciones tecnicas de configuracion y runtime.
 
 ## Modulos activos
 
@@ -83,6 +84,14 @@ http://192.168.1.6:5013
 
 ```bash
 python -m compileall app.py modules services utils repositories
+```
+
+```bash
+python scripts/validate_configs.py
+```
+
+```bash
+python scripts/validate_runtime.py
 ```
 
 ```bash
