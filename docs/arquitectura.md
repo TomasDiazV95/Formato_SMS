@@ -68,4 +68,4 @@ El build productivo queda en `react-frontend/dist` y Flask lo sirve como SPA.
 
 La siguiente mejora arquitectonica recomendada es ampliar gradualmente `config/` o mover parametros administrables a Backoffice/SQL Server cuando exista necesidad operacional.
 
-Antes de refactors mayores, ejecutar `scripts/validate_configs.py`, `scripts/validate_runtime.py`, `python -m compileall app.py modules services utils repositories` y `npm run build`.
+Antes de refactors mayores, ejecutar `scripts/validate_configs.py`, `scripts/validate_runtime.py`, `scripts/validate_generators.py`, `python -m compileall app.py modules services utils repositories scripts` y `npm run build`.

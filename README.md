@@ -95,6 +95,10 @@ python scripts/validate_runtime.py
 ```
 
 ```bash
+python scripts/validate_generators.py
+```
+
+```bash
 cd react-frontend
 npm run build
 ```
