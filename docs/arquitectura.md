@@ -34,6 +34,7 @@ Regla de diseno actual:
 - `config/*.json` contiene parametros simples que no requieren cambio de codigo.
 - `utils/excel_export.py` centraliza exportacion XLSX/ZIP.
 - `utils/paths.py` centraliza rutas principales del proyecto.
+- `services/config_registry.py` mantiene el inventario de configuracion JSON expuesto en Backoffice.
 
 Santander Consumer Terreno queda separado internamente en:
 
@@ -52,6 +53,8 @@ La UI esta en `react-frontend/src/modules/` y se enruta desde `react-frontend/sr
 - `/cargas/*`: cargas GM, BIT, Tanner, Porsche y Santander Hipotecario.
 - `/resultantes`: resultantes Tanner/Porsche.
 - `/backoffice/catalogos`: catalogos operativos.
+
+Backoffice muestra CAMPO1 editable y un inventario de `config/*.json` para controlar existencia, validez JSON y cantidad de items por fuente.
 
 El build productivo queda en `react-frontend/dist` y Flask lo sirve como SPA.
 

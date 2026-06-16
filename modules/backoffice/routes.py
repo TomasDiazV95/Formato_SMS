@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 from frontend import serve_react_app
-from services import campo1_catalog, mail_templates
+from services import campo1_catalog, config_registry, mail_templates
 from services.constants import MANDANTE_CHOICES
 
 
@@ -31,15 +31,17 @@ def backoffice_catalogos_data():
         for item in mail_templates.MAIL_TEMPLATE_OPTIONS
     ]
 
+    config_files = config_registry.list_config_files()
     payload = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
-        "warnings": [],
+        "warnings": config_registry.config_warnings(),
         "catalogs": {
             "mandantes": {
                 "app_constants": MANDANTE_CHOICES,
             },
             "ivr_campo1": campo1_catalog.list_items(active_only=False),
             "mail_templates": templates,
+            "config_files": config_files,
         },
     }
     return jsonify(payload)

@@ -26,6 +26,7 @@ function BackofficeCatalogos() {
 
   const mandantesApp = payload?.catalogs?.mandantes?.app_constants || []
   const templates = payload?.catalogs?.mail_templates || []
+  const configFiles = payload?.catalogs?.config_files || []
 
   const activeCampo1 = useMemo(() => campo1Items.filter(item => item.active), [campo1Items])
 
@@ -157,7 +158,7 @@ function BackofficeCatalogos() {
           </section>
         )}
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-4">
           <article className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Mandantes locales</p>
             <p className="mt-2 text-3xl font-semibold text-slate-900">{mandantesApp.length}</p>
@@ -172,6 +173,11 @@ function BackofficeCatalogos() {
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Plantillas Mail</p>
             <p className="mt-2 text-3xl font-semibold text-slate-900">{templates.length}</p>
             <p className="mt-1 text-sm text-slate-500">Layouts registrados</p>
+          </article>
+          <article className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Config JSON</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">{configFiles.length}</p>
+            <p className="mt-1 text-sm text-slate-500">Fuentes editables</p>
           </article>
         </section>
 
@@ -279,6 +285,40 @@ function BackofficeCatalogos() {
               ))}
             </ul>
           </article>
+        </section>
+
+        <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <h2 className="text-xl font-semibold text-slate-900">Configuracion JSON operativa</h2>
+          <p className="mt-1 text-sm text-slate-600">Inventario de archivos `config/*.json` usados como fuente principal. Por ahora la edicion se mantiene por archivo para reducir riesgo.</p>
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="px-3 py-2 font-medium">Archivo</th>
+                  <th className="px-3 py-2 font-medium">Dominio</th>
+                  <th className="px-3 py-2 font-medium">Items</th>
+                  <th className="px-3 py-2 font-medium">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {configFiles.map(item => (
+                  <tr key={item.key} className="border-t border-slate-100">
+                    <td className="px-3 py-2">
+                      <p className="font-semibold text-slate-900">{item.label}</p>
+                      <p className="text-xs text-slate-500">config/{item.filename}</p>
+                    </td>
+                    <td className="px-3 py-2 text-slate-700">{item.owner}</td>
+                    <td className="px-3 py-2 text-slate-700">{item.item_count}</td>
+                    <td className="px-3 py-2">
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.exists && item.valid_json ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                        {item.exists && item.valid_json ? 'OK' : 'Revisar'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </main>
