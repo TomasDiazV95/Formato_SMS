@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, cast
+from typing import Optional
 from difflib import SequenceMatcher
 import re
 import unicodedata
@@ -256,7 +256,9 @@ def build_mail_template(df: pd.DataFrame, template_code: str, mandante: Optional
     if template_code == "SC_TELEFONIA_MEDIOS_PAGO":
         return _build_sc_telefonia_medios_pago(df, template)
     if template_code == "ITAU_VENCIDA_MAIL":
-        return _build_itau_vencida(df, template, mandante)
+        from services.mail_itau_vencida import build_itau_vencida
+
+        return build_itau_vencida(df, template, mandante)
     if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
         return _build_tanner_medios_pago(df, template, mandante)
     if template_code == "SCJ_COBRANZA":
@@ -648,117 +650,6 @@ def _load_itau_seed_rows() -> list[dict[str, str]]:
             seeds.append(_apply_current_itau_period(row_dict))
 
     return seeds
-
-
-def _build_itau_vencida(df: pd.DataFrame, template: MailTemplate, mandante: Optional[str]) -> pd.DataFrame:
-    base = _prepare_itau_base(df)
-
-    oper_col = _find_column(base, {"oper", "operacion", "nro_operacion", "id_credito"})
-    rut_col = _find_column(base, {"rut", "rut_cliente", "id_cliente"})
-    dv_col = _find_column(base, {"dv1", "dv", "digito", "dígito", "dv_rut"})
-    nombre_col = _find_column(base, {"nombre", "nombre_cliente", "cliente", "contacto"})
-    masividad_col = _find_column(base, {"masividad", "tipo", "canal"})
-    email_col = _find_column(base, {"email", "mail", "correo", "dest_email", "dest_mail"})
-    agente_col = _find_column(base, AGENTE_COLUMN_ALIASES)
-
-    required = {
-        "Oper": oper_col,
-        "RUT": rut_col,
-        "DV": dv_col,
-        "Nombre": nombre_col,
-        "MASIVIDAD": masividad_col,
-        "EMAIL": email_col,
-        "CARTERIZADO": agente_col,
-    }
-    missing = [name for name, col in required.items() if col is None]
-    if missing:
-        raise ValueError("Faltan columnas requeridas para plantilla Itau Vencida: " + ", ".join(missing))
-
-    oper_col = str(oper_col)
-    rut_col = str(rut_col)
-    dv_col = str(dv_col)
-    nombre_col = str(nombre_col)
-    masividad_col = str(masividad_col)
-    email_col = str(email_col)
-    agente_col = str(agente_col)
-
-    masividad_series = _series(base, masividad_col).fillna("").astype(str).str.strip().str.upper()
-    filtered = cast(pd.DataFrame, base.loc[masividad_series == "EMAIL"].copy())
-    if filtered.empty:
-        raise ValueError("La base no contiene filas con MASIVIDAD = EMAIL.")
-
-    rut_series = _series(filtered, rut_col).fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
-    dv_series = _series(filtered, dv_col).fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
-    rutdv_series = rut_series + "-" + dv_series
-    oper_series = _series(filtered, oper_col).fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
-    nombre_series = (
-        _series(filtered, nombre_col)
-        .fillna("")
-        .astype(str)
-        .str.replace(r"\s+", " ", regex=True)
-        .str.strip()
-    )
-    email_series = _series(filtered, email_col).fillna("").astype(str).str.strip()
-    agente_series = (
-        _series(filtered, agente_col)
-        .fillna("")
-        .astype(str)
-        .str.replace(r"\s+", " ", regex=True)
-        .str.strip()
-    )
-
-    month_name = SPANISH_MONTHS[datetime.now().month - 1].upper()
-    year_str = str(datetime.now().year)
-    mandante_resolve = mandante or template.mandante
-
-    records: list[dict[str, str]] = []
-    for idx, agente in enumerate(agente_series.tolist()):
-        ejecutivo = _resolve_itau_ejecutivo(mandante_resolve, agente)
-        ejecutivo_name = _normalize_agent_text((ejecutivo.nombre_mostrar if ejecutivo else "") or agente)
-        mail_from = (ejecutivo.reenviador if ejecutivo else "") or (ejecutivo.correo if ejecutivo else "") or ""
-        correo = (ejecutivo.correo if ejecutivo else "") or ""
-        fono = _normalize_phone(ejecutivo.telefono if ejecutivo else "")
-        records.append({
-            "INSTITUCIÓN": template.institucion,
-            "SEGMENTOINSTITUCIÓN": template.segmentoinstitucion,
-            "message_id": str(template.message_id),
-            "RUTDV": rutdv_series.iloc[idx],
-            "RUT ": rut_series.iloc[idx],
-            "DV": dv_series.iloc[idx],
-            "OPERACIONES ": oper_series.iloc[idx],
-            "NOMBRE ": nombre_series.iloc[idx],
-            "APELLIDO_1": "",
-            "APELLIDO_2": "",
-            "NOMBRE COMPLETO": nombre_series.iloc[idx],
-            "dest_email": email_series.iloc[idx],
-            "name_from": ejecutivo_name,
-            "mail_from": str(mail_from).strip(),
-            "CORREO": str(correo).strip(),
-            "EJECUTIVO": ejecutivo_name,
-            "SUPERVISOR": ITAU_SUPERVISOR,
-            "MAILS SUPERVISOR": ITAU_SUPERVISOR_MAIL,
-            "TELEFONO SUPERVISOR": ITAU_SUPERVISOR_PHONE,
-            "CARTERA": ITAU_CARTERA,
-            "CORREO_RECEPCION": ITAU_CORREO_RECEPCION,
-            "FONO": fono,
-            "MES_CURSO": month_name,
-            "ANO_CURSO": year_str,
-            "DIA_RENE": "",
-            "MES_RENE": "",
-            "ANO_RENE": "",
-            "MARCA WEB Y SUCURSAL": "",
-        })
-
-    if not records:
-        raise ValueError("No se encontró ningún ejecutivo válido para Itau Vencida en la base EMAIL.")
-
-    output = pd.DataFrame(records).reindex(columns=TEMPLATE_COLUMNS_ITAU_VENCIDA)
-
-    seeds = _load_itau_seed_rows()
-    if not seeds:
-        return output
-    seeds_df = pd.DataFrame(seeds).reindex(columns=TEMPLATE_COLUMNS_ITAU_VENCIDA).fillna("")
-    return pd.concat([seeds_df, output], ignore_index=True)
 
 
 SCJ_PLANTILLA_VALUE = "CobranzaP"
