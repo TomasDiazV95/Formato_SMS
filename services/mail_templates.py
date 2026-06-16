@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, cast
@@ -12,7 +13,7 @@ from pathlib import Path
 import pandas as pd
 from openpyxl import load_workbook
 
-from services import ejecutivos_repo
+from repositories import ejecutivos_repo
 
 TEMPLATE_COLUMNS_TANNER = [
     "INSTITUCIÓN",
@@ -153,7 +154,7 @@ class MailTemplate:
         return f"{self.label} (ID: {self.message_id})"
 
 
-MAIL_TEMPLATE_OPTIONS: list[MailTemplate] = [
+_DEFAULT_MAIL_TEMPLATE_OPTIONS: list[MailTemplate] = [
     MailTemplate(
         code="SC_TELEFONIA_DESCUENTO",
         label="Santander Consumer Telefonía - Descuento",
@@ -203,6 +204,32 @@ MAIL_TEMPLATE_OPTIONS: list[MailTemplate] = [
         mandante="Santander Consumer Judicial",
     ),
 ]
+
+
+def _load_mail_templates_from_config() -> list[MailTemplate]:
+    config_path = Path(__file__).resolve().parent.parent / "config" / "mail_templates.json"
+    if not config_path.exists():
+        return _DEFAULT_MAIL_TEMPLATE_OPTIONS
+
+    try:
+        raw_items = json.loads(config_path.read_text(encoding="utf-8"))
+        templates = [
+            MailTemplate(
+                code=str(item["code"]).strip(),
+                label=str(item["label"]).strip(),
+                message_id=int(item["message_id"]),
+                institucion=str(item["institucion"]).strip(),
+                segmentoinstitucion=str(item["segmentoinstitucion"]).strip(),
+                mandante=str(item["mandante"]).strip(),
+            )
+            for item in raw_items
+        ]
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+        return _DEFAULT_MAIL_TEMPLATE_OPTIONS
+    return templates or _DEFAULT_MAIL_TEMPLATE_OPTIONS
+
+
+MAIL_TEMPLATE_OPTIONS: list[MailTemplate] = _load_mail_templates_from_config()
 
 
 def get_template_by_id(template_id: int) -> Optional[MailTemplate]:
@@ -544,9 +571,46 @@ def _resolve_itau_ejecutivo(mandante: str, agente: str) -> Optional[ejecutivos_r
     return best if best and best_score >= 0.92 else None
 
 
+def _apply_current_itau_period(row: dict[str, str]) -> dict[str, str]:
+    out = dict(row)
+    out["MES_CURSO"] = SPANISH_MONTHS[datetime.now().month - 1].upper()
+    out["ANO_CURSO"] = str(datetime.now().year)
+    return out
+
+
+def _load_itau_seed_rows_from_config() -> list[dict[str, str]]:
+    config_path = Path(__file__).resolve().parent.parent / "config" / "mail_itau_vencida_seeds.json"
+    if not config_path.exists():
+        return []
+    try:
+        raw_items = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(raw_items, list):
+        return []
+
+    seeds = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        row = {col: str(item.get(col) or "").strip() for col in TEMPLATE_COLUMNS_ITAU_VENCIDA}
+        if any(row.values()):
+            seeds.append(_apply_current_itau_period(row))
+    return seeds
+
+
 def _load_itau_seed_rows() -> list[dict[str, str]]:
-    path = Path(__file__).resolve().parent.parent / "PLANTILLAS MAIL" / "ITAU VENCIDA" / "84824 ITAU VENCIDA MAIL" / "MAIL_VENCIDA_20260413.xlsx"
-    if not path.exists():
+    config_seeds = _load_itau_seed_rows_from_config()
+    if config_seeds:
+        return config_seeds
+
+    project_root = Path(__file__).resolve().parent.parent
+    path_candidates = [
+        project_root / "archive" / "mail_itau_vencida_excel_seed" / "MAIL_VENCIDA_20260413.xlsx",
+        project_root / "PLANTILLAS MAIL" / "ITAU VENCIDA" / "84824 ITAU VENCIDA MAIL" / "MAIL_VENCIDA_20260413.xlsx",
+    ]
+    path = next((candidate for candidate in path_candidates if candidate.exists()), None)
+    if not path:
         return []
 
     wb = load_workbook(path, data_only=True)
@@ -582,7 +646,7 @@ def _load_itau_seed_rows() -> list[dict[str, str]]:
             value = ws.cell(row_idx, col_idx).value
             row_dict[mapped] = str(value).strip() if value is not None else ""
         if any(str(v).strip() for v in row_dict.values()):
-            seeds.append(row_dict)
+            seeds.append(_apply_current_itau_period(row_dict))
 
     return seeds
 

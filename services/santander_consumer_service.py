@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import json
 from datetime import date, datetime
 import re
 import unicodedata
 from difflib import SequenceMatcher
+from pathlib import Path
 
 import pandas as pd
 
-from services import ejecutivos_repo
+from repositories import ejecutivos_repo
 from services.santander_consumer_templates import SantanderConsumerTemplate, get_santander_consumer_template
 from utils.db_sqlserver import get_stc_connection
 
@@ -224,19 +226,47 @@ def _resolve_template(template_key: str) -> SantanderConsumerTemplate:
     return template
 
 
-SUPERVISOR_REGIONES = {
+_DEFAULT_SUPERVISOR_REGIONES = {
     "name_from": "Maricel Galvez",
     "mail_from": "mgalvez@info.phoenixserviceinfo.cl",
     "CORREO": "mgalvez@phoenixservice.cl",
     "CELULAR": "967581695",
 }
 
-SUPERVISOR_RM = {
+_DEFAULT_SUPERVISOR_RM = {
     "name_from": "Juan Pablo Rios",
     "mail_from": "jrios@info.phoenixserviceinfo.cl",
     "CORREO": "jrios@phoenixservice.cl",
     "CELULAR": "972194298",
 }
+
+
+def _load_supervisors() -> dict[str, dict[str, str]]:
+    defaults = {
+        "supervisor_regiones": _DEFAULT_SUPERVISOR_REGIONES,
+        "supervisor_rm": _DEFAULT_SUPERVISOR_RM,
+    }
+    config_path = Path(__file__).resolve().parent.parent / "config" / "santander_consumer_supervisors.json"
+    if not config_path.exists():
+        return defaults
+
+    try:
+        raw = json.loads(config_path.read_text(encoding="utf-8"))
+        loaded = {}
+        for key, fallback in defaults.items():
+            item = raw.get(key) or {}
+            loaded[key] = {
+                field: str(item.get(field) or fallback[field]).strip()
+                for field in fallback
+            }
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return defaults
+    return loaded
+
+
+_SUPERVISORS = _load_supervisors()
+SUPERVISOR_REGIONES = _SUPERVISORS["supervisor_regiones"]
+SUPERVISOR_RM = _SUPERVISORS["supervisor_rm"]
 
 
 def _apply_supervisor_override(df: pd.DataFrame, asignacion_mode: str) -> pd.DataFrame:

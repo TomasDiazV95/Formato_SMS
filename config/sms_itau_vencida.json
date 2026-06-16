@@ -1,0 +1,108 @@
+{
+  "templates": {
+    "MOROSIDAD": {
+      "masividad_values": ["SMS MOROSIDAD"],
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora. Evita cargos por gastos de cobranza. Para más información llama al +556228401534"
+    },
+    "COMPROMISO_PAGO": {
+      "masividad_values": ["SMS COMPROMISO DE PAGO"],
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está próximo a vencer. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    "COMPROMISO_ROTO": {
+      "masividad_values": ["SMS COMPROMISO ROTO"],
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está pendiente. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    }
+  },
+  "seeds": [
+    {
+      "type": "MOROSIDAD",
+      "phone_local": "985881361",
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora. Evita cargos por gastos de cobranza. Para más información llama al +556228401534"
+    },
+    {
+      "type": "MOROSIDAD",
+      "phone_local": "938731034",
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora. Evita cargos por gastos de cobranza. Para más información llama al +556228401534"
+    },
+    {
+      "type": "MOROSIDAD",
+      "phone_local": "976900353",
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora. Evita cargos por gastos de cobranza. Para más información llama al +556228401534"
+    },
+    {
+      "type": "MOROSIDAD",
+      "phone_local": "961035031",
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora. Evita cargos por gastos de cobranza. Para más información llama al +556228401534"
+    },
+    {
+      "type": "MOROSIDAD",
+      "phone_local": "979131901",
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora. Evita cargos por gastos de cobranza. Para más información llama al +556228401534"
+    },
+    {
+      "type": "MOROSIDAD",
+      "phone_local": "957545177",
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora. Evita cargos por gastos de cobranza. Para más información llama al +556228401534"
+    },
+    {
+      "type": "COMPROMISO_PAGO",
+      "phone_local": "985881361",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está próximo a vencer. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "COMPROMISO_PAGO",
+      "phone_local": "938731034",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está próximo a vencer. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "COMPROMISO_PAGO",
+      "phone_local": "976900353",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está próximo a vencer. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "COMPROMISO_PAGO",
+      "phone_local": "961035031",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está próximo a vencer. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "COMPROMISO_PAGO",
+      "phone_local": "979131901",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está próximo a vencer. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "COMPROMISO_PAGO",
+      "phone_local": "957545177",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está próximo a vencer. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "COMPROMISO_ROTO",
+      "phone_local": "985881361",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está pendiente. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "COMPROMISO_ROTO",
+      "phone_local": "938731034",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está pendiente. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "COMPROMISO_ROTO",
+      "phone_local": "976900353",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está pendiente. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "COMPROMISO_ROTO",
+      "phone_local": "961035031",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está pendiente. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "COMPROMISO_ROTO",
+      "phone_local": "979131901",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está pendiente. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "COMPROMISO_ROTO",
+      "phone_local": "957545177",
+      "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está pendiente. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    }
+  ]
+}

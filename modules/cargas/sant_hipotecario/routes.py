@@ -32,7 +32,7 @@ def sant_hipotecario_page():
         try:
             df = leer_csv_sant_hipotecario(archivo)
 
-            output_dir = os.path.join(current_app.root_path, "outputs", "sant_hipotecario")
+            output_dir = os.path.join(current_app.root_path, "storage", "outputs", "sant_hipotecario")
 
             crm_res = generar_crm(df, output_dir)
             data = {

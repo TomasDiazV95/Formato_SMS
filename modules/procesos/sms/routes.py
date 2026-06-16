@@ -1,4 +1,5 @@
 # routes/sms.py
+import json
 import pandas as pd
 from datetime import datetime
 from flask import Blueprint, request, send_file, abort
@@ -15,14 +16,18 @@ from services.sms_service import (
 )
 from services.constants import COLUMN_MAP
 from services.mandante_rules import apply_mandante_rules
-from services import ejecutivos_repo
+from repositories import ejecutivos_repo
 from utils.excel_export import df_to_xlsx_bytesio
 from utils import api_error_response
 from frontend import serve_react_app
 
 sms_bp = Blueprint("sms", __name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-ITAU_SMS_DIR = PROJECT_ROOT / "SMS_ITAU_VENCIDA"
+ITAU_SMS_DIRS = [
+    PROJECT_ROOT / "archive" / "sms_itau_vencida_txt",
+    PROJECT_ROOT / "SMS_ITAU_VENCIDA",
+]
+ITAU_SMS_CONFIG_PATH = PROJECT_ROOT / "config" / "sms_itau_vencida.json"
 
 
 def _sms_error(message: str, status: int = 400):
@@ -68,6 +73,42 @@ ITAU_MASIVIDAD_TO_TEMPLATE = {
 }
 
 
+def _find_itau_sms_file(filename: str) -> Path | None:
+    for directory in ITAU_SMS_DIRS:
+        path = directory / filename
+        if path.exists():
+            return path
+    return None
+
+
+def _load_itau_sms_config() -> dict | None:
+    if not ITAU_SMS_CONFIG_PATH.exists():
+        return None
+    try:
+        config = json.loads(ITAU_SMS_CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return config if isinstance(config, dict) else None
+
+
+def _itau_masividad_to_template_from_config(config: dict | None) -> dict[str, str]:
+    if not config:
+        return ITAU_MASIVIDAD_TO_TEMPLATE
+    mapping: dict[str, str] = {}
+    templates = config.get("templates") or {}
+    if not isinstance(templates, dict):
+        return ITAU_MASIVIDAD_TO_TEMPLATE
+    for template_key, item in templates.items():
+        if not isinstance(item, dict):
+            continue
+        for value in item.get("masividad_values") or []:
+            normalized = _ascii_fold(_normalize_spaces(str(value))).upper()
+            normalized = re.sub(r"\s+", " ", normalized)
+            if normalized:
+                mapping[normalized] = str(template_key).strip().upper()
+    return mapping or ITAU_MASIVIDAD_TO_TEMPLATE
+
+
 def _normalize_spaces(value: str) -> str:
     return " ".join((value or "").split()).strip()
 
@@ -104,11 +145,19 @@ def _normalize_contact_phone(value: str) -> str:
 
 
 def _load_itau_sms_template(tipo_sms: str) -> str:
-    filename = ITAU_SMS_TEMPLATE_FILES.get((tipo_sms or "").strip().upper())
+    template_key = (tipo_sms or "").strip().upper()
+    config = _load_itau_sms_config()
+    if config:
+        item = (config.get("templates") or {}).get(template_key) or {}
+        text = str(item.get("message") or "").strip() if isinstance(item, dict) else ""
+        if text:
+            return text
+
+    filename = ITAU_SMS_TEMPLATE_FILES.get(template_key)
     if not filename:
         raise ValueError("Tipo de SMS Itaú no soportado.")
-    file_path = ITAU_SMS_DIR / filename
-    if not file_path.exists():
+    file_path = _find_itau_sms_file(filename)
+    if not file_path:
         raise ValueError(f"No se encontró la plantilla Itaú: {filename}")
     text = file_path.read_text(encoding="utf-8").strip()
     if not text:
@@ -186,6 +235,8 @@ def _build_itau_carterizado_messages(df: pd.DataFrame, mandante: str) -> pd.Seri
         raise ValueError("No se encontró la columna MASIVIDAD en el Excel de Itaú.")
 
     template_cache: dict[str, str] = {}
+    config = _load_itau_sms_config()
+    masividad_to_template = _itau_masividad_to_template_from_config(config)
 
     def _normalize_masividad(value: str) -> str:
         text = _ascii_fold(_normalize_spaces(value)).upper()
@@ -193,7 +244,7 @@ def _build_itau_carterizado_messages(df: pd.DataFrame, mandante: str) -> pd.Seri
         return text
 
     def _template_text_from_masividad(value: str) -> str:
-        key = ITAU_MASIVIDAD_TO_TEMPLATE.get(_normalize_masividad(value))
+        key = masividad_to_template.get(_normalize_masividad(value))
         if not key:
             return ""
         if key not in template_cache:
@@ -267,8 +318,26 @@ def _seed_type_from_message(message: str) -> str | None:
 
 
 def _load_itau_seed_rows() -> list[dict[str, str]]:
-    seed_path = ITAU_SMS_DIR / ITAU_SEED_FILE
-    if not seed_path.exists():
+    config = _load_itau_sms_config()
+    if config and isinstance(config.get("seeds"), list):
+        rows = []
+        for item in config["seeds"]:
+            if not isinstance(item, dict):
+                continue
+            seed_type = str(item.get("type") or "").strip().upper()
+            phone_local = re.sub(r"\D", "", str(item.get("phone_local") or ""))
+            message = _normalize_spaces(str(item.get("message") or ""))
+            if seed_type and phone_local and message:
+                rows.append({
+                    "seed_type": seed_type,
+                    "phone_local": phone_local,
+                    "message": message,
+                })
+        if rows:
+            return rows
+
+    seed_path = _find_itau_sms_file(ITAU_SEED_FILE)
+    if not seed_path:
         return []
 
     rows: list[dict[str, str]] = []

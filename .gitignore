@@ -20,8 +20,14 @@ react-frontend/dist/
 react-frontend/.vite/
 
 # Generated operational files
+storage/
 outputs/
 comparacion/
 PRUEBAS/
+
+# Local historical backups / legacy operational files
+archive/
+
+# Temporary screenshots/images
 *.png
 *.PNG
