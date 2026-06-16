@@ -25,6 +25,14 @@ Tablas relevantes:
 - `dbo.tmp_bench_STC`
 - `dbo.emails_carga`
 
+Codigo relacionado:
+
+- `utils/db_sqlserver.py`
+- `repositories/ejecutivos_repo.py`
+- `services/santander_consumer_sources.py`
+- `services/santander_consumer_assignments.py`
+- `services/santander_consumer_service.py`
+
 ## MySQL externo Resultantes
 
 Usado solo por Resultantes.

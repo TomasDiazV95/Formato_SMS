@@ -16,6 +16,7 @@ from services.mail_templates import TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_te
 from services.sant_hipotecario_masividad_service import generar_masividad
 from services.sant_hipotecario_service import generar_crm
 from services.santander_consumer_service import OUTPUT_COLUMNS, build_santander_consumer_terreno_output
+from services.sms_service import build_athenas_output, build_axia_output
 
 
 def _fake_ejecutivo(nombre: str = "Ariel Silva") -> Ejecutivo:
@@ -47,6 +48,10 @@ def validate_sms_itau() -> None:
             }
         )
         messages = sms_itau_vencida.build_itau_carterizado_messages(df, "Itau Vencida")
+        axia = build_axia_output(pd.DataFrame({"FONO": ["912345678"]}), mensaje="base", mensajes_series=messages)
+        athenas = build_athenas_output(pd.DataFrame({"TELEFONO": ["912345678"], "ID_CLIENTE": ["11111111-1"]}), mensaje="base", mensajes_series=messages)
+        axia_seeded, axia_seed_count = sms_itau_vencida.prepend_itau_seed_rows(axia, "AXIA", messages)
+        athenas_seeded, athenas_seed_count = sms_itau_vencida.prepend_itau_seed_rows(athenas, "ATHENAS", messages)
     finally:
         sms_itau_vencida.ejecutivos_repo.fetch_by_mandante_and_nombre = original_fetch
         sms_itau_vencida.ejecutivos_repo.list_ejecutivos = original_list
@@ -54,6 +59,8 @@ def validate_sms_itau() -> None:
     assert len(messages) == 1, "SMS Itau debe generar un mensaje"
     assert "Itau" in messages.iloc[0], "SMS Itau no contiene texto esperado"
     assert "56912345678" in messages.iloc[0], "SMS Itau no agrega telefono de ejecutivo"
+    assert axia_seed_count > 0 and len(axia_seeded) > len(axia), "SMS Itau AXIA no agrega semillas"
+    assert athenas_seed_count > 0 and len(athenas_seeded) > len(athenas), "SMS Itau Athenas no agrega semillas"
     print("SMS_ITAU_OK")
 
 
@@ -90,13 +97,15 @@ def validate_mail_itau() -> None:
 
 def validate_santander_consumer() -> None:
     from services import santander_consumer_service as sc_service
+    from services import santander_consumer_assignments as sc_assignments
+    from services import santander_consumer_sources as sc_sources
 
-    original_bench = sc_service._fetch_tmp_bench_rows
-    original_emails = sc_service._fetch_emails_by_rut
-    original_fetch = sc_service.ejecutivos_repo.fetch_by_mandante_and_nombre
-    original_list = sc_service.ejecutivos_repo.list_ejecutivos
+    original_bench = sc_sources.fetch_tmp_bench_rows
+    original_emails = sc_sources.fetch_emails_by_rut
+    original_fetch = sc_assignments.ejecutivos_repo.fetch_by_mandante_and_nombre
+    original_list = sc_assignments.ejecutivos_repo.list_ejecutivos
     try:
-        sc_service._fetch_tmp_bench_rows = lambda operaciones: {
+        sc_sources.fetch_tmp_bench_rows = lambda operaciones: {
             "123456": {
                 "fld_RUT": "11111111-1",
                 "fld_OPERACION": "123456",
@@ -106,27 +115,33 @@ def validate_santander_consumer() -> None:
                 "fld_PATENTE": "AA1111",
                 "fld_DEUDA_INI": "100000",
                 "fld_COMUNA": "SANTIAGO",
-                "fld_REGION": "RM",
+                "fld_REGION": "REGION METROPOLITANA",
                 "fld_FECHA": "20260616",
                 "fecha_carga": "20260616",
             }
         }
-        sc_service._fetch_emails_by_rut = lambda ruts: {"111111111": "cliente.sc@example.com"}
-        sc_service.ejecutivos_repo.fetch_by_mandante_and_nombre = lambda mandante, nombre: _fake_ejecutivo(nombre)
-        sc_service.ejecutivos_repo.list_ejecutivos = lambda mandante=None, activos=True: [_fake_ejecutivo()]
+        sc_sources.fetch_emails_by_rut = lambda ruts: {"111111111": "cliente.sc@example.com"}
+        sc_assignments.ejecutivos_repo.fetch_by_mandante_and_nombre = lambda mandante, nombre: _fake_ejecutivo(nombre)
+        sc_assignments.ejecutivos_repo.list_ejecutivos = lambda mandante=None, activos=True: [_fake_ejecutivo()]
         output = build_santander_consumer_terreno_output(
             pd.DataFrame({"OPERACION": ["123456"]}),
             template_key="vigente",
         )
+        output_rm = build_santander_consumer_terreno_output(
+            pd.DataFrame({"OPERACION": ["123456"]}),
+            template_key="vigente",
+            asignacion_mode="supervisor_rm",
+        )
     finally:
-        sc_service._fetch_tmp_bench_rows = original_bench
-        sc_service._fetch_emails_by_rut = original_emails
-        sc_service.ejecutivos_repo.fetch_by_mandante_and_nombre = original_fetch
-        sc_service.ejecutivos_repo.list_ejecutivos = original_list
+        sc_sources.fetch_tmp_bench_rows = original_bench
+        sc_sources.fetch_emails_by_rut = original_emails
+        sc_assignments.ejecutivos_repo.fetch_by_mandante_and_nombre = original_fetch
+        sc_assignments.ejecutivos_repo.list_ejecutivos = original_list
 
     assert list(output.columns) == OUTPUT_COLUMNS, "Santander Consumer columnas inesperadas"
     assert output.loc[0, "ENCONTRADO_DB"] == "SI", "Santander Consumer no marco encontrado"
     assert output.loc[0, "dest_email"] == "cliente.sc@example.com", "Santander Consumer no asigno email"
+    assert output_rm.loc[0, "name_from"] == "Juan Pablo Rios", "Santander Consumer supervisor RM no asigno remitente"
     print("SANTANDER_CONSUMER_OK")
 
 
@@ -167,6 +182,7 @@ def validate_santander_hipotecario() -> None:
         assert Path(crm["crm_path"]).exists(), "Santander Hipotecario no creo CRM"
         assert Path(masividad["masiv_path"]).exists(), "Santander Hipotecario no creo masividad"
         assert not masividad["df"].empty, "Santander Hipotecario masividad vacia"
+        assert {"RUT", "CLIENTE", "dest_email", "message_id"}.issubset(masividad["df"].columns)
         assert masividad["df"].loc[0, "dest_email"] == "cliente.hipotecario@example.com"
     finally:
         shutil.rmtree(output_dir, ignore_errors=True)

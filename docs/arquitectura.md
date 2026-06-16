@@ -35,6 +35,12 @@ Regla de diseno actual:
 - `utils/excel_export.py` centraliza exportacion XLSX/ZIP.
 - `utils/paths.py` centraliza rutas principales del proyecto.
 
+Santander Consumer Terreno queda separado internamente en:
+
+- `services/santander_consumer_service.py`: construccion del DataFrame final.
+- `services/santander_consumer_sources.py`: lecturas SQL Server y normalizacion de datos fuente.
+- `services/santander_consumer_assignments.py`: resolucion de ejecutivos y overrides de supervisores.
+
 La capa de datos activa es `repositories/`. Los wrappers legacy `services/*_repo.py` fueron retirados.
 
 ## Frontend
