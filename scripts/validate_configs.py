@@ -141,6 +141,13 @@ def validate_gm_mail_templates() -> None:
         )
         int(fixed["message_id"])
         int(fixed["FONO_EJECUTIVA"])
+        seed_rows = item.get("seed_rows")
+        if not isinstance(seed_rows, list) or len(seed_rows) < 2:
+            raise AssertionError("GM Mail debe tener al menos 2 semillas")
+        seed_emails = {str(seed.get("dest_email") or "").strip().lower() for seed in seed_rows if isinstance(seed, dict)}
+        for email in ["pipe5550@gmail.com", "cfuentes@phoenixservice.cl"]:
+            if email not in seed_emails:
+                raise AssertionError(f"GM Mail sin semilla requerida: {email}")
 
 
 def main() -> None:

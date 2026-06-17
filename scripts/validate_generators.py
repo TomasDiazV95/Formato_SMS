@@ -285,14 +285,15 @@ def validate_gm_mail() -> None:
         "CORREO_EJECUTIVA",
     ]
     assert list(output.columns) == expected_columns, "GM Mail columnas inesperadas"
-    assert list(output["OPERACION"].astype(str)) == ["OP1", "OP4"], "GM Mail no conservo orden/dedupe esperado"
+    assert list(output["dest_email"].astype(str).head(2)) == ["pipe5550@gmail.com", "cfuentes@phoenixservice.cl"], "GM Mail no antepuso semillas"
+    assert list(output["OPERACION"].astype(str)) == ["", "", "OP1", "OP4"], "GM Mail no conservo orden/dedupe esperado"
     assert output.loc[0, "INSTITUCIÓN"] == "GENERAL MOTORS", "GM Mail no aplico fijo INSTITUCIÓN"
     assert output.loc[0, "FONO_EJECUTIVA"] == 962487407, "GM Mail no aplico telefono fijo"
     assert output.loc[0, "name_from"] == "Jesabel Jeldez Fuentez", "GM Mail no aplico name_from fijo"
-    assert output.loc[0, "FECHA_VENCIMIENTO_CUOTA"] == "05-02-2026", "GM Mail no formateo vencimiento"
+    assert output.loc[2, "FECHA_VENCIMIENTO_CUOTA"] == "05-02-2026", "GM Mail no formateo vencimiento"
     assert output.loc[0, "FECHA_ARCHIVO"] == "17-06-2026", "GM Mail no aplico fecha archivo"
-    assert output.loc[1, "OPERACION"] == "OP4", "GM Mail no conserva operacion sin match"
-    assert output.loc[1, "NOMBRE"] == "", "GM Mail operacion sin match debe quedar sin datos SQL"
+    assert output.loc[3, "OPERACION"] == "OP4", "GM Mail no conserva operacion sin match"
+    assert output.loc[3, "NOMBRE"] == "", "GM Mail operacion sin match debe quedar sin datos SQL"
     print("GM_MAIL_OK")
 
 

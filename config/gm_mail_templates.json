@@ -28,6 +28,14 @@
       "name_from": "Jesabel Jeldez Fuentez",
       "mail_from": "jjeldez@info.phoenixserviceinfo.cl",
       "CORREO_EJECUTIVA": "Jjeldez@phoenixservice.cl"
-    }
+    },
+    "seed_rows": [
+      {
+        "dest_email": "pipe5550@gmail.com"
+      },
+      {
+        "dest_email": "cfuentes@phoenixservice.cl"
+      }
+    ]
   }
 ]

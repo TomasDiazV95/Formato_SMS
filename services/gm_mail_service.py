@@ -59,6 +59,13 @@ def _template_fixed_values(template: dict[str, Any]) -> dict[str, Any]:
     return fixed_values
 
 
+def _template_seed_rows(template: dict[str, Any]) -> list[dict[str, Any]]:
+    seed_rows = template.get("seed_rows")
+    if not isinstance(seed_rows, list):
+        return []
+    return [item for item in seed_rows if isinstance(item, dict)]
+
+
 def build_gm_mail_output(
     df_origin: pd.DataFrame,
     *,
@@ -68,6 +75,7 @@ def build_gm_mail_output(
     template = get_gm_mail_template(template_key) or get_default_gm_mail_template()
     columns = _template_columns(template)
     fixed_values = _template_fixed_values(template)
+    seed_rows = _template_seed_rows(template)
     today = today or date.today()
 
     operation_column = find_operation_column(list(df_origin.columns))
@@ -77,6 +85,13 @@ def build_gm_mail_output(
     rows_by_operation = gm_mail_sources.fetch_tmp_asig_gm_rows(unique_operations)
 
     output_rows: list[dict[str, Any]] = []
+    for seed in seed_rows:
+        row = {column: "" for column in columns}
+        row.update(fixed_values)
+        row.update({key: value for key, value in seed.items() if key in row})
+        row["FECHA_ARCHIVO"] = today.strftime("%d-%m-%Y")
+        output_rows.append(row)
+
     for operation in operations:
         if not operation:
             continue
