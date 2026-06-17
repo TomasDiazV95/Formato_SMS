@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from typing import Any
 
-from utils.paths import config_path
+from services import config_store
 
 
 @dataclass(frozen=True)
@@ -25,31 +24,10 @@ CONFIG_FILES: tuple[ConfigFile, ...] = (
 )
 
 
-def _item_count(data: Any) -> int:
-    if isinstance(data, list):
-        return len(data)
-    if isinstance(data, dict):
-        if "templates" in data and isinstance(data["templates"], dict):
-            return len(data["templates"])
-        return len(data)
-    return 0
-
-
 def list_config_files() -> list[dict[str, Any]]:
     items = []
     for config in CONFIG_FILES:
-        path = config_path(config.filename)
-        exists = path.exists()
-        valid_json = False
-        item_count = 0
-        error = ""
-        if exists:
-            try:
-                raw = json.loads(path.read_text(encoding="utf-8"))
-                valid_json = True
-                item_count = _item_count(raw)
-            except (OSError, json.JSONDecodeError) as exc:
-                error = str(exc)
+        status = config_store.status(config.filename)
         items.append(
             {
                 "key": config.key,
@@ -57,10 +35,10 @@ def list_config_files() -> list[dict[str, Any]]:
                 "filename": config.filename,
                 "owner": config.owner,
                 "editable": config.editable,
-                "exists": exists,
-                "valid_json": valid_json,
-                "item_count": item_count,
-                "error": error,
+                "exists": status.exists,
+                "valid_json": status.valid_json,
+                "item_count": status.item_count,
+                "error": status.error,
             }
         )
     return items

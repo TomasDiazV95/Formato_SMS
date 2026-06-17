@@ -68,7 +68,7 @@ Codigo relacionado:
 
 Estos archivos tienen fallback en codigo para reducir riesgo operacional, pero deben mantenerse consistentes con la UI y los procesos activos.
 
-El inventario tecnico de estos archivos se mantiene en `services/config_registry.py` y se expone en Backoffice para revisar existencia, validez JSON y cantidad de items.
+La lectura/escritura tecnica de estos archivos se centraliza en `services/config_store.py`. El inventario se mantiene en `services/config_registry.py` y se expone en Backoffice para revisar existencia, validez JSON y cantidad de items.
 
 Las semillas de Mail Itau Vencida actualizan `MES_CURSO` y `ANO_CURSO` en runtime usando el mes y ano actuales, aunque el JSON no incluya esos campos.
 

@@ -7,6 +7,7 @@ from difflib import SequenceMatcher
 import pandas as pd
 
 from repositories import ejecutivos_repo
+from services import config_store
 from utils.paths import config_path
 
 
@@ -110,7 +111,7 @@ def load_supervisors() -> dict[str, dict[str, str]]:
         return defaults
 
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw = config_store.read_json("santander_consumer_supervisors.json")
         loaded = {}
         for key, fallback in defaults.items():
             item = raw.get(key) or {}

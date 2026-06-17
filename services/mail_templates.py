@@ -13,6 +13,7 @@ import pandas as pd
 from openpyxl import load_workbook
 
 from repositories import ejecutivos_repo
+from services import config_store
 from utils.paths import archive_path, config_path, PROJECT_ROOT
 
 TEMPLATE_COLUMNS_TANNER = [
@@ -212,7 +213,7 @@ def _load_mail_templates_from_config() -> list[MailTemplate]:
         return _DEFAULT_MAIL_TEMPLATE_OPTIONS
 
     try:
-        raw_items = json.loads(path.read_text(encoding="utf-8"))
+        raw_items = config_store.read_json("mail_templates.json")
         templates = [
             MailTemplate(
                 code=str(item["code"]).strip(),
@@ -585,7 +586,7 @@ def _load_itau_seed_rows_from_config() -> list[dict[str, str]]:
     if not path.exists():
         return []
     try:
-        raw_items = json.loads(path.read_text(encoding="utf-8"))
+        raw_items = config_store.read_json("mail_itau_vencida_seeds.json")
     except (OSError, json.JSONDecodeError):
         return []
     if not isinstance(raw_items, list):

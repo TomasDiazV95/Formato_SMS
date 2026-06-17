@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from repositories import ejecutivos_repo
+from services import config_store
 from utils.paths import PROJECT_ROOT, archive_path, config_path
 
 
@@ -80,7 +81,7 @@ def load_itau_sms_config() -> dict | None:
     if not ITAU_SMS_CONFIG_PATH.exists():
         return None
     try:
-        config = json.loads(ITAU_SMS_CONFIG_PATH.read_text(encoding="utf-8"))
+        config = config_store.read_json("sms_itau_vencida.json")
     except (OSError, json.JSONDecodeError):
         return None
     return config if isinstance(config, dict) else None

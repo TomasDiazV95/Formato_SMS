@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
+from services import config_store
 from utils.paths import config_path
 
 
@@ -31,7 +32,7 @@ def _load_templates_from_config() -> tuple[SantanderConsumerTemplate, ...]:
         return _DEFAULT_SANTANDER_CONSUMER_TEMPLATES
 
     try:
-        raw_items = json.loads(path.read_text(encoding="utf-8"))
+        raw_items = config_store.read_json("santander_consumer_templates.json")
         templates = tuple(
             SantanderConsumerTemplate(
                 key=str(item["key"]).strip(),
