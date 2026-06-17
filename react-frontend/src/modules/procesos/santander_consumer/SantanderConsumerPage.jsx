@@ -11,7 +11,10 @@ function SantanderConsumerPage() {
   const [loading, setLoading] = useState(false)
   const [templateKey, setTemplateKey] = useState('')
   const [asignacionMode, setAsignacionMode] = useState('normal')
+  const [offerDeadline, setOfferDeadline] = useState('')
   const [status, setStatus] = useState({ type: 'info', message: '' })
+
+  const requiresOfferDeadline = templateKey === 'susceptible' || templateKey === 'reconduccion'
 
   const updateStatus = (type, message) => {
     setStatus({ type, message })
@@ -24,6 +27,7 @@ function SantanderConsumerPage() {
     if (fileRef.current) fileRef.current.value = ''
     setTemplateKey('')
     setAsignacionMode('normal')
+    setOfferDeadline('')
   }
 
   const handleSubmit = async (e) => {
@@ -37,11 +41,18 @@ function SantanderConsumerPage() {
       updateStatus('danger', 'Debes seleccionar una plantilla.')
       return
     }
+    if (requiresOfferDeadline && !offerDeadline) {
+      updateStatus('danger', 'Debes seleccionar la fecha de plazo maximo valido.')
+      return
+    }
 
     const formData = new FormData()
     formData.append('file', file)
     formData.append('template_key', templateKey)
     formData.append('asignacion_mode', asignacionMode)
+    if (requiresOfferDeadline) {
+      formData.append('offer_deadline', offerDeadline)
+    }
 
     try {
       setLoading(true)
@@ -77,7 +88,13 @@ function SantanderConsumerPage() {
               <label className="text-sm font-medium text-slate-700">Plantilla</label>
               <select
                 value={templateKey}
-                onChange={e => setTemplateKey(e.target.value)}
+                onChange={e => {
+                  const value = e.target.value
+                  setTemplateKey(value)
+                  if (value !== 'susceptible' && value !== 'reconduccion') {
+                    setOfferDeadline('')
+                  }
+                }}
                 className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm"
                 required
               >
@@ -90,6 +107,20 @@ function SantanderConsumerPage() {
               </select>
               <p className="mt-2 text-xs text-slate-500">Para 3 cuotas y 2 cuotas se usa el mismo message_id (90818) y cambia NRO_CUOTAS.</p>
             </div>
+
+            {requiresOfferDeadline && (
+              <div>
+                <label className="text-sm font-medium text-slate-700">Plazo maximo valido</label>
+                <input
+                  type="date"
+                  value={offerDeadline}
+                  onChange={e => setOfferDeadline(e.target.value)}
+                  className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm"
+                  required
+                />
+                <p className="mt-2 text-xs text-slate-500">Se usara para DIA_OFERTA, MES_OFERTA y ANO_OFERTA en todas las filas.</p>
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-medium text-slate-700">Asignacion de supervisor</label>

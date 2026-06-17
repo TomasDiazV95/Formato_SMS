@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 import pandas as pd
 
@@ -84,7 +84,13 @@ def _resolve_template(template_key: str) -> SantanderConsumerTemplate:
     return template
 
 
-def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: str, asignacion_mode: str = "normal") -> pd.DataFrame:
+def build_santander_consumer_terreno_output(
+    df: pd.DataFrame,
+    *,
+    template_key: str,
+    asignacion_mode: str = "normal",
+    offer_deadline: date | None = None,
+) -> pd.DataFrame:
     base = df.copy()
     template = _resolve_template(template_key)
     op_col = _find_operation_column(base)
@@ -100,6 +106,9 @@ def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: s
     now = datetime.now()
     mes_curso = SPANISH_MONTHS[now.month - 1]
     ano_curso = str(now.year)
+    dia_oferta = offer_deadline.strftime("%d") if offer_deadline else ""
+    mes_oferta = SPANISH_MONTHS[offer_deadline.month - 1] if offer_deadline else ""
+    ano_oferta = str(offer_deadline.year) if offer_deadline else ""
     ruts_to_query = list(
         dict.fromkeys(
             [
@@ -148,9 +157,9 @@ def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: s
                     "FECHA_FUENTE": sc_sources.format_fecha_fuente(row.get("fld_FECHA"), row.get("fecha_carga")),
                     "MES_CURSO": mes_curso,
                     "ANO_CURSO": ano_curso,
-                    "DIA_OFERTA": "",
-                    "MES_OFERTA": "",
-                    "ANO_OFERTA": "",
+                    "DIA_OFERTA": dia_oferta,
+                    "MES_OFERTA": mes_oferta,
+                    "ANO_OFERTA": ano_oferta,
                 }
             )
         else:
@@ -179,9 +188,9 @@ def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: s
                     "FECHA_FUENTE": "",
                     "MES_CURSO": mes_curso,
                     "ANO_CURSO": ano_curso,
-                    "DIA_OFERTA": "",
-                    "MES_OFERTA": "",
-                    "ANO_OFERTA": "",
+                    "DIA_OFERTA": dia_oferta,
+                    "MES_OFERTA": mes_oferta,
+                    "ANO_OFERTA": ano_oferta,
                 }
             )
 
@@ -189,6 +198,17 @@ def build_santander_consumer_terreno_output(df: pd.DataFrame, *, template_key: s
     return sc_assignments.apply_supervisor_override(result, asignacion_mode)
 
 
-def build_santander_consumer_terreno_from_excel(file_storage, *, template_key: str, asignacion_mode: str = "normal") -> pd.DataFrame:
+def build_santander_consumer_terreno_from_excel(
+    file_storage,
+    *,
+    template_key: str,
+    asignacion_mode: str = "normal",
+    offer_deadline: date | None = None,
+) -> pd.DataFrame:
     df = pd.read_excel(file_storage, dtype=str)
-    return build_santander_consumer_terreno_output(df, template_key=template_key, asignacion_mode=asignacion_mode)
+    return build_santander_consumer_terreno_output(
+        df,
+        template_key=template_key,
+        asignacion_mode=asignacion_mode,
+        offer_deadline=offer_deadline,
+    )

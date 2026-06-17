@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -226,6 +227,11 @@ def validate_santander_consumer() -> None:
             template_key="vigente",
             asignacion_mode="supervisor_rm",
         )
+        output_offer = build_santander_consumer_terreno_output(
+            pd.DataFrame({"OPERACION": ["123456"]}),
+            template_key="susceptible",
+            offer_deadline=date(2026, 6, 22),
+        )
     finally:
         sc_sources.fetch_tmp_bench_rows = original_bench
         sc_sources.fetch_emails_by_rut = original_emails
@@ -236,6 +242,9 @@ def validate_santander_consumer() -> None:
     assert output.loc[0, "ENCONTRADO_DB"] == "SI", "Santander Consumer no marco encontrado"
     assert output.loc[0, "dest_email"] == "cliente.sc@example.com", "Santander Consumer no asigno email"
     assert output_rm.loc[0, "name_from"] == "Juan Pablo Rios", "Santander Consumer supervisor RM no asigno remitente"
+    assert output_offer.loc[0, "DIA_OFERTA"] == "22", "Santander Consumer no asigno DIA_OFERTA"
+    assert output_offer.loc[0, "MES_OFERTA"] == "Junio", "Santander Consumer no asigno MES_OFERTA"
+    assert output_offer.loc[0, "ANO_OFERTA"] == "2026", "Santander Consumer no asigno ANO_OFERTA"
     print("SANTANDER_CONSUMER_OK")
 
 
