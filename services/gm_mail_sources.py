@@ -12,10 +12,10 @@ def fetch_tmp_asig_gm_rows(operations: list[str]) -> dict[str, dict[str, object]
     WITH ranked AS (
         SELECT
             [fld_Customer Name],
-            [fld_National id],
+            [fld_National Id],
             [fld_Agreement Number],
-            [Due Date],
-            [EMI],
+            [fld_Due Date],
+            [fld_EMI],
             [fld_Email],
             ROW_NUMBER() OVER (
                 PARTITION BY LTRIM(RTRIM(CAST([fld_Agreement Number] AS nvarchar(255))))
@@ -24,7 +24,7 @@ def fetch_tmp_asig_gm_rows(operations: list[str]) -> dict[str, dict[str, object]
         FROM dbo.tmp_asig_gm
         WHERE LTRIM(RTRIM(CAST([fld_Agreement Number] AS nvarchar(255)))) IN ({placeholders})
     )
-    SELECT [fld_Customer Name], [fld_National id], [fld_Agreement Number], [Due Date], [EMI], [fld_Email]
+    SELECT [fld_Customer Name], [fld_National Id], [fld_Agreement Number], [fld_Due Date], [fld_EMI], [fld_Email]
     FROM ranked
     WHERE rn = 1
     """
