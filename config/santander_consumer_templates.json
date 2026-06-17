@@ -1,0 +1,44 @@
+[
+  {
+    "key": "susceptible",
+    "label": "Susceptible",
+    "message_id": 84132,
+    "nro_cuotas": ""
+  },
+  {
+    "key": "reconduccion",
+    "label": "Reconduccion",
+    "message_id": 84436,
+    "nro_cuotas": ""
+  },
+  {
+    "key": "dacion",
+    "label": "Dacion",
+    "message_id": 86663,
+    "nro_cuotas": ""
+  },
+  {
+    "key": "vigente",
+    "label": "Vigente",
+    "message_id": 80463,
+    "nro_cuotas": ""
+  },
+  {
+    "key": "castigo",
+    "label": "Castigo",
+    "message_id": 80465,
+    "nro_cuotas": ""
+  },
+  {
+    "key": "3_cuotas",
+    "label": "3 cuotas",
+    "message_id": 90818,
+    "nro_cuotas": "3 cuotas"
+  },
+  {
+    "key": "2_cuotas",
+    "label": "2 cuotas",
+    "message_id": 90818,
+    "nro_cuotas": "2 cuotas"
+  }
+]

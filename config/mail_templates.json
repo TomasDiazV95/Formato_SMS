@@ -1,0 +1,50 @@
+[
+  {
+    "code": "SC_TELEFONIA_DESCUENTO",
+    "label": "Santander Consumer Telefonía - Descuento",
+    "message_id": 95008,
+    "institucion": "Santander Consumer",
+    "segmentoinstitucion": "Santander Consumer",
+    "mandante": "Santander Consumer Telefonía"
+  },
+  {
+    "code": "SC_TELEFONIA_MEDIOS_PAGO",
+    "label": "Santander Consumer Telefonía - Medios de Pago",
+    "message_id": 96706,
+    "institucion": "Santander Consumer",
+    "segmentoinstitucion": "Santander Consumer",
+    "mandante": "Santander Consumer Telefonía"
+  },
+  {
+    "code": "ITAU_VENCIDA_MAIL",
+    "label": "Itau Vencida - Mail",
+    "message_id": 84824,
+    "institucion": "BANCO ITAÚ",
+    "segmentoinstitucion": "BANCO ITAÚ",
+    "mandante": "Itau Vencida"
+  },
+  {
+    "code": "TANNER_MEDIOS_PAGO",
+    "label": "Tanner - Medios de Pago",
+    "message_id": 91869,
+    "institucion": "TANNER SERVICIOS FINANCIEROS",
+    "segmentoinstitucion": "TANNER",
+    "mandante": "Tanner"
+  },
+  {
+    "code": "TANNER_CASTIGO",
+    "label": "Tanner - Castigo",
+    "message_id": 96830,
+    "institucion": "TANNER SERVICIOS FINANCIEROS",
+    "segmentoinstitucion": "TANNER",
+    "mandante": "Tanner"
+  },
+  {
+    "code": "SCJ_COBRANZA",
+    "label": "Santander Consumer Judicial - Cobranza",
+    "message_id": 86257,
+    "institucion": "SANTANDER CONSUMER",
+    "segmentoinstitucion": "SANTANDER CONSUMER",
+    "mandante": "Santander Consumer Judicial"
+  }
+]

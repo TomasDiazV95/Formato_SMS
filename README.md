@@ -1,57 +1,112 @@
 # Formato_SMS
-Formato carga SMS CRM y Proveedor 
 
-## Estructura modular (nueva)
+Aplicacion operativa Flask + React para generar archivos de SMS, IVR, Mail, CRM, cargas, Santander Consumer y Resultantes.
 
-Se agrego una capa de organizacion por dominios para ubicar rapido cada modulo sin romper compatibilidad con el codigo existente.
+## Documentacion
 
-### Backend
+- `docs/arquitectura.md`: estructura backend/frontend y decisiones principales.
+- `docs/datos.md`: fuentes de datos, conexiones, recursos runtime y respaldos.
+- `docs/procesos-activos.md`: modulos activos, retirados y validacion minima.
+- `docs/despliegue-red-local.md`: uso con IP fija en red local.
+- `RUNBOOK_OPERATIVO.md`: guia rapida de operacion y troubleshooting.
 
-- `modules/procesos/`: acceso modular a SMS, IVR, Mail, CRM y Santander Consumer.
-- `modules/cargas/`: acceso modular a GM, Bit, Tanner, Porsche y Santander Hipotecario.
-- `modules/resultantes/`: modulo de resultantes.
-- `modules/backoffice/`: modulo de catalogos y CRUD CAMPO1.
+## Estructura principal
 
-`app.py` ahora registra blueprints desde `modules/`, por lo que el punto de entrada principal queda agrupado por dominio.
+- `app.py`: entrada Flask y registro de blueprints.
+- `frontend.py`: servidor del build React.
+- `modules/`: endpoints backend por dominio.
+- `services/`: reglas de negocio y generacion de archivos.
+- `repositories/`: acceso a datos SQL Server/MySQL externo.
+- `config/`: configuracion JSON de plantillas y parametros operativos.
+- `utils/`: conexiones, exportadores y utilidades compartidas.
+- `react-frontend/`: SPA React/Vite.
+- `data/`: persistencia local simple, actualmente CAMPO1.
+- `storage/`: salidas generadas locales, ignoradas por Git.
+- `archive/`: respaldos historicos/legacy locales, ignorados por Git.
+- `scripts/`: validaciones tecnicas de configuracion y runtime.
 
-### Frontend
+## Modulos activos
 
-- `react-frontend/src/modules/procesos/`: entradas de UI para SMS, IVR, Mail, CRM, Santander Consumer.
-- `react-frontend/src/modules/cargas/`: entradas de UI para GM, Santander, Porsche, Bit, Tanner.
-- `react-frontend/src/modules/resultantes/`: entrada de Resultantes.
-- `react-frontend/src/modules/backoffice/`: entrada de Backoffice.
+- Procesos: SMS, IVR, Mail, CRM, Santander Consumer.
+- Cargas: GM, BIT, Tanner, Porsche, Santander Hipotecario.
+- Resultantes: Tanner y Porsche.
+- Backoffice: CAMPO1 y catalogos operativos.
 
-`react-frontend/src/App.jsx` usa imports desde `src/modules/` para centralizar navegacion por dominio.
+## Datos
+
+- SQL Server (`STC_DB_*`): Santander Consumer y ejecutivos/alias.
+- MySQL externo (`RESULT_DB_*`): Resultantes.
+- JSON local: `data/campo1_catalog.json`.
+- Configuracion Itau: `config/sms_itau_vencida.json` y `config/mail_itau_vencida_seeds.json` como fuente principal; TXT/Excel antiguos quedan en `archive/` como fallback temporal.
+
+## Configuracion local
+
+Crear `.env` desde `.env.example` y completar credenciales reales.
+
+No versionar:
+
+- `.env`
+- `react-frontend/.env.production`
+- `storage/`
+- `archive/`
+- `outputs/`
+- `comparacion/`
+- `PRUEBAS/`
+
+## Arranque
+
+Backend:
+
+```bash
+python app.py
+```
+
+Frontend build:
+
+```bash
+cd react-frontend
+npm run build
+```
+
+URL local:
+
+```text
+http://localhost:5013
+```
+
+URL red local actual:
+
+```text
+http://192.168.1.6:5013
+```
+
+## Validacion tecnica
+
+```bash
+python -m compileall app.py modules services utils repositories
+```
+
+```bash
+python scripts/validate_configs.py
+```
+
+```bash
+python scripts/validate_runtime.py
+```
+
+```bash
+python scripts/validate_generators.py
+```
+
+```bash
+cd react-frontend
+npm run build
+```
 
 ## Estado de migracion
 
-La limpieza final ya se aplico: las rutas legacy/wrappers y la reporteria financiera antigua fueron retiradas. El flujo operativo queda centralizado en `modules/` (backend) y `react-frontend/src/modules/` (frontend).
-
-La base MySQL financiera antigua fue eliminada del sistema. La unica conexion MySQL vigente es la fuente externa de Resultantes (`RESULT_DB_*`).
-
-## Santander Consumer (SQL Server)
-
-Para el proceso `Santander Consumer -> Terreno`, configura estas variables en `.env`:
-
-- `STC_DB_SERVER`
-- `STC_DB_NAME`
-- `STC_DB_USER`
-- `STC_DB_PASSWORD`
-- `STC_DB_DRIVER` (ejemplo: `ODBC Driver 17 for SQL Server`)
-
-Opcionales:
-
-- `STC_DB_TIMEOUT` (por defecto `30`)
-- `STC_DB_ENCRYPT` (por defecto `no`)
-- `STC_DB_TRUST_SERVER_CERT` (por defecto `yes`)
-
-## Resultantes (MySQL externo)
-
-Resultantes sigue activo y usa una base MySQL externa independiente. Configura estas variables en `.env`:
-
-- `RESULT_DB_ENABLED=1`
-- `RESULT_DB_HOST`
-- `RESULT_DB_PORT`
-- `RESULT_DB_NAME`
-- `RESULT_DB_USER`
-- `RESULT_DB_PASSWORD`
+- Reportes financieros retirado.
+- Depuradores retirado.
+- MySQL financiero antiguo retirado.
+- Resultantes sigue activo con MySQL externo.
+- Ejecutivos y Santander Consumer usan SQL Server.

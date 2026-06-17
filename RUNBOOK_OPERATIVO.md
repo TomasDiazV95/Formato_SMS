@@ -75,9 +75,10 @@ Nota:
 
 1. Actualizar codigo backend/frontend.
 2. Ejecutar lint/build frontend.
-3. Probar flujo minimo: SMS -> CRM, IVR -> CRM, Mail -> CRM, Resultantes.
-4. Registrar avances en `cambios/` usando la plantilla semanal.
-5. Si se mueve codigo de modulo, validar imports cruzados y ejecutar build/import check antes de commit.
+3. Ejecutar `python scripts/validate_configs.py`, `python scripts/validate_runtime.py` y `python scripts/validate_generators.py`.
+4. Probar flujo minimo: SMS -> CRM, IVR -> CRM, Mail -> CRM, Resultantes.
+5. Registrar avances en `archive/cambios/` usando la plantilla semanal si se mantiene bitacora local.
+6. Si se mueve codigo de modulo, validar imports cruzados y ejecutar build/import check antes de commit.
 
 ## 6) Flujo minimo de validacion funcional
 

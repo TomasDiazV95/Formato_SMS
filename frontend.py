@@ -2,14 +2,10 @@ from __future__ import annotations
 
 import os
 import subprocess
-from pathlib import Path
 
 from flask import Response, abort, send_from_directory
 
-
-FRONTEND_DIR = Path(__file__).resolve().parent / "react-frontend"
-FRONTEND_DIST = FRONTEND_DIR / "dist"
-FRONTEND_PUBLIC = FRONTEND_DIR / "public"
+from utils.paths import FRONTEND_DIR, FRONTEND_DIST, FRONTEND_PUBLIC
 
 _BUILD_HINT = "React build no encontrado. Ejecuta `npm install && npm run build` en react-frontend/."
 _AUTO_BUILD = os.getenv("AUTO_BUILD_FRONTEND", "0").lower() in {"1", "true", "yes"}

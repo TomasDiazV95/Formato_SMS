@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, date, time
 from typing import cast
 import io
 from services import campo1_catalog
+from services.contact_dedupe import dedupe_by_column_keep_first
 
 
 def get_campo1_choices() -> list[tuple[str, str]]:
@@ -82,6 +83,7 @@ def build_ivr_output(df: pd.DataFrame, campo1_value: str) -> pd.DataFrame:
     nom_col = _pick_col(base, "NOMBRE")
     if tel_col is None:
         raise ValueError("Falta columna de TELEFONO (acepta: Telefono, Teléfono, Fono, Celular, Móvil).")
+    base = dedupe_by_column_keep_first(base, rut_col)
 
     telefono = _as_text(base.loc[:, tel_col])
     rut      = _as_text(base.loc[:, rut_col]) if rut_col else pd.Series([""] * len(base), index=base.index)
@@ -141,6 +143,7 @@ def build_crm_output(
     if not tel_col: faltantes.append("TELEFONO")
     if faltantes:
         raise ValueError("Faltan columnas requeridas en el Excel base: " + ", ".join(faltantes))
+    base = dedupe_by_column_keep_first(base, rut_col)
     rut      = _as_text(base.loc[:, rut_col])
     nro_doc  = _as_text(base.loc[:, op_col])
     telefono = _as_text(base.loc[:, tel_col])

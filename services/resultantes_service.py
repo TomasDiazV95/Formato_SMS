@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from services import resultantes_repo
+from repositories import resultantes_repo
 from utils.excel_export import df_to_xlsx_bytes
 
 

@@ -1,12 +1,12 @@
-import os
 import uuid
 
-from flask import Blueprint, request, send_file, current_app, jsonify
+from flask import Blueprint, request, send_file, jsonify
 
 from services.sant_hipotecario_service import leer_csv_sant_hipotecario, generar_crm
 from services.sant_hipotecario_masividad_service import generar_masividad
 from frontend import serve_react_app
 from utils import api_error_response
+from utils.paths import storage_path
 
 sant_hipotecario_bp = Blueprint("sant_hipotecario", __name__)
 
@@ -32,7 +32,7 @@ def sant_hipotecario_page():
         try:
             df = leer_csv_sant_hipotecario(archivo)
 
-            output_dir = os.path.join(current_app.root_path, "outputs", "sant_hipotecario")
+            output_dir = storage_path("outputs", "sant_hipotecario")
 
             crm_res = generar_crm(df, output_dir)
             data = {
