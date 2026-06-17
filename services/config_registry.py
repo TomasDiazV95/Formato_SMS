@@ -17,6 +17,7 @@ class ConfigFile:
 
 CONFIG_FILES: tuple[ConfigFile, ...] = (
     ConfigFile("mail_templates", "Plantillas Mail", "mail_templates.json", "Mail"),
+    ConfigFile("gm_mail_templates", "Plantillas GM Mail", "gm_mail_templates.json", "GM Mail"),
     ConfigFile("mail_itau_vencida_seeds", "Semillas Mail Itau Vencida", "mail_itau_vencida_seeds.json", "Mail Itau"),
     ConfigFile("sms_itau_vencida", "SMS Itau Vencida", "sms_itau_vencida.json", "SMS Itau"),
     ConfigFile("santander_consumer_templates", "Templates Santander Consumer", "santander_consumer_templates.json", "Santander Consumer"),

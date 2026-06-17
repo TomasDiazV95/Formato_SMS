@@ -1,0 +1,144 @@
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+
+import InlineAlert from '../../../components/InlineAlert'
+import { fetchGmMailTemplates, submitGmMail } from '../../../api/gmMail'
+import { assertExcelResponse, triggerDownload } from '../../../utils/download'
+
+const fallbackTemplates = [
+  { key: 'gm_comercial_84995', label: 'GM_COMERCIAL_84995', filename_prefix: 'GM_COMERCIAL_84995' },
+]
+
+function GmMailPage() {
+  const fileRef = useRef(null)
+  const [loading, setLoading] = useState(false)
+  const [templates, setTemplates] = useState(fallbackTemplates)
+  const [templateKey, setTemplateKey] = useState('gm_comercial_84995')
+  const [status, setStatus] = useState({ type: 'info', message: '' })
+
+  useEffect(() => {
+    let ignore = false
+    fetchGmMailTemplates().then(response => {
+      if (ignore || response.status >= 400 || !Array.isArray(response.data?.templates)) return
+      if (response.data.templates.length > 0) {
+        setTemplates(response.data.templates)
+        setTemplateKey(response.data.templates[0].key)
+      }
+    }).catch(() => {})
+    return () => { ignore = true }
+  }, [])
+
+  const updateStatus = (type, message) => {
+    setStatus({ type, message })
+    if (message) {
+      setTimeout(() => setStatus({ type: 'info', message: '' }), 6000)
+    }
+  }
+
+  const resetForm = () => {
+    if (fileRef.current) fileRef.current.value = ''
+    setTemplateKey(templates[0]?.key || 'gm_comercial_84995')
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const file = fileRef.current?.files?.[0]
+    if (!file) {
+      updateStatus('danger', 'Debes subir un archivo Excel con operaciones.')
+      return
+    }
+    if (!templateKey) {
+      updateStatus('danger', 'Debes seleccionar una plantilla.')
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('template_key', templateKey)
+
+    try {
+      setLoading(true)
+      const response = await submitGmMail(formData)
+      await assertExcelResponse(response, 'No se pudo generar el archivo GM Mail.')
+      const filename = response.headers['content-disposition']?.split('filename=')[1]?.replaceAll('"', '') || 'GM_COMERCIAL_84995.xlsx'
+      triggerDownload(response.data, filename)
+      updateStatus('success', 'Archivo generado correctamente.')
+    } catch (error) {
+      updateStatus('danger', error?.message || 'No se pudo procesar el archivo.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 px-4 py-8">
+      <div className="mx-auto max-w-4xl space-y-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Proceso General Motors</p>
+            <h1 className="text-3xl font-semibold text-slate-900">GM Mail - Excel desde BD</h1>
+            <p className="mt-2 max-w-2xl text-slate-600">Sube un Excel con operaciones y genera la masividad consultando SQL Server en dbo.tmp_asig_gm.</p>
+          </div>
+          <Link to="/procesos" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
+        </div>
+
+        {status.message && <InlineAlert variant={status.type}>{status.message}</InlineAlert>}
+
+        <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            <div>
+              <label className="text-sm font-medium text-slate-700">Plantilla</label>
+              <select
+                value={templateKey}
+                onChange={e => setTemplateKey(e.target.value)}
+                className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm"
+                required
+              >
+                {templates.map(template => (
+                  <option key={template.key} value={template.key}>{template.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-slate-700">Archivo Excel de operaciones</label>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="mt-1 block w-full rounded-2xl border border-dashed border-slate-300 px-4 py-3 text-sm"
+                required
+              />
+              <p className="mt-2 text-xs text-slate-500">Columnas aceptadas: OPERACION, operacion, operación, OPERACIÓN, OP u op.</p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="submit"
+                className="inline-flex items-center rounded-full bg-emerald-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500"
+                disabled={loading}
+              >
+                {loading ? 'Procesando...' : 'Generar archivo'}
+              </button>
+              <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={resetForm}>
+                Limpiar
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <p className="font-semibold text-slate-800">Salida GM_COMERCIAL_84995</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
+            <li>Las operaciones se cruzan por [fld_Agreement Number] en SQL Server.</li>
+            <li>Si una operación no existe en la tabla, se conserva OPERACION y el resto de datos SQL queda vacío.</li>
+            <li>Los campos fijos vienen desde config/gm_mail_templates.json.</li>
+            <li>Se quitan RUT y correos duplicados conservando la primera fila encontrada.</li>
+          </ul>
+        </section>
+      </div>
+    </main>
+  )
+}
+
+export default GmMailPage

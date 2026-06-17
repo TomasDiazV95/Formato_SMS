@@ -101,8 +101,51 @@ def validate_santander_consumer() -> None:
         _require_fields(item, ["name_from", "mail_from", "CORREO", "CELULAR"], label=key)
 
 
+def validate_gm_mail_templates() -> None:
+    templates = _load_json("gm_mail_templates.json")
+    if not isinstance(templates, list) or not templates:
+        raise AssertionError("gm_mail_templates.json debe ser una lista no vacia")
+    seen_keys = set()
+    required_columns = [
+        "INSTITUCIÓN",
+        "SEGMENTOINSTITUCIÓN",
+        "message_id",
+        "NOMBRE",
+        "RUT",
+        "OPERACION",
+        "FECHA_VENCIMIENTO_CUOTA",
+        "MONTO_CUOTA",
+        "FECHA_ARCHIVO",
+        "FONO_EJECUTIVA",
+        "dest_email",
+        "name_from",
+        "mail_from",
+        "CORREO_EJECUTIVA",
+    ]
+    for item in templates:
+        if not isinstance(item, dict):
+            raise AssertionError("template GM Mail invalido")
+        _require_fields(item, ["key", "label", "filename_prefix", "sheet_name"], label="template GM Mail")
+        if item["key"] in seen_keys:
+            raise AssertionError(f"template GM Mail duplicado: {item['key']}")
+        seen_keys.add(item["key"])
+        if item.get("columns") != required_columns:
+            raise AssertionError("GM Mail columnas inesperadas")
+        fixed = item.get("fixed_values")
+        if not isinstance(fixed, dict):
+            raise AssertionError("GM Mail fixed_values invalido")
+        _require_fields(
+            fixed,
+            ["INSTITUCIÓN", "SEGMENTOINSTITUCIÓN", "message_id", "FONO_EJECUTIVA", "name_from", "mail_from", "CORREO_EJECUTIVA"],
+            label="GM Mail fixed_values",
+        )
+        int(fixed["message_id"])
+        int(fixed["FONO_EJECUTIVA"])
+
+
 def main() -> None:
     validate_mail_templates()
+    validate_gm_mail_templates()
     validate_sms_itau()
     validate_mail_itau_seeds()
     validate_santander_consumer()

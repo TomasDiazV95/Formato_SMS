@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
 from repositories.ejecutivos_repo import Ejecutivo
 from services.mail_service import build_mail_crm_output
 from services.mail_templates import TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
+from services.gm_mail_service import build_gm_mail_output
 from services.ivr_service import build_ivr_output
 from services.sant_hipotecario_masividad_service import generar_masividad
 from services.sant_hipotecario_service import generar_crm
@@ -51,8 +52,8 @@ def validate_sms_itau() -> None:
             }
         )
         messages = sms_itau_vencida.build_itau_carterizado_messages(df, "Itau Vencida")
-        axia = build_axia_output(pd.DataFrame({"FONO": ["912345678"]}), mensaje="base", mensajes_series=messages)
-        athenas = build_athenas_output(pd.DataFrame({"TELEFONO": ["912345678"], "ID_CLIENTE": ["11111111-1"]}), mensaje="base", mensajes_series=messages)
+        axia = build_axia_output(pd.DataFrame({"FONO": ["912345678"], "RUT": ["11111111-1"], "OP": ["OP1"]}), mensaje="base", mensajes_series=messages)
+        athenas = build_athenas_output(pd.DataFrame({"TELEFONO": ["912345678"], "RUT": ["11111111-1"], "OP": ["OP1"]}), mensaje="base", mensajes_series=messages)
         axia_seeded, axia_seed_count = sms_itau_vencida.prepend_itau_seed_rows(axia, "AXIA", messages)
         athenas_seeded, athenas_seed_count = sms_itau_vencida.prepend_itau_seed_rows(athenas, "ATHENAS", messages)
     finally:
@@ -229,6 +230,72 @@ def validate_crm_dedupe() -> None:
     print("CRM_DEDUPE_OK")
 
 
+def validate_gm_mail() -> None:
+    from services import gm_mail_sources
+
+    original_fetch = gm_mail_sources.fetch_tmp_asig_gm_rows
+    try:
+        gm_mail_sources.fetch_tmp_asig_gm_rows = lambda operaciones: {
+            "OP1": {
+                "NOMBRE": "CLIENTE UNO",
+                "RUT": "11111111-1",
+                "OPERACION": "OP1",
+                "FECHA_VENCIMIENTO_CUOTA": date(2026, 2, 5),
+                "MONTO_CUOTA": 12345,
+                "dest_email": "primero@example.com",
+            },
+            "OP2": {
+                "NOMBRE": "CLIENTE DUP RUT",
+                "RUT": "11111111-1",
+                "OPERACION": "OP2",
+                "FECHA_VENCIMIENTO_CUOTA": date(2026, 2, 6),
+                "MONTO_CUOTA": 22222,
+                "dest_email": "segundo@example.com",
+            },
+            "OP3": {
+                "NOMBRE": "CLIENTE DUP MAIL",
+                "RUT": "22222222-2",
+                "OPERACION": "OP3",
+                "FECHA_VENCIMIENTO_CUOTA": date(2026, 2, 7),
+                "MONTO_CUOTA": 33333,
+                "dest_email": "primero@example.com",
+            },
+        }
+        output = build_gm_mail_output(
+            pd.DataFrame({"operación": ["OP1", "OP2", "OP3", "OP4"]}),
+            today=date(2026, 6, 17),
+        )
+    finally:
+        gm_mail_sources.fetch_tmp_asig_gm_rows = original_fetch
+
+    expected_columns = [
+        "INSTITUCIÓN",
+        "SEGMENTOINSTITUCIÓN",
+        "message_id",
+        "NOMBRE",
+        "RUT",
+        "OPERACION",
+        "FECHA_VENCIMIENTO_CUOTA",
+        "MONTO_CUOTA",
+        "FECHA_ARCHIVO",
+        "FONO_EJECUTIVA",
+        "dest_email",
+        "name_from",
+        "mail_from",
+        "CORREO_EJECUTIVA",
+    ]
+    assert list(output.columns) == expected_columns, "GM Mail columnas inesperadas"
+    assert list(output["OPERACION"].astype(str)) == ["OP1", "OP4"], "GM Mail no conservo orden/dedupe esperado"
+    assert output.loc[0, "INSTITUCIÓN"] == "GENERAL MOTORS", "GM Mail no aplico fijo INSTITUCIÓN"
+    assert output.loc[0, "FONO_EJECUTIVA"] == 962487407, "GM Mail no aplico telefono fijo"
+    assert output.loc[0, "name_from"] == "Jesabel Jeldez Fuentez", "GM Mail no aplico name_from fijo"
+    assert output.loc[0, "FECHA_VENCIMIENTO_CUOTA"] == "05-02-2026", "GM Mail no formateo vencimiento"
+    assert output.loc[0, "FECHA_ARCHIVO"] == "17-06-2026", "GM Mail no aplico fecha archivo"
+    assert output.loc[1, "OPERACION"] == "OP4", "GM Mail no conserva operacion sin match"
+    assert output.loc[1, "NOMBRE"] == "", "GM Mail operacion sin match debe quedar sin datos SQL"
+    print("GM_MAIL_OK")
+
+
 def validate_santander_consumer() -> None:
     from services import santander_consumer_service as sc_service
     from services import santander_consumer_assignments as sc_assignments
@@ -337,6 +404,7 @@ def main() -> None:
     validate_mail_itau()
     validate_mail_template_dedupe()
     validate_crm_dedupe()
+    validate_gm_mail()
     validate_santander_consumer()
     validate_santander_hipotecario()
     print("GENERATORS_OK")

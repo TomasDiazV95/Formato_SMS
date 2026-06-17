@@ -7,6 +7,7 @@ import SmsPage from './modules/procesos/sms/SmsPage'
 import IvrPage from './modules/procesos/ivr/IvrPage'
 import MailPage from './modules/procesos/mail/MailPage'
 import CrmPage from './modules/procesos/crm/CrmPage'
+import GmMailPage from './modules/procesos/gm_mail/GmMailPage'
 import SantanderConsumerPage from './modules/procesos/santander_consumer/SantanderConsumerPage'
 import GmPage from './modules/cargas/gm/GmPage'
 import SantanderPage from './modules/cargas/santander/SantanderPage'
@@ -23,6 +24,7 @@ function App() {
       <Route path="/procesos/ivr" element={<IvrPage />} />
       <Route path="/procesos/mail" element={<MailPage />} />
       <Route path="/procesos/crm" element={<CrmPage />} />
+      <Route path="/procesos/gm-mail" element={<GmMailPage />} />
       <Route path="/procesos/santander-consumer" element={<SantanderConsumerPage />} />
       <Route path="/cargas" element={<Cargas />} />
       <Route path="/cargas/gm" element={<GmPage />} />
