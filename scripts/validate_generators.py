@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
 
 from repositories.ejecutivos_repo import Ejecutivo
 from services.mail_templates import TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
+from services.ivr_service import build_ivr_output
 from services.sant_hipotecario_masividad_service import generar_masividad
 from services.sant_hipotecario_service import generar_crm
 from services.santander_consumer_service import OUTPUT_COLUMNS, build_santander_consumer_terreno_output
@@ -64,6 +65,36 @@ def validate_sms_itau() -> None:
     print("SMS_ITAU_OK")
 
 
+def validate_massive_dedupe() -> None:
+    ivr = build_ivr_output(
+        pd.DataFrame(
+            {
+                "TELEFONO": ["912345678", "923456789"],
+                "RUT": ["11111111-1", "11111111-1"],
+                "OP": ["OP1", "OP2"],
+                "NOMBRE": ["CLIENTE UNO", "CLIENTE DOS"],
+            }
+        ),
+        campo1_value="PHOENIXIVRITAUVENCIDA",
+    )
+    assert len(ivr) == 2, "IVR debe conservar 1 contacto duplicado + semilla"
+    assert "OP2" not in set(ivr["OPCIONAL"].astype(str)), "IVR no conservo el primer RUT"
+
+    sms_base = pd.DataFrame(
+        {
+            "FONO": ["912345678", "923456789"],
+            "RUT": ["11111111-1", "11111111-1"],
+            "OP": ["OP1", "OP2"],
+        }
+    )
+    axia = build_axia_output(sms_base, mensaje="SMS base")
+    athenas = build_athenas_output(sms_base, mensaje="SMS base")
+    assert len(axia) == 2, "SMS AXIA debe conservar 1 contacto duplicado + semilla"
+    assert len(athenas) == 2, "SMS Athenas debe conservar 1 contacto duplicado + semilla"
+    assert "923456789" not in set(axia["FONO"].astype(str)), "SMS AXIA no conservo el primer RUT"
+    print("MASSIVE_DEDUPE_OK")
+
+
 def validate_mail_itau() -> None:
     from services import mail_templates
 
@@ -74,13 +105,13 @@ def validate_mail_itau() -> None:
         mail_templates.ejecutivos_repo.list_ejecutivos = lambda mandante=None, activos=True: [_fake_ejecutivo()]
         df = pd.DataFrame(
             {
-                "Oper": ["2046954"],
-                "RUT": ["13433958"],
-                "DV1": ["6"],
-                "Nombre": ["CLIENTE PRUEBA"],
-                "MASIVIDAD": ["EMAIL"],
-                "EMAIL": ["cliente@example.com"],
-                "CARTERIZADO": ["Ariel Silva"],
+                "Oper": ["2046954", "2046955"],
+                "RUT": ["13433958", "13433958"],
+                "DV1": ["6", "6"],
+                "Nombre": ["CLIENTE PRUEBA", "CLIENTE DUPLICADO"],
+                "MASIVIDAD": ["EMAIL", "EMAIL"],
+                "EMAIL": ["cliente@example.com", "duplicado@example.com"],
+                "CARTERIZADO": ["Ariel Silva", "Ariel Silva"],
             }
         )
         output = build_mail_template(df, "ITAU_VENCIDA_MAIL", mandante="Itau Vencida")
@@ -92,7 +123,70 @@ def validate_mail_itau() -> None:
     assert list(output.columns) == TEMPLATE_COLUMNS_ITAU_VENCIDA, "Mail Itau columnas inesperadas"
     assert (output["MES_CURSO"].astype(str).str.strip() != "").any(), "Mail Itau sin MES_CURSO"
     assert "cliente@example.com" in set(output["dest_email"].astype(str)), "Mail Itau no conserva destinatario"
+    assert "duplicado@example.com" not in set(output["dest_email"].astype(str)), "Mail Itau no deduplico por RUT"
     print("MAIL_ITAU_OK")
+
+
+def validate_mail_template_dedupe() -> None:
+    tanner_base = pd.DataFrame(
+        {
+            "RUT+DV": ["11.111.111-1", "11.111.111-1"],
+            "OPERACION": ["OP1", "OP2"],
+            "dest_email": ["primero@example.com", "duplicado@example.com"],
+            "NOMBRE_AGENTE": ["Ariel Silva", "Ariel Silva"],
+            "MAIL_AGENTE": ["agente@example.com", "agente@example.com"],
+            "PHONO_AGENTE": ["56911111111", "56911111111"],
+            "name_from": ["Ariel Silva", "Ariel Silva"],
+        }
+    )
+    tanner_mp = build_mail_template(tanner_base, "TANNER_MEDIOS_PAGO", mandante=None)
+    tanner_castigo = build_mail_template(tanner_base, "TANNER_CASTIGO", mandante=None)
+    assert len(tanner_mp) == 1 and tanner_mp.loc[0, "OPERACION"] == "OP1", "Tanner Medios Pago no deduplico por RUT"
+    assert len(tanner_castigo) == 1 and tanner_castigo.loc[0, "OPERACION"] == "OP1", "Tanner Castigo no deduplico por RUT"
+
+    scj = build_mail_template(
+        pd.DataFrame(
+            {
+                "RUT": ["22.222.222-2", "22.222.222-2"],
+                "NUM_OP": ["SCJ1", "SCJ2"],
+                "dest_email": ["primero.scj@example.com", "duplicado.scj@example.com"],
+                "NOMBRE_AGENTE": ["Ariel Silva", "Ariel Silva"],
+                "MAIL_AGENTE": ["agente@example.com", "agente@example.com"],
+                "PHONO_AGENTE": ["56911111111", "56911111111"],
+                "name_from": ["Ariel Silva", "Ariel Silva"],
+            }
+        ),
+        "SCJ_COBRANZA",
+        mandante="Santander Consumer Judicial",
+    )
+    assert len(scj) == 1 and scj.loc[0, "NUM_OP"] == "SCJ1", "SCJ Cobranza no deduplico por RUT"
+
+    sc_mp = build_mail_template(
+        pd.DataFrame(
+            {
+                "RUT": ["33333333-3", "33333333-3"],
+                "MAIL": ["primero.scmp@example.com", "duplicado.scmp@example.com"],
+            }
+        ),
+        "SC_TELEFONIA_MEDIOS_PAGO",
+        mandante="Santander Consumer Telefonía",
+    )
+    assert len(sc_mp) == 2, "SC Telefonia Medios Pago debe conservar 1 contacto + semilla"
+    assert "duplicado.scmp@example.com" not in set(sc_mp["dest_email"].astype(str)), "SC Telefonia Medios Pago no deduplico por RUT"
+
+    sc_descuento = build_mail_template(
+        pd.DataFrame(
+            {
+                "NOMBRE_CLIENTE": ["CLIENTE UNO", "CLIENTE DOS"],
+                "NRO_OPERACION": ["OP1", "OP2"],
+                "MAIL": ["uno@example.com", "dos@example.com"],
+            }
+        ),
+        "SC_TELEFONIA_DESCUENTO",
+        mandante="Santander Consumer Telefonía",
+    )
+    assert len(sc_descuento) == 3, "SC Telefonia Descuento no debe deduplicar"
+    print("MAIL_DEDUPE_OK")
 
 
 def validate_santander_consumer() -> None:
@@ -191,7 +285,9 @@ def validate_santander_hipotecario() -> None:
 
 def main() -> None:
     validate_sms_itau()
+    validate_massive_dedupe()
     validate_mail_itau()
+    validate_mail_template_dedupe()
     validate_santander_consumer()
     validate_santander_hipotecario()
     print("GENERATORS_OK")

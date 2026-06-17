@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, date, time, timedelta
 
 from services.constants import COLUMN_MAP
+from services.contact_dedupe import dedupe_by_column_keep_first
 
 REQUIRED_COLUMNS = {"RUT", "OP", "FONO"}
 SEED_PHONE = "976900353"
@@ -58,6 +59,7 @@ def _prepare_base_df(df: pd.DataFrame) -> pd.DataFrame:
     )
     if header_mask.any():
         base = base.loc[~header_mask].copy()
+    base = dedupe_by_column_keep_first(base, "RUT")
 
     base["FONO"] = (
         base["FONO"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()

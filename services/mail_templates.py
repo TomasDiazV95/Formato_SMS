@@ -14,6 +14,7 @@ from openpyxl import load_workbook
 
 from repositories import ejecutivos_repo
 from services import config_store
+from services.contact_dedupe import dedupe_by_column_keep_first
 from utils.paths import archive_path, config_path, PROJECT_ROOT
 
 TEMPLATE_COLUMNS_TANNER = [
@@ -375,6 +376,8 @@ def _build_tanner_medios_pago(df: pd.DataFrame, template: MailTemplate, mandante
             + _format_expected_columns(missing_details)
         )
 
+    base = dedupe_by_column_keep_first(base, rut_col).reset_index(drop=True)
+
     rut_series = base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
     if rut_col and "rut+dv" not in rut_col.lower().replace(" ", "") and dv_col:
         dv_series = base[dv_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
@@ -675,6 +678,8 @@ def _build_scj_cobranza(df: pd.DataFrame, template: MailTemplate, mandante: Opti
     if not (rut_col and op_col and dest_col):
         raise ValueError("Faltan columnas requeridas para la plantilla de Santander Consumer Judicial.")
 
+    base = dedupe_by_column_keep_first(base, rut_col).reset_index(drop=True)
+
     rut_series = base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
     if rut_col and "rut+dv" not in rut_col.lower().replace(" ", "") and dv_col:
         dv_series = base[dv_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
@@ -841,6 +846,8 @@ def _build_sc_telefonia_medios_pago(df: pd.DataFrame, template: MailTemplate) ->
 
     if not (rut_col and email_col):
         raise ValueError("Faltan columnas requeridas para Medios de Pago Telefonía (RUT y MAIL).")
+
+    base = dedupe_by_column_keep_first(base, rut_col).reset_index(drop=True)
 
     rut = base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
     dest_email = base[email_col].fillna("").astype(str).str.strip()

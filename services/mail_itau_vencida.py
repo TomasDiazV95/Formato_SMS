@@ -5,6 +5,8 @@ from typing import Optional, cast
 
 import pandas as pd
 
+from services.contact_dedupe import dedupe_by_column_keep_first
+
 
 def build_itau_vencida(df: pd.DataFrame, template, mandante: Optional[str]) -> pd.DataFrame:
     from services import mail_templates as mt
@@ -31,6 +33,8 @@ def build_itau_vencida(df: pd.DataFrame, template, mandante: Optional[str]) -> p
     missing = [name for name, col in required.items() if col is None]
     if missing:
         raise ValueError("Faltan columnas requeridas para plantilla Itau Vencida: " + ", ".join(missing))
+
+    base = dedupe_by_column_keep_first(base, rut_col).reset_index(drop=True)
 
     oper_col = str(oper_col)
     rut_col = str(rut_col)
