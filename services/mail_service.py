@@ -2,6 +2,8 @@
 import pandas as pd
 from datetime import datetime, timedelta, date, time
 
+from services.contact_dedupe import dedupe_by_column_keep_first
+
 REQUIRED_COLUMNS = {
     "RUT": {"rut", "id_cliente", "id cliente"},
     "NOMBRE": {"nombre", "cliente", "contacto"},
@@ -80,6 +82,7 @@ def build_mail_crm_output(
     faltantes = [name for name, col in (("RUT", rut_col), ("OPERACION", op_col), ("MAIL", mail_col)) if col is None]
     if faltantes:
         raise ValueError("Faltan columnas requeridas en el Excel base: " + ", ".join(faltantes))
+    base = dedupe_by_column_keep_first(base, rut_col)
 
     rut = _normalize_series(base.loc[:, rut_col])
     operacion = _normalize_series(base.loc[:, op_col])

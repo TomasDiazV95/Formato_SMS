@@ -13,12 +13,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from repositories.ejecutivos_repo import Ejecutivo
+from services.mail_service import build_mail_crm_output
 from services.mail_templates import TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
 from services.ivr_service import build_ivr_output
 from services.sant_hipotecario_masividad_service import generar_masividad
 from services.sant_hipotecario_service import generar_crm
 from services.santander_consumer_service import OUTPUT_COLUMNS, build_santander_consumer_terreno_output
-from services.sms_service import build_athenas_output, build_axia_output
+from services.sms_service import build_athenas_output, build_axia_output, build_crm_output as build_sms_crm_output
 
 
 def _fake_ejecutivo(nombre: str = "Ariel Silva") -> Ejecutivo:
@@ -190,6 +191,44 @@ def validate_mail_template_dedupe() -> None:
     print("MAIL_DEDUPE_OK")
 
 
+def validate_crm_dedupe() -> None:
+    crm_sms = build_sms_crm_output(
+        pd.DataFrame(
+            {
+                "RUT": ["11111111-1", "11111111-1"],
+                "OP": ["OP1", "OP2"],
+                "FONO": ["912345678", "923456789"],
+            }
+        ),
+        usuario="usuario_sms",
+        fecha=date(2026, 6, 22),
+        hora_inicio="10:00",
+        hora_fin="11:00",
+        observacion="SMS CRM",
+    )
+    assert len(crm_sms) == 1, "CRM SMS/IVR debe deduplicar por RUT"
+    assert crm_sms.loc[0, "NRO_DOCUMENTO"] == "OP1", "CRM SMS/IVR no conservo la primera fila"
+
+    crm_mail = build_mail_crm_output(
+        pd.DataFrame(
+            {
+                "RUT": ["22222222-2", "22222222-2"],
+                "OPERACION": ["MAIL1", "MAIL2"],
+                "MAIL": ["primero@example.com", "duplicado@example.com"],
+            }
+        ),
+        fecha=date(2026, 6, 22),
+        hora_inicio="10:00",
+        hora_fin="11:00",
+        usuario_value="usuario_mail",
+        observacion_value="MAIL CRM",
+    )
+    assert len(crm_mail) == 1, "CRM Mail debe deduplicar por RUT"
+    assert crm_mail.loc[0, "NRO_DOCUMENTO"] == "MAIL1", "CRM Mail no conservo la primera fila"
+    assert crm_mail.loc[0, "CORREO"] == "primero@example.com", "CRM Mail no conservo el primer correo"
+    print("CRM_DEDUPE_OK")
+
+
 def validate_santander_consumer() -> None:
     from services import santander_consumer_service as sc_service
     from services import santander_consumer_assignments as sc_assignments
@@ -297,6 +336,7 @@ def main() -> None:
     validate_massive_dedupe()
     validate_mail_itau()
     validate_mail_template_dedupe()
+    validate_crm_dedupe()
     validate_santander_consumer()
     validate_santander_hipotecario()
     print("GENERATORS_OK")
