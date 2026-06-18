@@ -16,6 +16,7 @@ from repositories.ejecutivos_repo import Ejecutivo
 from services.mail_service import build_mail_crm_output
 from services.mail_templates import TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
 from services.gm_mail_service import build_gm_mail_output
+from services.sc_telefonia_mail_service import build_sc_telefonia_mail_output
 from services.ivr_service import build_ivr_output
 from services.sant_hipotecario_masividad_service import generar_masividad
 from services.sant_hipotecario_service import generar_crm
@@ -307,6 +308,53 @@ def validate_gm_mail() -> None:
     print("GM_MAIL_OK")
 
 
+def validate_sc_telefonia_mail() -> None:
+    from services import sc_telefonia_mail_sources
+
+    original_fetch_rows = sc_telefonia_mail_sources.fetch_tmp_bench_temp_stc_rows
+    original_fetch_exec = sc_telefonia_mail_sources.fetch_executive_by_key
+    try:
+        sc_telefonia_mail_sources.fetch_tmp_bench_temp_stc_rows = lambda operaciones: {
+            "OP1": {"RUT": "11111111-1", "NOMBRE": "CLIENTE UNO", "OPERACION": "OP1", "EMAIL": "uno@example.com"},
+            "OP2": {"RUT": "11111111-1", "NOMBRE": "CLIENTE DUP RUT", "OPERACION": "OP2", "EMAIL": "dos@example.com"},
+            "OP3": {"RUT": "22222222-2", "NOMBRE": "CLIENTE DUP MAIL", "OPERACION": "OP3", "EMAIL": "uno@example.com"},
+        }
+        sc_telefonia_mail_sources.fetch_executive_by_key = lambda key: _fake_ejecutivo("Alejandra Carolina Diaz Fuentes")
+
+        descuento = build_sc_telefonia_mail_output(
+            pd.DataFrame({"OPERACION": ["OP1", "OP4"]}),
+            template_key="sc_telefonia_descuento_95008",
+            selected_date=date(2026, 6, 25),
+        )
+        medios_pago = build_sc_telefonia_mail_output(
+            pd.DataFrame({"OP": ["OP1", "OP2", "OP3", "OP4"]}),
+            template_key="sc_telefonia_medios_pago_96706",
+        )
+        novacion = build_sc_telefonia_mail_output(
+            pd.DataFrame({"N_OPERACION": ["OP1"]}),
+            template_key="sc_telefonia_novacion_93500",
+            selected_date=date(2026, 6, 25),
+            executive_key="alejandra_diaz",
+        )
+    finally:
+        sc_telefonia_mail_sources.fetch_tmp_bench_temp_stc_rows = original_fetch_rows
+        sc_telefonia_mail_sources.fetch_executive_by_key = original_fetch_exec
+
+    assert descuento.loc[0, "dest_email"] == "pipe5550@gmail.com", "SC Telefonia descuento sin semilla"
+    assert descuento.loc[1, "NRO_OPERACION"] == "OP1", "SC Telefonia descuento no mapea operacion"
+    assert descuento.loc[2, "NRO_OPERACION"] == "OP4" and descuento.loc[2, "CLIENTE"] == "", "SC Telefonia descuento sin match invalido"
+    assert descuento.loc[1, "DIA"] == "25" and descuento.loc[1, "MES"] == "Junio" and descuento.loc[1, "ANO"] == "2026", "SC Telefonia fecha invalida"
+
+    assert list(medios_pago["N_OPERACION"].astype(str)) == ["", "OP1", "OP4"], "SC Telefonia 96706 no deduplico esperado"
+    assert "dos@example.com" not in set(medios_pago["dest_email"].astype(str)), "SC Telefonia 96706 no deduplico RUT"
+
+    assert novacion.loc[0, "dest_email"] == "pipe5550@gmail.com", "SC Telefonia novacion sin semilla"
+    assert novacion.loc[0, "FONO_EJECUTIVO"] == 967280344, "SC Telefonia novacion fono fijo invalido"
+    assert novacion.loc[1, "EJECU"] == "Alejandra Carolina Diaz Fuentes", "SC Telefonia novacion no aplica ejecutiva"
+    assert novacion.loc[1, "DIA"] == "25" and novacion.loc[1, "MES"] == "Junio" and novacion.loc[1, "ANO"] == "2026", "SC Telefonia novacion fecha invalida"
+    print("SC_TELEFONIA_MAIL_OK")
+
+
 def validate_santander_consumer() -> None:
     from services import santander_consumer_service as sc_service
     from services import santander_consumer_assignments as sc_assignments
@@ -416,6 +464,7 @@ def main() -> None:
     validate_mail_template_dedupe()
     validate_crm_dedupe()
     validate_gm_mail()
+    validate_sc_telefonia_mail()
     validate_santander_consumer()
     validate_santander_hipotecario()
     print("GENERATORS_OK")

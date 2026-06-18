@@ -15,6 +15,7 @@ from modules import (
     resultantes_bp,
     sant_hipotecario_bp,
     santander_consumer_bp,
+    sc_telefonia_mail_bp,
     sms_bp,
     tanner_bp,
 )
@@ -30,6 +31,7 @@ def _register_frontend_routes(app: Flask) -> None:
         "/procesos/crm",
         "/procesos/gm-mail",
         "/procesos/santander-consumer",
+        "/procesos/sc-telefonia-mail",
         "/cargas",
         "/cargas/gm",
         "/cargas/bit",
@@ -81,6 +83,7 @@ def create_app():
     app.register_blueprint(sant_hipotecario_bp)
     app.register_blueprint(gm_mail_bp)
     app.register_blueprint(santander_consumer_bp)
+    app.register_blueprint(sc_telefonia_mail_bp)
     app.register_blueprint(mail_bp)
     app.register_blueprint(resultantes_bp)
     app.register_blueprint(crm_bp)

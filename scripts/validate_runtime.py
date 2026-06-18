@@ -21,6 +21,7 @@ def main() -> None:
         resultantes_bp,
         sant_hipotecario_bp,
         santander_consumer_bp,
+        sc_telefonia_mail_bp,
         sms_bp,
         tanner_bp,
     )
@@ -28,6 +29,7 @@ def main() -> None:
     from repositories import ejecutivos_repo, resultantes_repo
     from services import mail_templates
     from services import gm_mail_templates
+    from services import sc_telefonia_mail_templates
     from services import santander_consumer_templates
     from utils import paths
 
@@ -44,6 +46,7 @@ def main() -> None:
             resultantes_bp,
             sant_hipotecario_bp,
             santander_consumer_bp,
+            sc_telefonia_mail_bp,
             sms_bp,
             tanner_bp,
         ]
@@ -55,6 +58,7 @@ def main() -> None:
     assert mail_templates.MAIL_TEMPLATE_OPTIONS, "Sin opciones Mail"
     assert len(mail_templates._load_itau_seed_rows()) > 0, "Sin semillas Mail Itau"
     assert gm_mail_templates.list_gm_mail_templates(), "Sin templates GM Mail"
+    assert sc_telefonia_mail_templates.list_sc_telefonia_mail_templates(), "Sin templates SC Telefonia Mail"
     assert santander_consumer_templates.SANTANDER_CONSUMER_TEMPLATES, "Sin templates Santander Consumer"
 
     sms_config = sms_itau_vencida.load_itau_sms_config()

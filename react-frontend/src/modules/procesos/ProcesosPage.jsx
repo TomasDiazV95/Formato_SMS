@@ -7,6 +7,7 @@ const procesos = [
   { title: 'CRM (Formulario 2)', description: 'Creacion de archivo final CRM', to: '/procesos/crm', icon: '🧩', disabled: false },
   { title: 'General Motors Mail', description: 'GM_COMERCIAL_84995 desde BD', to: '/procesos/gm-mail', icon: '🚗', disabled: false },
   { title: 'Santander Consumer', description: 'Terreno desde BD (tmp_bench_STC)', to: '/procesos/santander-consumer', icon: '🏦', disabled: false },
+  { title: 'SC Telefonia Mail', description: 'Telefonia desde BD', to: '/procesos/sc-telefonia-mail', icon: '☎️', disabled: false },
 ]
 
 function Procesos() {
