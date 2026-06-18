@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 import re
 
 from flask import Blueprint, request, send_file
@@ -38,6 +38,7 @@ def gm_mail_templates():
                 "key": item.get("key"),
                 "label": item.get("label"),
                 "filename_prefix": item.get("filename_prefix") or item.get("label"),
+                "requires_delivery_date": bool(item.get("requires_delivery_date")),
             }
             for item in templates
         ]
@@ -48,14 +49,23 @@ def gm_mail_templates():
 def gm_mail_process():
     file = request.files.get("file")
     template_key = (request.form.get("template_key") or "gm_comercial_84995").strip()
+    delivery_date_raw = (request.form.get("delivery_date") or "").strip()
     if not file or file.filename == "":
         return _gm_mail_error("Debes subir un archivo Excel con operaciones.")
     template = get_gm_mail_template(template_key)
     if not template:
         return _gm_mail_error("Plantilla no valida para GM Mail.")
+    delivery_date = None
+    if template.get("requires_delivery_date"):
+        if not delivery_date_raw:
+            return _gm_mail_error("Debes seleccionar la fecha de entrega.")
+        try:
+            delivery_date = date.fromisoformat(delivery_date_raw)
+        except ValueError:
+            return _gm_mail_error("La fecha de entrega no es valida.")
 
     try:
-        salida = build_gm_mail_from_excel(file, template_key=template_key)
+        salida = build_gm_mail_from_excel(file, template_key=template_key, delivery_date=delivery_date)
         fecha = datetime.now().strftime("%d-%m")
         prefix = template.get("filename_prefix") or template.get("label") or "GM_MAIL"
         nombre = f"{_filename_token(str(prefix))}_{fecha}.xlsx"

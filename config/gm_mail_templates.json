@@ -37,5 +37,46 @@
         "dest_email": "cfuentes@phoenixservice.cl"
       }
     ]
+  },
+  {
+    "key": "gm_extension_84591",
+    "label": "GM_EXTENSION_84591",
+    "filename_prefix": "GM_EXTENSION_84591",
+    "sheet_name": "GeneralMotors",
+    "requires_delivery_date": true,
+    "columns": [
+      "INSTITUCIÓN",
+      "SEGMENTOINSTITUCIÓN",
+      "message_id",
+      "NOMBRE",
+      "RUT",
+      "OPERACION",
+      "FECHA_VENCIMIENTO_CUOTA",
+      "MONTO_CUOTA",
+      "FECHA_ARCHIVO",
+      "FECHA_ENTREGA",
+      "FONO_EJECUTIVA",
+      "dest_email",
+      "name_from",
+      "mail_from",
+      "CORREO_EJECUTIVA"
+    ],
+    "fixed_values": {
+      "INSTITUCIÓN": "GENERAL MOTORS",
+      "SEGMENTOINSTITUCIÓN": "GENERAL MOTORS",
+      "message_id": 84591,
+      "FONO_EJECUTIVA": 962487407,
+      "name_from": "Jesabel Jeldez Fuentez",
+      "mail_from": "jjeldez@info.phoenixserviceinfo.cl",
+      "CORREO_EJECUTIVA": "Jjeldez@phoenixservice.cl"
+    },
+    "seed_rows": [
+      {
+        "dest_email": "pipe5550@gmail.com"
+      },
+      {
+        "dest_email": "cfuentes@phoenixservice.cl"
+      }
+    ]
   }
 ]

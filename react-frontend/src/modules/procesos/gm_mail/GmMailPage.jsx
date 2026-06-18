@@ -7,6 +7,7 @@ import { assertExcelResponse, triggerDownload } from '../../../utils/download'
 
 const fallbackTemplates = [
   { key: 'gm_comercial_84995', label: 'GM_COMERCIAL_84995', filename_prefix: 'GM_COMERCIAL_84995' },
+  { key: 'gm_extension_84591', label: 'GM_EXTENSION_84591', filename_prefix: 'GM_EXTENSION_84591', requires_delivery_date: true },
 ]
 
 function GmMailPage() {
@@ -14,7 +15,11 @@ function GmMailPage() {
   const [loading, setLoading] = useState(false)
   const [templates, setTemplates] = useState(fallbackTemplates)
   const [templateKey, setTemplateKey] = useState('gm_comercial_84995')
+  const [deliveryDate, setDeliveryDate] = useState('')
   const [status, setStatus] = useState({ type: 'info', message: '' })
+
+  const selectedTemplate = templates.find(template => template.key === templateKey)
+  const requiresDeliveryDate = Boolean(selectedTemplate?.requires_delivery_date)
 
   useEffect(() => {
     let ignore = false
@@ -38,6 +43,7 @@ function GmMailPage() {
   const resetForm = () => {
     if (fileRef.current) fileRef.current.value = ''
     setTemplateKey(templates[0]?.key || 'gm_comercial_84995')
+    setDeliveryDate('')
   }
 
   const handleSubmit = async (e) => {
@@ -51,10 +57,17 @@ function GmMailPage() {
       updateStatus('danger', 'Debes seleccionar una plantilla.')
       return
     }
+    if (requiresDeliveryDate && !deliveryDate) {
+      updateStatus('danger', 'Debes seleccionar la fecha de entrega.')
+      return
+    }
 
     const formData = new FormData()
     formData.append('file', file)
     formData.append('template_key', templateKey)
+    if (requiresDeliveryDate) {
+      formData.append('delivery_date', deliveryDate)
+    }
 
     try {
       setLoading(true)
@@ -90,7 +103,14 @@ function GmMailPage() {
               <label className="text-sm font-medium text-slate-700">Plantilla</label>
               <select
                 value={templateKey}
-                onChange={e => setTemplateKey(e.target.value)}
+                onChange={e => {
+                  const value = e.target.value
+                  setTemplateKey(value)
+                  const template = templates.find(item => item.key === value)
+                  if (!template?.requires_delivery_date) {
+                    setDeliveryDate('')
+                  }
+                }}
                 className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm"
                 required
               >
@@ -99,6 +119,20 @@ function GmMailPage() {
                 ))}
               </select>
             </div>
+
+            {requiresDeliveryDate && (
+              <div>
+                <label className="text-sm font-medium text-slate-700">Fecha entrega</label>
+                <input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={e => setDeliveryDate(e.target.value)}
+                  className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm"
+                  required
+                />
+                <p className="mt-2 text-xs text-slate-500">Se escribira en FECHA_ENTREGA con formato DD-MM-YYYY.</p>
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-medium text-slate-700">Archivo Excel de operaciones</label>
@@ -128,11 +162,12 @@ function GmMailPage() {
         </section>
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <p className="font-semibold text-slate-800">Salida GM_COMERCIAL_84995</p>
+          <p className="font-semibold text-slate-800">Salida GM Mail</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
             <li>Las operaciones se cruzan por [fld_Agreement Number] en SQL Server.</li>
             <li>Si una operación no existe en la tabla, se conserva OPERACION y el resto de datos SQL queda vacío.</li>
             <li>Los campos fijos vienen desde config/gm_mail_templates.json.</li>
+            <li>GM_EXTENSION_84591 solicita fecha de entrega y la escribe como DD-MM-YYYY.</li>
             <li>Se quitan RUT y correos duplicados conservando la primera fila encontrada.</li>
           </ul>
         </section>

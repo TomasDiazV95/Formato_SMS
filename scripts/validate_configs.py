@@ -106,7 +106,7 @@ def validate_gm_mail_templates() -> None:
     if not isinstance(templates, list) or not templates:
         raise AssertionError("gm_mail_templates.json debe ser una lista no vacia")
     seen_keys = set()
-    required_columns = [
+    base_columns = [
         "INSTITUCIÓN",
         "SEGMENTOINSTITUCIÓN",
         "message_id",
@@ -122,6 +122,7 @@ def validate_gm_mail_templates() -> None:
         "mail_from",
         "CORREO_EJECUTIVA",
     ]
+    extension_columns = base_columns[:9] + ["FECHA_ENTREGA"] + base_columns[9:]
     for item in templates:
         if not isinstance(item, dict):
             raise AssertionError("template GM Mail invalido")
@@ -129,7 +130,8 @@ def validate_gm_mail_templates() -> None:
         if item["key"] in seen_keys:
             raise AssertionError(f"template GM Mail duplicado: {item['key']}")
         seen_keys.add(item["key"])
-        if item.get("columns") != required_columns:
+        expected_columns = extension_columns if item.get("key") == "gm_extension_84591" else base_columns
+        if item.get("columns") != expected_columns:
             raise AssertionError("GM Mail columnas inesperadas")
         fixed = item.get("fixed_values")
         if not isinstance(fixed, dict):
@@ -141,6 +143,10 @@ def validate_gm_mail_templates() -> None:
         )
         int(fixed["message_id"])
         int(fixed["FONO_EJECUTIVA"])
+        if item.get("key") == "gm_extension_84591" and fixed.get("message_id") != 84591:
+            raise AssertionError("GM Extension debe usar message_id 84591")
+        if item.get("key") == "gm_extension_84591" and not item.get("requires_delivery_date"):
+            raise AssertionError("GM Extension debe requerir fecha entrega")
         seed_rows = item.get("seed_rows")
         if not isinstance(seed_rows, list) or len(seed_rows) < 2:
             raise AssertionError("GM Mail debe tener al menos 2 semillas")

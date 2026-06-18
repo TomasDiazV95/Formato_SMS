@@ -71,12 +71,14 @@ def build_gm_mail_output(
     *,
     template_key: str = "gm_comercial_84995",
     today: date | None = None,
+    delivery_date: date | None = None,
 ) -> pd.DataFrame:
     template = get_gm_mail_template(template_key) or get_default_gm_mail_template()
     columns = _template_columns(template)
     fixed_values = _template_fixed_values(template)
     seed_rows = _template_seed_rows(template)
     today = today or date.today()
+    delivery_date_text = delivery_date.strftime("%d-%m-%Y") if delivery_date else ""
 
     operation_column = find_operation_column(list(df_origin.columns))
     operations = [normalize_operation(value) for value in df_origin[operation_column].tolist()]
@@ -90,6 +92,8 @@ def build_gm_mail_output(
         row.update(fixed_values)
         row.update({key: value for key, value in seed.items() if key in row})
         row["FECHA_ARCHIVO"] = today.strftime("%d-%m-%Y")
+        if "FECHA_ENTREGA" in row:
+            row["FECHA_ENTREGA"] = delivery_date_text
         output_rows.append(row)
 
     for operation in operations:
@@ -104,6 +108,8 @@ def build_gm_mail_output(
         row["FECHA_VENCIMIENTO_CUOTA"] = _format_date(source_row.get("FECHA_VENCIMIENTO_CUOTA"))
         row["MONTO_CUOTA"] = source_row.get("MONTO_CUOTA") or ""
         row["FECHA_ARCHIVO"] = today.strftime("%d-%m-%Y")
+        if "FECHA_ENTREGA" in row:
+            row["FECHA_ENTREGA"] = delivery_date_text
         row["dest_email"] = str(source_row.get("dest_email") or "").strip()
         output_rows.append(row)
 
@@ -119,6 +125,11 @@ def build_gm_mail_output(
     return output[columns].reset_index(drop=True)
 
 
-def build_gm_mail_from_excel(file_storage, *, template_key: str = "gm_comercial_84995") -> pd.DataFrame:
+def build_gm_mail_from_excel(
+    file_storage,
+    *,
+    template_key: str = "gm_comercial_84995",
+    delivery_date: date | None = None,
+) -> pd.DataFrame:
     df_origin = pd.read_excel(file_storage)
-    return build_gm_mail_output(df_origin, template_key=template_key)
+    return build_gm_mail_output(df_origin, template_key=template_key, delivery_date=delivery_date)

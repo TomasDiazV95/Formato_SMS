@@ -265,6 +265,12 @@ def validate_gm_mail() -> None:
             pd.DataFrame({"operación": ["OP1", "OP2", "OP3", "OP4"]}),
             today=date(2026, 6, 17),
         )
+        extension = build_gm_mail_output(
+            pd.DataFrame({"OP": ["OP1"]}),
+            template_key="gm_extension_84591",
+            today=date(2026, 6, 17),
+            delivery_date=date(2026, 6, 25),
+        )
     finally:
         gm_mail_sources.fetch_tmp_asig_gm_rows = original_fetch
 
@@ -294,6 +300,10 @@ def validate_gm_mail() -> None:
     assert output.loc[0, "FECHA_ARCHIVO"] == "17-06-2026", "GM Mail no aplico fecha archivo"
     assert output.loc[3, "OPERACION"] == "OP4", "GM Mail no conserva operacion sin match"
     assert output.loc[3, "NOMBRE"] == "", "GM Mail operacion sin match debe quedar sin datos SQL"
+    assert "FECHA_ENTREGA" in extension.columns, "GM Extension sin FECHA_ENTREGA"
+    assert extension.loc[0, "message_id"] == 84591, "GM Extension no aplica message_id"
+    assert extension.loc[0, "FECHA_ENTREGA"] == "25-06-2026", "GM Extension no aplica FECHA_ENTREGA"
+    assert list(extension["dest_email"].astype(str).head(2)) == ["pipe5550@gmail.com", "cfuentes@phoenixservice.cl"], "GM Extension no mantiene semillas"
     print("GM_MAIL_OK")
 
 
