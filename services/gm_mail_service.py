@@ -11,6 +11,7 @@ from config import EMAIL_RE
 from services.contact_dedupe import dedupe_by_column_keep_first
 from services.gm_mail_templates import get_default_gm_mail_template, get_gm_mail_template
 from services import gm_mail_sources
+from services.mail_service import build_mail_crm_output
 from services.santander_consumer_sources import normalize_operation
 
 OPERATION_COLUMN_KEYS = {"OPERACION", "OP"}
@@ -133,3 +134,31 @@ def build_gm_mail_from_excel(
 ) -> pd.DataFrame:
     df_origin = pd.read_excel(file_storage)
     return build_gm_mail_output(df_origin, template_key=template_key, delivery_date=delivery_date)
+
+
+def build_gm_mail_crm_output(
+    gm_output: pd.DataFrame,
+    *,
+    fecha: date,
+    hora_inicio: str,
+    hora_fin: str,
+) -> pd.DataFrame:
+    required = {"RUT", "OPERACION", "dest_email"}
+    missing = sorted(required - set(gm_output.columns))
+    if missing:
+        raise ValueError("Faltan columnas para generar CRM GM: " + ", ".join(missing))
+
+    crm_source = gm_output.rename(columns={"dest_email": "MAIL"}).copy()
+    crm_source = crm_source[
+        crm_source["RUT"].astype(str).str.strip().ne("")
+        & crm_source["OPERACION"].astype(str).str.strip().ne("")
+        & crm_source["MAIL"].astype(str).str.strip().ne("")
+    ].reset_index(drop=True)
+    return build_mail_crm_output(
+        crm_source,
+        fecha=fecha,
+        hora_inicio=hora_inicio,
+        hora_fin=hora_fin,
+        usuario_value="jriveros",
+        observacion_value="ENVIO MAIL",
+    )

@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
 from repositories.ejecutivos_repo import Ejecutivo
 from services.mail_service import build_mail_crm_output
 from services.mail_templates import TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
-from services.gm_mail_service import build_gm_mail_output
+from services.gm_mail_service import build_gm_mail_crm_output, build_gm_mail_output
 from services.sc_telefonia_mail_service import build_sc_telefonia_mail_output
 from services.ivr_service import build_ivr_output
 from services.sant_hipotecario_masividad_service import generar_masividad
@@ -266,6 +266,12 @@ def validate_gm_mail() -> None:
             pd.DataFrame({"operación": ["OP1", "OP2", "OP3", "OP4"]}),
             today=date(2026, 6, 17),
         )
+        crm = build_gm_mail_crm_output(
+            output,
+            fecha=date(2026, 6, 18),
+            hora_inicio="10:00",
+            hora_fin="11:00",
+        )
         extension = build_gm_mail_output(
             pd.DataFrame({"OP": ["OP1"]}),
             template_key="gm_extension_84591",
@@ -301,6 +307,13 @@ def validate_gm_mail() -> None:
     assert output.loc[0, "FECHA_ARCHIVO"] == "17-06-2026", "GM Mail no aplico fecha archivo"
     assert output.loc[3, "OPERACION"] == "OP4", "GM Mail no conserva operacion sin match"
     assert output.loc[3, "NOMBRE"] == "", "GM Mail operacion sin match debe quedar sin datos SQL"
+    assert list(crm.columns) == ["RUT", "NRO_DOCUMENTO", "FECHA_GESTION", "TELEFONO", "OBSERVACION", "USUARIO", "CORREO"], "GM Mail CRM columnas inesperadas"
+    assert len(crm) == 1, "GM Mail CRM debe excluir semillas y operaciones sin datos"
+    assert crm.loc[0, "USUARIO"] == "jriveros", "GM Mail CRM usuario fijo invalido"
+    assert crm.loc[0, "OBSERVACION"] == "ENVIO MAIL", "GM Mail CRM observacion fija invalida"
+    assert crm.loc[0, "NRO_DOCUMENTO"] == "OP1", "GM Mail CRM no conserva operacion"
+    assert crm.loc[0, "CORREO"] == "primero@example.com", "GM Mail CRM no conserva correo"
+    assert crm.loc[0, "FECHA_GESTION"] == "2026-06-18 10:00:00", "GM Mail CRM fecha gestion invalida"
     assert "FECHA_ENTREGA" in extension.columns, "GM Extension sin FECHA_ENTREGA"
     assert extension.loc[0, "message_id"] == 84591, "GM Extension no aplica message_id"
     assert extension.loc[0, "FECHA_ENTREGA"] == "25-06-2026", "GM Extension no aplica FECHA_ENTREGA"

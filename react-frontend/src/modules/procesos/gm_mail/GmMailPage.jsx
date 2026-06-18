@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 
 import InlineAlert from '../../../components/InlineAlert'
 import { fetchGmMailTemplates, submitGmMail } from '../../../api/gmMail'
-import { assertExcelResponse, triggerDownload } from '../../../utils/download'
+import { ZIP_MIME, assertExcelResponse, triggerDownload } from '../../../utils/download'
 
 const fallbackTemplates = [
   { key: 'gm_comercial_84995', label: 'GM_COMERCIAL_84995', filename_prefix: 'GM_COMERCIAL_84995' },
@@ -16,6 +16,10 @@ function GmMailPage() {
   const [templates, setTemplates] = useState(fallbackTemplates)
   const [templateKey, setTemplateKey] = useState('gm_comercial_84995')
   const [deliveryDate, setDeliveryDate] = useState('')
+  const [includeCrm, setIncludeCrm] = useState(false)
+  const [crmDate, setCrmDate] = useState('')
+  const [crmStartTime, setCrmStartTime] = useState('10:00')
+  const [crmEndTime, setCrmEndTime] = useState('18:00')
   const [status, setStatus] = useState({ type: 'info', message: '' })
 
   const selectedTemplate = templates.find(template => template.key === templateKey)
@@ -44,6 +48,10 @@ function GmMailPage() {
     if (fileRef.current) fileRef.current.value = ''
     setTemplateKey(templates[0]?.key || 'gm_comercial_84995')
     setDeliveryDate('')
+    setIncludeCrm(false)
+    setCrmDate('')
+    setCrmStartTime('10:00')
+    setCrmEndTime('18:00')
   }
 
   const handleSubmit = async (e) => {
@@ -61,6 +69,10 @@ function GmMailPage() {
       updateStatus('danger', 'Debes seleccionar la fecha de entrega.')
       return
     }
+    if (includeCrm && (!crmDate || !crmStartTime || !crmEndTime)) {
+      updateStatus('danger', 'Debes completar fecha, hora inicio y hora fin para CRM.')
+      return
+    }
 
     const formData = new FormData()
     formData.append('file', file)
@@ -68,11 +80,17 @@ function GmMailPage() {
     if (requiresDeliveryDate) {
       formData.append('delivery_date', deliveryDate)
     }
+    if (includeCrm) {
+      formData.append('include_crm', 'on')
+      formData.append('crm_fecha', crmDate)
+      formData.append('crm_hora_inicio', crmStartTime)
+      formData.append('crm_hora_fin', crmEndTime)
+    }
 
     try {
       setLoading(true)
       const response = await submitGmMail(formData)
-      await assertExcelResponse(response, 'No se pudo generar el archivo GM Mail.')
+      await assertExcelResponse(response, 'No se pudo generar el archivo GM Mail.', includeCrm ? [ZIP_MIME] : [])
       const filename = response.headers['content-disposition']?.split('filename=')[1]?.replaceAll('"', '') || 'GM_COMERCIAL_84995.xlsx'
       triggerDownload(response.data, filename)
       updateStatus('success', 'Archivo generado correctamente.')
@@ -146,6 +164,54 @@ function GmMailPage() {
               <p className="mt-2 text-xs text-slate-500">Columnas aceptadas: OPERACION, operacion, operación, OPERACIÓN, OP u op.</p>
             </div>
 
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includeCrm}
+                  onChange={e => setIncludeCrm(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                Generar archivo CRM Mail junto con la plantilla
+              </label>
+              <p className="mt-2 text-xs text-slate-500">Usuario CRM fijo: jriveros. Observacion fija: ENVIO MAIL.</p>
+
+              {includeCrm && (
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Fecha gestion</label>
+                    <input
+                      type="date"
+                      value={crmDate}
+                      onChange={e => setCrmDate(e.target.value)}
+                      className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm"
+                      required={includeCrm}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Hora inicio</label>
+                    <input
+                      type="time"
+                      value={crmStartTime}
+                      onChange={e => setCrmStartTime(e.target.value)}
+                      className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm"
+                      required={includeCrm}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Hora fin</label>
+                    <input
+                      type="time"
+                      value={crmEndTime}
+                      onChange={e => setCrmEndTime(e.target.value)}
+                      className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm"
+                      required={includeCrm}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex flex-wrap gap-3">
               <button
                 type="submit"
@@ -169,6 +235,7 @@ function GmMailPage() {
             <li>Los campos fijos vienen desde config/gm_mail_templates.json.</li>
             <li>GM_EXTENSION_84591 solicita fecha de entrega y la escribe como DD-MM-YYYY.</li>
             <li>Se quitan RUT y correos duplicados conservando la primera fila encontrada.</li>
+            <li>Si activas CRM, se descarga un ZIP con plantilla GM, carga CRM XLSX y carga CRM CSV.</li>
           </ul>
         </section>
       </div>
