@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
 
 from repositories.ejecutivos_repo import Ejecutivo
 from services.mail_service import build_mail_crm_output
-from services.mail_templates import TEMPLATE_COLUMNS_ITAU_CASTIGO, TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
+from services.mail_templates import TEMPLATE_COLUMNS_BIT, TEMPLATE_COLUMNS_ITAU_CASTIGO, TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
 from services.gm_mail_service import build_gm_mail_crm_output, build_gm_mail_output
 from services.sc_telefonia_mail_service import build_sc_telefonia_mail_output
 from services.ivr_service import build_ivr_output
@@ -205,7 +205,8 @@ def validate_itau_castigo_mail() -> None:
     jl = build_mail_template(base, "ITAU_CASTIGO_JL", mandante="Itau Castigo")
 
     assert list(ingrid.columns) == TEMPLATE_COLUMNS_ITAU_CASTIGO, "Itau Castigo columnas inesperadas"
-    assert list(ingrid["OPERACION"].astype(str)) == ["IC1", "IC4"], "Itau Castigo no deduplico por RUT/email"
+    assert list(ingrid["OPERACION"].astype(str)) == ["1234", "1234", "IC1", "IC4"], "Itau Castigo no deduplico por RUT/email"
+    assert list(ingrid["dest_email"].astype(str).head(2)) == ["pipe5550@gmail.com", "jriveros@phoenixservice.cl"], "Itau Castigo sin semillas"
     assert ingrid.loc[0, "message_id"] == 97032, "Itau Castigo Ingrid message_id invalido"
     assert ingrid.loc[0, "PLANTILLA"] == "CASTIGO", "Itau Castigo PLANTILLA invalida"
     assert ingrid.loc[0, "name_from"] == "Ingrid Del Carmen Retamal Garrido", "Itau Castigo Ingrid remitente invalido"
@@ -214,6 +215,30 @@ def validate_itau_castigo_mail() -> None:
     assert jl.loc[0, "name_from"] == "Jorge Francisco Lopez Cornejo", "Itau Castigo JL remitente invalido"
     assert "PRIMERO@EXAMPLE.COM" not in set(ingrid["dest_email"].astype(str)), "Itau Castigo no deduplico email normalizado"
     print("ITAU_CASTIGO_MAIL_OK")
+
+
+def validate_bit_mail() -> None:
+    base = pd.DataFrame(
+        {
+            "RUT": ["11111111-1", "11111111-1", "22222222-2", "33333333-3"],
+            "OPERACION": ["BIT1", "BIT2", "BIT3", "BIT4"],
+            "CLIENTE": ["CLIENTE UNO", "CLIENTE DUP RUT", "CLIENTE DUP MAIL", "CLIENTE TRES"],
+            "EMAIL": ["primero.bit@example.com", "duplicado-rut@example.com", "PRIMERO.BIT@EXAMPLE.COM", "tercero.bit@example.com"],
+        }
+    )
+    castigo = build_mail_template(base, "BIT_CASTIGO", mandante="Banco Internacional")
+    vigente = build_mail_template(base, "BIT_VIGENTE", mandante="Banco Internacional")
+
+    assert list(castigo.columns) == TEMPLATE_COLUMNS_BIT, "BIT columnas inesperadas"
+    assert list(castigo["OPERACION"].astype(str)) == ["1234", "1234", "BIT1", "BIT4"], "BIT no deduplico por RUT/email"
+    assert list(castigo["dest_email"].astype(str).head(2)) == ["pipe5550@gmail.com", "cfuentes@phoenixservice.cl"], "BIT sin semillas"
+    assert castigo.loc[0, "message_id"] == 91957, "BIT Castigo message_id invalido"
+    assert vigente.loc[0, "message_id"] == 97737, "BIT Vigente message_id invalido"
+    assert castigo.loc[0, "mail_from"] == "cfuentes@info.phoenixserviceinfo.cl", "BIT Castigo mail_from debe ser cfuentes"
+    assert vigente.loc[0, "mail_from"] == "cfuentes@info.phoenixserviceinfo.cl", "BIT Vigente mail_from invalido"
+    assert castigo.loc[0, "MAIL_AGENTE"] == "cfuentes@phoenixservice.cl", "BIT MAIL_AGENTE invalido"
+    assert "PRIMERO.BIT@EXAMPLE.COM" not in set(castigo["dest_email"].astype(str)), "BIT no deduplico email normalizado"
+    print("BIT_MAIL_OK")
 
 
 def validate_crm_dedupe() -> None:
@@ -509,6 +534,7 @@ def main() -> None:
     validate_mail_itau()
     validate_mail_template_dedupe()
     validate_itau_castigo_mail()
+    validate_bit_mail()
     validate_crm_dedupe()
     validate_gm_mail()
     validate_sc_telefonia_mail()

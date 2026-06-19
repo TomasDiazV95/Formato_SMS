@@ -118,6 +118,19 @@ TEMPLATE_COLUMNS_ITAU_CASTIGO = [
     "CORREO",
 ]
 
+TEMPLATE_COLUMNS_BIT = [
+    "INSTITUCIÓN",
+    "SEGMENTOINSTITUCIÓN",
+    "message_id",
+    "RUT",
+    "OPERACION",
+    "CLIENTE",
+    "dest_email",
+    "name_from",
+    "mail_from",
+    "MAIL_AGENTE",
+]
+
 SPANISH_MONTHS = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
@@ -276,6 +289,8 @@ def build_mail_template(df: pd.DataFrame, template_code: str, mandante: Optional
         return build_itau_vencida(df, template, mandante)
     if template_code in ITAU_CASTIGO_SENDERS:
         return _build_itau_castigo(df, template)
+    if template_code in BIT_TEMPLATE_CODES:
+        return _build_bit_mail(df, template)
     if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
         return _build_tanner_medios_pago(df, template, mandante)
     if template_code == "SCJ_COBRANZA":
@@ -320,6 +335,14 @@ def sample_mail_template(template_code: str) -> pd.DataFrame:
             "MAIL": ["primero@example.com", "duplicado-rut@example.com", "PRIMERO@EXAMPLE.COM"],
         })
         return build_mail_template(sample_df, template_code, mandante="Itau Castigo")
+    if template_code in BIT_TEMPLATE_CODES:
+        sample_df = pd.DataFrame({
+            "RUT": ["11111111-1", "11111111-1", "22222222-2", "33333333-3"],
+            "OPERACION": ["BIT1", "BIT2", "BIT3", "BIT4"],
+            "CLIENTE": ["CLIENTE UNO", "CLIENTE DUP RUT", "CLIENTE DUP MAIL", "CLIENTE TRES"],
+            "MAIL": ["primero.bit@example.com", "duplicado-rut@example.com", "PRIMERO.BIT@EXAMPLE.COM", "tercero.bit@example.com"],
+        })
+        return build_mail_template(sample_df, template_code, mandante="Banco Internacional")
     if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
         sample_df = pd.DataFrame({
             "RUT+DV": ["11.111.111-1", "22.222.222-2"],
@@ -519,6 +542,20 @@ ITAU_CASTIGO_SENDERS = {
     },
 }
 
+ITAU_CASTIGO_SEEDS = [
+    {"RUT": "1-1", "OPERACION": "1234", "dest_email": "pipe5550@gmail.com"},
+    {"RUT": "1-2", "OPERACION": "1234", "dest_email": "jriveros@phoenixservice.cl"},
+]
+
+BIT_TEMPLATE_CODES = {"BIT_CASTIGO", "BIT_VIGENTE"}
+BIT_NAME_FROM = "Claudia Andrea Fuentes Fuentes"
+BIT_MAIL_FROM = "cfuentes@info.phoenixserviceinfo.cl"
+BIT_MAIL_AGENTE = "cfuentes@phoenixservice.cl"
+BIT_SEEDS = [
+    {"RUT": "1-1", "OPERACION": "1234", "CLIENTE": "PRB", "dest_email": "pipe5550@gmail.com"},
+    {"RUT": "1-2", "OPERACION": "1234", "CLIENTE": "PRB", "dest_email": "cfuentes@phoenixservice.cl"},
+]
+
 
 def _build_itau_castigo(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
     base = df.copy()
@@ -554,7 +591,77 @@ def _build_itau_castigo(df: pd.DataFrame, template: MailTemplate) -> pd.DataFram
             "CORREO": [sender.get("CORREO", "")] * len(base),
         }
     )
-    return output.reindex(columns=TEMPLATE_COLUMNS_ITAU_CASTIGO)
+    seed_rows = []
+    for seed in ITAU_CASTIGO_SEEDS:
+        seed_row = {
+            "INSTITUCIÓN": template.institucion,
+            "SEGMENTOINSTITUCIÓN": template.segmentoinstitucion,
+            "message_id": template.message_id,
+            "PLANTILLA": "CASTIGO",
+            "RUT": seed["RUT"],
+            "OPERACION": seed["OPERACION"],
+            "dest_email": seed["dest_email"],
+            "name_from": sender.get("name_from", ""),
+            "mail_from": sender.get("mail_from", ""),
+            "CORREO": sender.get("CORREO", ""),
+        }
+        seed_rows.append(seed_row)
+    seed_df = pd.DataFrame(seed_rows).reindex(columns=TEMPLATE_COLUMNS_ITAU_CASTIGO)
+    return pd.concat([seed_df, output.reindex(columns=TEMPLATE_COLUMNS_ITAU_CASTIGO)], ignore_index=True)
+
+
+def _build_bit_mail(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
+    base = df.copy()
+    base.columns = [str(col).strip() for col in base.columns]
+
+    rut_col = _find_column(base, {"rut", "rutdv", "rut+dv", "rut-dv", "id_cliente"})
+    oper_col = _find_column(base, {"operacion", "operación", "op", "nro_operacion", "num_op", "nro documento", "nro_documento"})
+    cliente_col = _find_column(base, {"cliente", "nombre", "nombre_cliente", "contacto"})
+    dest_col = _find_column(base, {"dest_email", "email", "correo", "mail", "dest_mail"})
+
+    missing = [
+        name
+        for name, col in (("RUT", rut_col), ("OPERACION", oper_col), ("CLIENTE", cliente_col), ("dest_email", dest_col))
+        if col is None
+    ]
+    if missing:
+        raise ValueError("Faltan columnas requeridas para BIT: " + ", ".join(missing))
+
+    base = dedupe_by_column_keep_first(base, rut_col).reset_index(drop=True)
+    base = dedupe_by_column_keep_first_normalized(base, dest_col).reset_index(drop=True)
+
+    output = pd.DataFrame(
+        {
+            "INSTITUCIÓN": [template.institucion] * len(base),
+            "SEGMENTOINSTITUCIÓN": [template.segmentoinstitucion] * len(base),
+            "message_id": [template.message_id] * len(base),
+            "RUT": base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+            "OPERACION": base[oper_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+            "CLIENTE": base[cliente_col].fillna("").astype(str).str.strip().tolist(),
+            "dest_email": base[dest_col].fillna("").astype(str).str.strip().tolist(),
+            "name_from": [BIT_NAME_FROM] * len(base),
+            "mail_from": [BIT_MAIL_FROM] * len(base),
+            "MAIL_AGENTE": [BIT_MAIL_AGENTE] * len(base),
+        }
+    )
+    seed_rows = []
+    for seed in BIT_SEEDS:
+        seed_rows.append(
+            {
+                "INSTITUCIÓN": template.institucion,
+                "SEGMENTOINSTITUCIÓN": template.segmentoinstitucion,
+                "message_id": template.message_id,
+                "RUT": seed["RUT"],
+                "OPERACION": seed["OPERACION"],
+                "CLIENTE": seed["CLIENTE"],
+                "dest_email": seed["dest_email"],
+                "name_from": BIT_NAME_FROM,
+                "mail_from": BIT_MAIL_FROM,
+                "MAIL_AGENTE": BIT_MAIL_AGENTE,
+            }
+        )
+    seed_df = pd.DataFrame(seed_rows).reindex(columns=TEMPLATE_COLUMNS_BIT)
+    return pd.concat([seed_df, output.reindex(columns=TEMPLATE_COLUMNS_BIT)], ignore_index=True)
 
 
 ITAU_SUPERVISOR = "Karen Avendaño"

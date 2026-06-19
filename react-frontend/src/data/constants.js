@@ -51,6 +51,22 @@ export const mailTemplates = [
     segmento: 'BANCO ITAU',
   },
   {
+    code: 'BIT_CASTIGO',
+    label: 'Banco Internacional - Castigo',
+    messageId: 91957,
+    mandante: 'Banco Internacional',
+    institucion: 'BANCO INTERNACIONAL',
+    segmento: 'BANCO INTERNACIONAL',
+  },
+  {
+    code: 'BIT_VIGENTE',
+    label: 'Banco Internacional - Vigente',
+    messageId: 97737,
+    mandante: 'Banco Internacional',
+    institucion: 'BANCO INTERNACIONAL',
+    segmento: 'BANCO INTERNACIONAL',
+  },
+  {
     code: 'TANNER_MEDIOS_PAGO',
     label: 'Tanner - Medios de Pago',
     messageId: 91869,

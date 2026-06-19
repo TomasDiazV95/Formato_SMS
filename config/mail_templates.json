@@ -48,6 +48,22 @@
     "mandante": "Itau Castigo"
   },
   {
+    "code": "BIT_CASTIGO",
+    "label": "Banco Internacional - Castigo",
+    "message_id": 91957,
+    "institucion": "BANCO INTERNACIONAL",
+    "segmentoinstitucion": "BANCO INTERNACIONAL",
+    "mandante": "Banco Internacional"
+  },
+  {
+    "code": "BIT_VIGENTE",
+    "label": "Banco Internacional - Vigente",
+    "message_id": 97737,
+    "institucion": "BANCO INTERNACIONAL",
+    "segmentoinstitucion": "BANCO INTERNACIONAL",
+    "mandante": "Banco Internacional"
+  },
+  {
     "code": "TANNER_MEDIOS_PAGO",
     "label": "Tanner - Medios de Pago",
     "message_id": 91869,
