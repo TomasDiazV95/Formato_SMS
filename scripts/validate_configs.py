@@ -148,14 +148,27 @@ def validate_gm_mail_templates() -> None:
         if item.get("key") == "gm_extension_84591" and not item.get("requires_delivery_date"):
             raise AssertionError("GM Extension debe requerir fecha entrega")
         seed_rows = item.get("seed_rows")
-        if not isinstance(seed_rows, list) or len(seed_rows) != 1 or not isinstance(seed_rows[0], dict):
-            raise AssertionError("GM Mail debe tener 1 semilla")
-        seed = seed_rows[0]
-        for field in ["NOMBRE", "RUT", "OPERACION", "MONTO_CUOTA", "dest_email"]:
-            if seed.get(field) in (None, ""):
-                raise AssertionError(f"GM Mail semilla sin {field}")
-        if str(seed.get("dest_email") or "").strip().lower() != "pipe5550@gmail.com":
-            raise AssertionError("GM Mail debe tener solo semilla pipe5550@gmail.com")
+        if not isinstance(seed_rows, list) or len(seed_rows) != 2:
+            raise AssertionError("GM Mail debe tener 2 semillas")
+        expected_seeds = {
+            "pipe5550@gmail.com": "1-1",
+            "cfuentes@phoenixservice.cl": "1-2",
+        }
+        seen_seed_emails = set()
+        for seed in seed_rows:
+            if not isinstance(seed, dict):
+                raise AssertionError("GM Mail semilla invalida")
+            for field in ["NOMBRE", "RUT", "OPERACION", "MONTO_CUOTA", "dest_email"]:
+                if seed.get(field) in (None, ""):
+                    raise AssertionError(f"GM Mail semilla sin {field}")
+            email = str(seed.get("dest_email") or "").strip().lower()
+            seen_seed_emails.add(email)
+            if expected_seeds.get(email) != seed.get("RUT"):
+                raise AssertionError(f"GM Mail semilla con RUT inesperado: {email}")
+            if seed.get("NOMBRE") != "PRB" or str(seed.get("OPERACION")) != "1234":
+                raise AssertionError(f"GM Mail semilla neutral invalida: {email}")
+        if seen_seed_emails != set(expected_seeds):
+            raise AssertionError("GM Mail semillas requeridas incompletas")
 
 
 def validate_sc_telefonia_mail_templates() -> None:

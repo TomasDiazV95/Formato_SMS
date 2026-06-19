@@ -36,6 +36,13 @@
         "OPERACION": "1234",
         "MONTO_CUOTA": 0,
         "dest_email": "pipe5550@gmail.com"
+      },
+      {
+        "NOMBRE": "PRB",
+        "RUT": "1-2",
+        "OPERACION": "1234",
+        "MONTO_CUOTA": 0,
+        "dest_email": "cfuentes@phoenixservice.cl"
       }
     ]
   },
@@ -78,6 +85,13 @@
         "OPERACION": "1234",
         "MONTO_CUOTA": 0,
         "dest_email": "pipe5550@gmail.com"
+      },
+      {
+        "NOMBRE": "PRB",
+        "RUT": "1-2",
+        "OPERACION": "1234",
+        "MONTO_CUOTA": 0,
+        "dest_email": "cfuentes@phoenixservice.cl"
       }
     ]
   }
