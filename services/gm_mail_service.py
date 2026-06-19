@@ -15,6 +15,10 @@ from services.mail_service import build_mail_crm_output
 from services.santander_consumer_sources import normalize_operation
 
 OPERATION_COLUMN_KEYS = {"OPERACION", "OP"}
+CRM_EXCLUDED_SEEDS = {
+    ("1-1", "1234", "pipe5550@gmail.com"),
+    ("1-2", "1234", "cfuentes@phoenixservice.cl"),
+}
 
 
 def normalize_header(value: object) -> str:
@@ -151,6 +155,15 @@ def build_gm_mail_crm_output(
         raise ValueError("Faltan columnas para generar CRM GM: " + ", ".join(missing))
 
     crm_source = gm_output.rename(columns={"dest_email": "MAIL"}).copy()
+    seed_keys = list(
+        zip(
+            crm_source["RUT"].fillna("").astype(str).str.strip(),
+            crm_source["OPERACION"].fillna("").astype(str).str.strip(),
+            crm_source["MAIL"].fillna("").astype(str).str.strip().str.lower(),
+        )
+    )
+    seed_mask = pd.Series([key in CRM_EXCLUDED_SEEDS for key in seed_keys], index=crm_source.index)
+    crm_source = crm_source.loc[~seed_mask].copy()
     crm_source = crm_source[
         crm_source["RUT"].astype(str).str.strip().ne("")
         & crm_source["OPERACION"].astype(str).str.strip().ne("")
