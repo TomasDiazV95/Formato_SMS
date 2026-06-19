@@ -92,6 +92,8 @@ def build_gm_mail_output(
         row = {column: "" for column in columns}
         row.update(fixed_values)
         row.update({key: value for key, value in seed.items() if key in row})
+        if "FECHA_VENCIMIENTO_CUOTA" in row and not str(row["FECHA_VENCIMIENTO_CUOTA"] or "").strip():
+            row["FECHA_VENCIMIENTO_CUOTA"] = today.strftime("%d-%m-%Y")
         row["FECHA_ARCHIVO"] = today.strftime("%d-%m-%Y")
         if "FECHA_ENTREGA" in row:
             row["FECHA_ENTREGA"] = delivery_date_text

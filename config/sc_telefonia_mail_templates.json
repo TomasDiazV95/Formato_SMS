@@ -38,8 +38,9 @@
     },
     "seed_rows": [
       {
+        "RUT": "1-1",
         "CLIENTE": "PRB",
-        "NRO_OPERACION": "PRB",
+        "NRO_OPERACION": "1234",
         "dest_email": "pipe5550@gmail.com"
       }
     ]
@@ -80,7 +81,9 @@
     },
     "seed_rows": [
       {
-        "RUT": "PRB",
+        "RUT": "1-1",
+        "NOMBRE": "PRB",
+        "N_OPERACION": "1234",
         "dest_email": "pipe5550@gmail.com"
       }
     ]
@@ -137,9 +140,9 @@
     ],
     "seed_rows": [
       {
-        "RUT": "1111111-1",
-        "NOMBRE": "PRB1",
-        "OPERACION": "11234567890",
+        "RUT": "1-1",
+        "NOMBRE": "PRB",
+        "OPERACION": "1234",
         "dest_email": "pipe5550@gmail.com"
       }
     ]

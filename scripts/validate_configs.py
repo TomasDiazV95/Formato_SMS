@@ -148,12 +148,14 @@ def validate_gm_mail_templates() -> None:
         if item.get("key") == "gm_extension_84591" and not item.get("requires_delivery_date"):
             raise AssertionError("GM Extension debe requerir fecha entrega")
         seed_rows = item.get("seed_rows")
-        if not isinstance(seed_rows, list) or len(seed_rows) < 2:
-            raise AssertionError("GM Mail debe tener al menos 2 semillas")
-        seed_emails = {str(seed.get("dest_email") or "").strip().lower() for seed in seed_rows if isinstance(seed, dict)}
-        for email in ["pipe5550@gmail.com", "cfuentes@phoenixservice.cl"]:
-            if email not in seed_emails:
-                raise AssertionError(f"GM Mail sin semilla requerida: {email}")
+        if not isinstance(seed_rows, list) or len(seed_rows) != 1 or not isinstance(seed_rows[0], dict):
+            raise AssertionError("GM Mail debe tener 1 semilla")
+        seed = seed_rows[0]
+        for field in ["NOMBRE", "RUT", "OPERACION", "MONTO_CUOTA", "dest_email"]:
+            if seed.get(field) in (None, ""):
+                raise AssertionError(f"GM Mail semilla sin {field}")
+        if str(seed.get("dest_email") or "").strip().lower() != "pipe5550@gmail.com":
+            raise AssertionError("GM Mail debe tener solo semilla pipe5550@gmail.com")
 
 
 def validate_sc_telefonia_mail_templates() -> None:
@@ -189,8 +191,20 @@ def validate_sc_telefonia_mail_templates() -> None:
             raise AssertionError(f"SC Telefonia config invalida: {key}")
         if not isinstance(seed_rows, list) or not seed_rows:
             raise AssertionError(f"SC Telefonia sin semillas: {key}")
-        if "pipe5550@gmail.com" not in {str(seed.get("dest_email") or "").strip().lower() for seed in seed_rows if isinstance(seed, dict)}:
-            raise AssertionError(f"SC Telefonia sin semilla pipe5550: {key}")
+        if len(seed_rows) != 1 or not isinstance(seed_rows[0], dict):
+            raise AssertionError(f"SC Telefonia debe tener 1 semilla: {key}")
+        seed = seed_rows[0]
+        if str(seed.get("dest_email") or "").strip().lower() != "pipe5550@gmail.com":
+            raise AssertionError(f"SC Telefonia debe tener solo semilla pipe5550: {key}")
+        for field in ["RUT", "dest_email"]:
+            if seed.get(field) in (None, ""):
+                raise AssertionError(f"SC Telefonia semilla sin {field}: {key}")
+        if key == "sc_telefonia_descuento_95008" and (not seed.get("CLIENTE") or not seed.get("NRO_OPERACION")):
+            raise AssertionError("SC Telefonia descuento semilla incompleta")
+        if key == "sc_telefonia_medios_pago_96706" and (not seed.get("NOMBRE") or not seed.get("N_OPERACION")):
+            raise AssertionError("SC Telefonia medios pago semilla incompleta")
+        if key == "sc_telefonia_novacion_93500" and (not seed.get("NOMBRE") or not seed.get("OPERACION")):
+            raise AssertionError("SC Telefonia novacion semilla incompleta")
         int(fixed["message_id"])
         if key == "sc_telefonia_medios_pago_96706" and item.get("dedupe_columns") != ["RUT", "dest_email"]:
             raise AssertionError("SC Telefonia 96706 debe deduplicar por RUT y dest_email")
