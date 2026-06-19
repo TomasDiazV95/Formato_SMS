@@ -14,7 +14,7 @@ from openpyxl import load_workbook
 
 from repositories import ejecutivos_repo
 from services import config_store
-from services.contact_dedupe import dedupe_by_column_keep_first
+from services.contact_dedupe import dedupe_by_column_keep_first, dedupe_by_column_keep_first_normalized
 from utils.paths import archive_path, config_path, PROJECT_ROOT
 
 TEMPLATE_COLUMNS_TANNER = [
@@ -103,6 +103,19 @@ TEMPLATE_COLUMNS_ITAU_VENCIDA = [
     "MES_RENE",
     "ANO_RENE",
     "MARCA WEB Y SUCURSAL",
+]
+
+TEMPLATE_COLUMNS_ITAU_CASTIGO = [
+    "INSTITUCIÓN",
+    "SEGMENTOINSTITUCIÓN",
+    "message_id",
+    "PLANTILLA",
+    "RUT",
+    "OPERACION",
+    "dest_email",
+    "name_from",
+    "mail_from",
+    "CORREO",
 ]
 
 SPANISH_MONTHS = [
@@ -261,6 +274,8 @@ def build_mail_template(df: pd.DataFrame, template_code: str, mandante: Optional
         from services.mail_itau_vencida import build_itau_vencida
 
         return build_itau_vencida(df, template, mandante)
+    if template_code in ITAU_CASTIGO_SENDERS:
+        return _build_itau_castigo(df, template)
     if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
         return _build_tanner_medios_pago(df, template, mandante)
     if template_code == "SCJ_COBRANZA":
@@ -298,6 +313,13 @@ def sample_mail_template(template_code: str) -> pd.DataFrame:
             "CARTERIZADO ABRIL": ["Jessica Carolina Diaz Mata", "Veronica Margarita Vega Bustos"],
         })
         return build_mail_template(sample_df, template_code, mandante="Itau Vencida")
+    if template_code in ITAU_CASTIGO_SENDERS:
+        sample_df = pd.DataFrame({
+            "RUT": ["11111111-1", "11111111-1", "22222222-2"],
+            "OPERACION": ["IC1", "IC2", "IC3"],
+            "MAIL": ["primero@example.com", "duplicado-rut@example.com", "PRIMERO@EXAMPLE.COM"],
+        })
+        return build_mail_template(sample_df, template_code, mandante="Itau Castigo")
     if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
         sample_df = pd.DataFrame({
             "RUT+DV": ["11.111.111-1", "22.222.222-2"],
@@ -477,6 +499,62 @@ def _build_tanner_medios_pago(df: pd.DataFrame, template: MailTemplate, mandante
 
     output = pd.DataFrame(data)
     return output.reindex(columns=TEMPLATE_COLUMNS_TANNER)
+
+
+ITAU_CASTIGO_SENDERS = {
+    "ITAU_CASTIGO_SIN_DIRECCION_INGRID": {
+        "name_from": "Ingrid Del Carmen Retamal Garrido",
+        "mail_from": "iretamal@info.phoenixserviceinfo.cl",
+        "CORREO": "iretamal@phoenixservice.cl",
+    },
+    "ITAU_CASTIGO_CON_DIRECCION_INGRID": {
+        "name_from": "Ingrid Del Carmen Retamal Garrido",
+        "mail_from": "iretamal@info.phoenixserviceinfo.cl",
+        "CORREO": "iretamal@phoenixservice.cl",
+    },
+    "ITAU_CASTIGO_JL": {
+        "name_from": "Jorge Francisco Lopez Cornejo",
+        "mail_from": "jlopez@info.phoenixserviceinfo.cl",
+        "CORREO": "jlopez@phoenixservice.cl",
+    },
+}
+
+
+def _build_itau_castigo(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
+    base = df.copy()
+    base.columns = [str(col).strip() for col in base.columns]
+
+    rut_col = _find_column(base, {"rut", "rutdv", "rut+dv", "rut-dv", "id_cliente"})
+    oper_col = _find_column(base, {"operacion", "operación", "op", "nro_operacion", "num_op", "nro documento", "nro_documento"})
+    dest_col = _find_column(base, {"dest_email", "email", "correo", "mail", "dest_mail"})
+
+    missing = [
+        name
+        for name, col in (("RUT", rut_col), ("OPERACION", oper_col), ("dest_email", dest_col))
+        if col is None
+    ]
+    if missing:
+        raise ValueError("Faltan columnas requeridas para Itau Castigo: " + ", ".join(missing))
+
+    base = dedupe_by_column_keep_first(base, rut_col).reset_index(drop=True)
+    base = dedupe_by_column_keep_first_normalized(base, dest_col).reset_index(drop=True)
+
+    sender = ITAU_CASTIGO_SENDERS.get(template.code, {})
+    output = pd.DataFrame(
+        {
+            "INSTITUCIÓN": [template.institucion] * len(base),
+            "SEGMENTOINSTITUCIÓN": [template.segmentoinstitucion] * len(base),
+            "message_id": [template.message_id] * len(base),
+            "PLANTILLA": ["CASTIGO"] * len(base),
+            "RUT": base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+            "OPERACION": base[oper_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+            "dest_email": base[dest_col].fillna("").astype(str).str.strip().tolist(),
+            "name_from": [sender.get("name_from", "")] * len(base),
+            "mail_from": [sender.get("mail_from", "")] * len(base),
+            "CORREO": [sender.get("CORREO", "")] * len(base),
+        }
+    )
+    return output.reindex(columns=TEMPLATE_COLUMNS_ITAU_CASTIGO)
 
 
 ITAU_SUPERVISOR = "Karen Avendaño"

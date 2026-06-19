@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
 
 from repositories.ejecutivos_repo import Ejecutivo
 from services.mail_service import build_mail_crm_output
-from services.mail_templates import TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
+from services.mail_templates import TEMPLATE_COLUMNS_ITAU_CASTIGO, TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
 from services.gm_mail_service import build_gm_mail_crm_output, build_gm_mail_output
 from services.sc_telefonia_mail_service import build_sc_telefonia_mail_output
 from services.ivr_service import build_ivr_output
@@ -191,6 +191,29 @@ def validate_mail_template_dedupe() -> None:
     )
     assert len(sc_descuento) == 3, "SC Telefonia Descuento no debe deduplicar"
     print("MAIL_DEDUPE_OK")
+
+
+def validate_itau_castigo_mail() -> None:
+    base = pd.DataFrame(
+        {
+            "RUT": ["11111111-1", "11111111-1", "22222222-2", "33333333-3"],
+            "OPERACIÓN": ["IC1", "IC2", "IC3", "IC4"],
+            "EMAIL": ["primero@example.com", "duplicado-rut@example.com", "PRIMERO@EXAMPLE.COM", "tercero@example.com"],
+        }
+    )
+    ingrid = build_mail_template(base, "ITAU_CASTIGO_SIN_DIRECCION_INGRID", mandante="Itau Castigo")
+    jl = build_mail_template(base, "ITAU_CASTIGO_JL", mandante="Itau Castigo")
+
+    assert list(ingrid.columns) == TEMPLATE_COLUMNS_ITAU_CASTIGO, "Itau Castigo columnas inesperadas"
+    assert list(ingrid["OPERACION"].astype(str)) == ["IC1", "IC4"], "Itau Castigo no deduplico por RUT/email"
+    assert ingrid.loc[0, "message_id"] == 97032, "Itau Castigo Ingrid message_id invalido"
+    assert ingrid.loc[0, "PLANTILLA"] == "CASTIGO", "Itau Castigo PLANTILLA invalida"
+    assert ingrid.loc[0, "name_from"] == "Ingrid Del Carmen Retamal Garrido", "Itau Castigo Ingrid remitente invalido"
+    assert ingrid.loc[0, "mail_from"] == "iretamal@info.phoenixserviceinfo.cl", "Itau Castigo Ingrid mail_from invalido"
+    assert jl.loc[0, "message_id"] == 98798, "Itau Castigo JL message_id invalido"
+    assert jl.loc[0, "name_from"] == "Jorge Francisco Lopez Cornejo", "Itau Castigo JL remitente invalido"
+    assert "PRIMERO@EXAMPLE.COM" not in set(ingrid["dest_email"].astype(str)), "Itau Castigo no deduplico email normalizado"
+    print("ITAU_CASTIGO_MAIL_OK")
 
 
 def validate_crm_dedupe() -> None:
@@ -485,6 +508,7 @@ def main() -> None:
     validate_massive_dedupe()
     validate_mail_itau()
     validate_mail_template_dedupe()
+    validate_itau_castigo_mail()
     validate_crm_dedupe()
     validate_gm_mail()
     validate_sc_telefonia_mail()

@@ -24,6 +24,30 @@
     "mandante": "Itau Vencida"
   },
   {
+    "code": "ITAU_CASTIGO_SIN_DIRECCION_INGRID",
+    "label": "Itau Castigo - Sin Direccion Ingrid",
+    "message_id": 97032,
+    "institucion": "BANCO ITAÚ",
+    "segmentoinstitucion": "BANCO ITAÚ",
+    "mandante": "Itau Castigo"
+  },
+  {
+    "code": "ITAU_CASTIGO_CON_DIRECCION_INGRID",
+    "label": "Itau Castigo - Con Direccion Ingrid",
+    "message_id": 98681,
+    "institucion": "BANCO ITAÚ",
+    "segmentoinstitucion": "BANCO ITAÚ",
+    "mandante": "Itau Castigo"
+  },
+  {
+    "code": "ITAU_CASTIGO_JL",
+    "label": "Itau Castigo - JL",
+    "message_id": 98798,
+    "institucion": "BANCO ITAÚ",
+    "segmentoinstitucion": "BANCO ITAÚ",
+    "mandante": "Itau Castigo"
+  },
+  {
     "code": "TANNER_MEDIOS_PAGO",
     "label": "Tanner - Medios de Pago",
     "message_id": 91869,
