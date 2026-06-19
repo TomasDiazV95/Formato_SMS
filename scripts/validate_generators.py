@@ -197,7 +197,7 @@ def validate_itau_castigo_mail() -> None:
     base = pd.DataFrame(
         {
             "RUT": ["11111111-1", "11111111-1", "22222222-2", "33333333-3"],
-            "OPERACIÓN": ["IC1", "IC2", "IC3", "IC4"],
+            "OPE": ["IC1", "IC2", "IC3", "IC4"],
             "EMAIL": ["primero@example.com", "duplicado-rut@example.com", "PRIMERO@EXAMPLE.COM", "tercero@example.com"],
         }
     )
@@ -221,7 +221,7 @@ def validate_bit_mail() -> None:
     base = pd.DataFrame(
         {
             "RUT": ["11111111-1", "11111111-1", "22222222-2", "33333333-3"],
-            "OPERACION": ["BIT1", "BIT2", "BIT3", "BIT4"],
+            "OPE": ["BIT1", "BIT2", "BIT3", "BIT4"],
             "CLIENTE": ["CLIENTE UNO", "CLIENTE DUP RUT", "CLIENTE DUP MAIL", "CLIENTE TRES"],
             "EMAIL": ["primero.bit@example.com", "duplicado-rut@example.com", "PRIMERO.BIT@EXAMPLE.COM", "tercero.bit@example.com"],
         }

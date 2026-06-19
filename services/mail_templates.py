@@ -148,10 +148,59 @@ AGENTE_COLUMN_ALIASES = {
     "nombre agente",
 }
 
+RUT_COLUMN_ALIASES = {
+    "rut",
+    "rutdv",
+    "rut+dv",
+    "rut-dv",
+    "rut dv",
+    "rut_dv",
+    "rut cliente",
+    "rut_cliente",
+    "id_cliente",
+}
+
+OPERATION_COLUMN_ALIASES = {
+    "operacion",
+    "operación",
+    "ope",
+    "op",
+    "nro_operacion",
+    "nro operación",
+    "nro_operación",
+    "nro ope",
+    "nro_ope",
+    "n operación",
+    "n_operacion",
+    "n_operación",
+    "numero_operacion",
+    "numero operación",
+    "número operación",
+    "número_operación",
+    "num_op",
+    "nro documento",
+    "nro_documento",
+    "id_credito",
+    "contrato",
+}
+
+EMAIL_COLUMN_ALIASES = {
+    "dest_email",
+    "email",
+    "e-mail",
+    "correo",
+    "correo electronico",
+    "correo electrónico",
+    "mail",
+    "dest_mail",
+    "email_cliente",
+    "mail_cliente",
+}
+
 TANNER_REQUIRED_COLUMN_LABELS = {
-    "RUT+DV": {"rut+dv", "rut-dv", "rut"},
-    "OPERACION": {"nro_operacion", "operacion", "operación", "op", "id_credito"},
-    "dest_email": {"dest_email", "email", "correo", "mail", "dest_mail"},
+    "RUT+DV": RUT_COLUMN_ALIASES,
+    "OPERACION": OPERATION_COLUMN_ALIASES,
+    "dest_email": EMAIL_COLUMN_ALIASES,
     "NOMBRE_AGENTE": AGENTE_COLUMN_ALIASES,
 }
 
@@ -561,9 +610,9 @@ def _build_itau_castigo(df: pd.DataFrame, template: MailTemplate) -> pd.DataFram
     base = df.copy()
     base.columns = [str(col).strip() for col in base.columns]
 
-    rut_col = _find_column(base, {"rut", "rutdv", "rut+dv", "rut-dv", "id_cliente"})
-    oper_col = _find_column(base, {"operacion", "operación", "op", "nro_operacion", "num_op", "nro documento", "nro_documento"})
-    dest_col = _find_column(base, {"dest_email", "email", "correo", "mail", "dest_mail"})
+    rut_col = _find_column(base, RUT_COLUMN_ALIASES)
+    oper_col = _find_column(base, OPERATION_COLUMN_ALIASES)
+    dest_col = _find_column(base, EMAIL_COLUMN_ALIASES)
 
     missing = [
         name
@@ -614,10 +663,10 @@ def _build_bit_mail(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
     base = df.copy()
     base.columns = [str(col).strip() for col in base.columns]
 
-    rut_col = _find_column(base, {"rut", "rutdv", "rut+dv", "rut-dv", "id_cliente"})
-    oper_col = _find_column(base, {"operacion", "operación", "op", "nro_operacion", "num_op", "nro documento", "nro_documento"})
+    rut_col = _find_column(base, RUT_COLUMN_ALIASES)
+    oper_col = _find_column(base, OPERATION_COLUMN_ALIASES)
     cliente_col = _find_column(base, {"cliente", "nombre", "nombre_cliente", "contacto"})
-    dest_col = _find_column(base, {"dest_email", "email", "correo", "mail", "dest_mail"})
+    dest_col = _find_column(base, EMAIL_COLUMN_ALIASES)
 
     missing = [
         name
@@ -849,12 +898,12 @@ def _build_scj_cobranza(df: pd.DataFrame, template: MailTemplate, mandante: Opti
     base = df.copy()
     base.columns = [str(col).strip() for col in base.columns]
 
-    rut_col = _find_column(base, {"rut+dv", "rut", "rut_cliente", "id_cliente"})
+    rut_col = _find_column(base, RUT_COLUMN_ALIASES)
     dv_col = None
     if rut_col and "rut+dv" not in rut_col.lower().replace(" ", ""):
         dv_col = _find_column(base, {"dv", "digito", "dígito", "dv_rut"})
-    op_col = _find_column(base, {"num_op", "nro_operacion", "operacion", "operación", "op", "id_credito"})
-    dest_col = _find_column(base, {"dest_email", "email", "correo", "mail", "dest_mail"})
+    op_col = _find_column(base, OPERATION_COLUMN_ALIASES)
+    dest_col = _find_column(base, EMAIL_COLUMN_ALIASES)
     name_from_col = _find_column(base, {"name_from", "nombre_remitente"})
     mail_agente_col = _find_column(base, {"mail_agente", "correo_agente"})
     nombre_agente_col = _find_column(base, AGENTE_COLUMN_ALIASES)
@@ -992,8 +1041,8 @@ def _build_sc_telefonia_descuento(df: pd.DataFrame, template: MailTemplate) -> p
     base.columns = [str(col).strip() for col in base.columns]
 
     cliente_col = _find_column(base, {"nombre_cliente", "cliente", "nombre"})
-    oper_col = _find_column(base, {"nro_operacion", "operacion", "operación", "op", "num_op"})
-    email_col = _find_column(base, {"mail", "email", "correo", "dest_email", "dest_mail"})
+    oper_col = _find_column(base, OPERATION_COLUMN_ALIASES)
+    email_col = _find_column(base, EMAIL_COLUMN_ALIASES)
 
     if not (cliente_col and oper_col and email_col):
         raise ValueError("Faltan columnas requeridas para Santander Consumer Telefonía (cliente, operacion, mail).")
@@ -1026,8 +1075,8 @@ def _build_sc_telefonia_medios_pago(df: pd.DataFrame, template: MailTemplate) ->
     base = df.copy()
     base.columns = [str(col).strip() for col in base.columns]
 
-    rut_col = _find_column(base, {"rut", "rut_cliente", "id_cliente"})
-    email_col = _find_column(base, {"mail", "email", "correo", "dest_email", "dest_mail"})
+    rut_col = _find_column(base, RUT_COLUMN_ALIASES)
+    email_col = _find_column(base, EMAIL_COLUMN_ALIASES)
 
     if not (rut_col and email_col):
         raise ValueError("Faltan columnas requeridas para Medios de Pago Telefonía (RUT y MAIL).")
