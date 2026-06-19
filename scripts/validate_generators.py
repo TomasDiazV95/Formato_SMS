@@ -259,7 +259,7 @@ def validate_gm_mail() -> None:
                 "OPERACION": "OP3",
                 "FECHA_VENCIMIENTO_CUOTA": date(2026, 2, 7),
                 "MONTO_CUOTA": 33333,
-                "dest_email": "primero@example.com",
+                "dest_email": "PRIMERO@EXAMPLE.COM",
             },
         }
         output = build_gm_mail_output(
@@ -307,6 +307,7 @@ def validate_gm_mail() -> None:
     assert output.loc[0, "FECHA_ARCHIVO"] == "17-06-2026", "GM Mail no aplico fecha archivo"
     assert output.loc[3, "OPERACION"] == "OP4", "GM Mail no conserva operacion sin match"
     assert output.loc[3, "NOMBRE"] == "", "GM Mail operacion sin match debe quedar sin datos SQL"
+    assert "PRIMERO@EXAMPLE.COM" not in set(output["dest_email"].astype(str)), "GM Mail no deduplico email normalizado"
     assert list(crm.columns) == ["RUT", "NRO_DOCUMENTO", "FECHA_GESTION", "TELEFONO", "OBSERVACION", "USUARIO", "CORREO"], "GM Mail CRM columnas inesperadas"
     assert len(crm) == 1, "GM Mail CRM debe excluir semillas y operaciones sin datos"
     assert crm.loc[0, "USUARIO"] == "jriveros", "GM Mail CRM usuario fijo invalido"
@@ -330,7 +331,7 @@ def validate_sc_telefonia_mail() -> None:
         sc_telefonia_mail_sources.fetch_tmp_bench_temp_stc_rows = lambda operaciones: {
             "OP1": {"RUT": "11111111-1", "NOMBRE": "CLIENTE UNO", "OPERACION": "OP1", "EMAIL": "uno@example.com"},
             "OP2": {"RUT": "11111111-1", "NOMBRE": "CLIENTE DUP RUT", "OPERACION": "OP2", "EMAIL": "dos@example.com"},
-            "OP3": {"RUT": "22222222-2", "NOMBRE": "CLIENTE DUP MAIL", "OPERACION": "OP3", "EMAIL": "uno@example.com"},
+            "OP3": {"RUT": "22222222-2", "NOMBRE": "CLIENTE DUP MAIL", "OPERACION": "OP3", "EMAIL": "UNO@EXAMPLE.COM"},
         }
         sc_telefonia_mail_sources.fetch_executive_by_key = lambda key: _fake_ejecutivo("Alejandra Carolina Diaz Fuentes")
 
@@ -360,6 +361,7 @@ def validate_sc_telefonia_mail() -> None:
 
     assert list(medios_pago["N_OPERACION"].astype(str)) == ["", "OP1", "OP4"], "SC Telefonia 96706 no deduplico esperado"
     assert "dos@example.com" not in set(medios_pago["dest_email"].astype(str)), "SC Telefonia 96706 no deduplico RUT"
+    assert "UNO@EXAMPLE.COM" not in set(medios_pago["dest_email"].astype(str)), "SC Telefonia 96706 no deduplico email normalizado"
 
     assert novacion.loc[0, "dest_email"] == "pipe5550@gmail.com", "SC Telefonia novacion sin semilla"
     assert novacion.loc[0, "FONO_EJECUTIVO"] == 967280344, "SC Telefonia novacion fono fijo invalido"

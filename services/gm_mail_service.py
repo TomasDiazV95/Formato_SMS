@@ -8,7 +8,7 @@ from typing import Any
 import pandas as pd
 
 from config import EMAIL_RE
-from services.contact_dedupe import dedupe_by_column_keep_first
+from services.contact_dedupe import dedupe_by_column_keep_first, dedupe_by_column_keep_first_normalized
 from services.gm_mail_templates import get_default_gm_mail_template, get_gm_mail_template
 from services import gm_mail_sources
 from services.mail_service import build_mail_crm_output
@@ -122,7 +122,7 @@ def build_gm_mail_output(
     empty_email = output["dest_email"].astype(str).str.strip() == ""
     output = output[valid_email | empty_email].reset_index(drop=True)
     output = dedupe_by_column_keep_first(output, "RUT")
-    output = dedupe_by_column_keep_first(output, "dest_email")
+    output = dedupe_by_column_keep_first_normalized(output, "dest_email")
     return output[columns].reset_index(drop=True)
 
 

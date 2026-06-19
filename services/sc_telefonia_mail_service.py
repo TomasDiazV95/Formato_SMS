@@ -9,7 +9,7 @@ import pandas as pd
 
 from config import EMAIL_RE
 from services import sc_telefonia_mail_sources
-from services.contact_dedupe import dedupe_by_column_keep_first
+from services.contact_dedupe import dedupe_by_column_keep_first, dedupe_by_column_keep_first_normalized
 from services.sc_telefonia_mail_templates import get_default_sc_telefonia_mail_template, get_sc_telefonia_mail_template
 from services.santander_consumer_sources import normalize_operation
 
@@ -147,7 +147,10 @@ def build_sc_telefonia_mail_output(
     empty_email = output["dest_email"].astype(str).str.strip() == ""
     output = output[valid_email | empty_email].reset_index(drop=True)
     for column in dedupe_columns:
-        output = dedupe_by_column_keep_first(output, column).reset_index(drop=True)
+        if column == "dest_email":
+            output = dedupe_by_column_keep_first_normalized(output, column).reset_index(drop=True)
+        else:
+            output = dedupe_by_column_keep_first(output, column).reset_index(drop=True)
     return output[columns].reset_index(drop=True)
 
 
