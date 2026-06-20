@@ -96,6 +96,7 @@ function GmMailPage() {
       await assertExcelResponse(response, 'No se pudo generar el archivo GM Mail.', includeCrm ? [ZIP_MIME] : [])
       const filename = response.headers['content-disposition']?.split('filename=')[1]?.replaceAll('"', '') || 'GM_COMERCIAL_84995.xlsx'
       triggerDownload(response.data, filename)
+      resetForm()
       updateStatus('success', 'Archivo generado correctamente.')
     } catch (error) {
       updateStatus('danger', error?.message || 'No se pudo procesar el archivo.')

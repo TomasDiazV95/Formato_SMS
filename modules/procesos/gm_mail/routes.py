@@ -102,7 +102,8 @@ def gm_mail_process():
         salida = build_gm_mail_from_excel(file, template_key=template_key, delivery_date=delivery_date)
         fecha = datetime.now().strftime("%d-%m")
         prefix = template.get("filename_prefix") or template.get("label") or "GM_MAIL"
-        nombre = f"{_filename_token(str(prefix))}_{fecha}.xlsx"
+        template_token = _filename_token(str(prefix))
+        nombre = f"{template_token}_{fecha}.xlsx"
         sheet_name = str(template.get("sheet_name") or "GeneralMotors")[:31]
         if include_crm:
             crm_df = build_gm_mail_crm_output(
@@ -111,7 +112,7 @@ def gm_mail_process():
                 hora_inicio=crm_hora_inicio,
                 hora_fin=crm_hora_fin,
             )
-            crm_base = f"cargaCRM_GM_MAIL_{fecha}"
+            crm_base = f"cargaCRM_GM_MAIL_{fecha}_{template_token}"
             zip_buf = _zip_gm_mail_outputs(
                 template_filename=nombre,
                 template_sheet=sheet_name,
@@ -122,7 +123,7 @@ def gm_mail_process():
             return send_file(
                 zip_buf,
                 as_attachment=True,
-                download_name=f"GM_MAIL_{fecha}.zip",
+                download_name=f"GM_MAIL_{template_token}_{fecha}.zip",
                 mimetype="application/zip",
             )
         buf = df_to_xlsx_bytesio(salida, sheet_name=sheet_name)
