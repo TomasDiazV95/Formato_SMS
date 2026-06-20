@@ -80,6 +80,11 @@ def _template_date_field(template: dict[str, Any], columns: list[str]) -> str:
     return ""
 
 
+def _rut_without_dv(value: object) -> str:
+    text = str(value or "").strip().replace(".", "").replace(" ", "")
+    return text.split("-", 1)[0].strip()
+
+
 def build_gm_mail_output(
     df_origin: pd.DataFrame,
     *,
@@ -179,6 +184,7 @@ def build_gm_mail_crm_output(
         & crm_source["OPERACION"].astype(str).str.strip().ne("")
         & crm_source["MAIL"].astype(str).str.strip().ne("")
     ].reset_index(drop=True)
+    crm_source["RUT"] = crm_source["RUT"].apply(_rut_without_dv)
     return build_mail_crm_output(
         crm_source,
         fecha=fecha,

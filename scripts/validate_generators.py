@@ -287,7 +287,7 @@ def validate_gm_mail() -> None:
         gm_mail_sources.fetch_tmp_asig_gm_rows = lambda operaciones: {
             "OP1": {
                 "NOMBRE": "CLIENTE UNO",
-                "RUT": "11111111-1",
+                "RUT": "11.111.111-1",
                 "OPERACION": "OP1",
                 "FECHA_VENCIMIENTO_CUOTA": date(2026, 2, 5),
                 "MONTO_CUOTA": 12345,
@@ -295,7 +295,7 @@ def validate_gm_mail() -> None:
             },
             "OP2": {
                 "NOMBRE": "CLIENTE DUP RUT",
-                "RUT": "11111111-1",
+                "RUT": "11.111.111-1",
                 "OPERACION": "OP2",
                 "FECHA_VENCIMIENTO_CUOTA": date(2026, 2, 6),
                 "MONTO_CUOTA": 22222,
@@ -365,6 +365,7 @@ def validate_gm_mail() -> None:
     assert output.loc[0, "name_from"] == "Jesabel Jeldez Fuentez", "GM Mail no aplico name_from fijo"
     assert output.loc[0, "RUT"] == "1-1", "GM Mail semilla sin RUT neutral"
     assert output.loc[1, "RUT"] == "1-2", "GM Mail segunda semilla sin RUT neutral"
+    assert output.loc[2, "RUT"] == "11.111.111-1", "GM Mail debe mantener RUT completo en masividad"
     assert output.loc[0, "NOMBRE"] == "PRB", "GM Mail semilla sin nombre neutral"
     assert output.loc[2, "FECHA_VENCIMIENTO_CUOTA"] == "05-02-2026", "GM Mail no formateo vencimiento"
     assert output.loc[0, "FECHA_ARCHIVO"] == "17-06-2026", "GM Mail no aplico fecha archivo"
@@ -376,6 +377,7 @@ def validate_gm_mail() -> None:
     assert crm.loc[0, "USUARIO"] == "jriveros", "GM Mail CRM usuario fijo invalido"
     assert crm.loc[0, "OBSERVACION"] == "ENVIO MAIL", "GM Mail CRM observacion fija invalida"
     assert crm.loc[0, "NRO_DOCUMENTO"] == "OP1", "GM Mail CRM no conserva operacion"
+    assert crm.loc[0, "RUT"] == "11111111", "GM Mail CRM debe quitar DV y guion del RUT"
     assert crm.loc[0, "CORREO"] == "primero@example.com", "GM Mail CRM no conserva correo"
     assert "pipe5550@gmail.com" not in set(crm["CORREO"].astype(str).str.lower()), "GM Mail CRM no excluyo semilla pipe"
     assert "cfuentes@phoenixservice.cl" not in set(crm["CORREO"].astype(str).str.lower()), "GM Mail CRM no excluyo semilla cfuentes"
@@ -411,6 +413,7 @@ def validate_gm_mail() -> None:
     assert "PRIMERO@EXAMPLE.COM" not in set(descuento["dest_email"].astype(str)), "GM Descuento no deduplico email normalizado"
     assert len(descuento_crm) == 1, "GM Descuento CRM debe excluir semillas y operaciones sin datos"
     assert descuento_crm.loc[0, "NRO_DOCUMENTO"] == "OP1", "GM Descuento CRM no conserva operacion"
+    assert descuento_crm.loc[0, "RUT"] == "11111111", "GM Descuento CRM debe quitar DV y guion del RUT"
     assert descuento_crm.loc[0, "CORREO"] == "primero@example.com", "GM Descuento CRM no conserva correo"
     print("GM_MAIL_OK")
 
