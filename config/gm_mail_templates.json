@@ -52,6 +52,7 @@
     "filename_prefix": "GM_EXTENSION_84591",
     "sheet_name": "GeneralMotors",
     "requires_delivery_date": true,
+    "date_label": "Fecha Maxima",
     "columns": [
       "INSTITUCIÓN",
       "SEGMENTOINSTITUCIÓN",

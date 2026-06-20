@@ -7,7 +7,7 @@ import { ZIP_MIME, assertExcelResponse, triggerDownload } from '../../../utils/d
 
 const fallbackTemplates = [
   { key: 'gm_comercial_84995', label: 'GM_COMERCIAL_84995', filename_prefix: 'GM_COMERCIAL_84995' },
-  { key: 'gm_extension_84591', label: 'GM_EXTENSION_84591', filename_prefix: 'GM_EXTENSION_84591', requires_delivery_date: true },
+  { key: 'gm_extension_84591', label: 'GM_EXTENSION_84591', filename_prefix: 'GM_EXTENSION_84591', requires_delivery_date: true, date_label: 'Fecha Maxima' },
   { key: 'gm_descuento_98960', label: 'GM_DESCUENTO_98960', filename_prefix: 'GM_DESCUENTO_98960', requires_delivery_date: true, date_field: 'FECHA_VALIDA', date_label: 'Fecha maxima oferta' },
 ]
 
