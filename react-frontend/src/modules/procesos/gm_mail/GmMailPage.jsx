@@ -8,6 +8,7 @@ import { ZIP_MIME, assertExcelResponse, triggerDownload } from '../../../utils/d
 const fallbackTemplates = [
   { key: 'gm_comercial_84995', label: 'GM_COMERCIAL_84995', filename_prefix: 'GM_COMERCIAL_84995' },
   { key: 'gm_extension_84591', label: 'GM_EXTENSION_84591', filename_prefix: 'GM_EXTENSION_84591', requires_delivery_date: true },
+  { key: 'gm_descuento_98960', label: 'GM_DESCUENTO_98960', filename_prefix: 'GM_DESCUENTO_98960', requires_delivery_date: true, date_field: 'FECHA_VALIDA', date_label: 'Fecha maxima oferta' },
 ]
 
 function GmMailPage() {
@@ -24,6 +25,8 @@ function GmMailPage() {
 
   const selectedTemplate = templates.find(template => template.key === templateKey)
   const requiresDeliveryDate = Boolean(selectedTemplate?.requires_delivery_date)
+  const dateLabel = selectedTemplate?.date_label || 'Fecha entrega'
+  const dateField = selectedTemplate?.date_field || 'FECHA_ENTREGA'
 
   useEffect(() => {
     let ignore = false
@@ -140,7 +143,7 @@ function GmMailPage() {
 
             {requiresDeliveryDate && (
               <div>
-                <label className="text-sm font-medium text-slate-700">Fecha entrega</label>
+                <label className="text-sm font-medium text-slate-700">{dateLabel}</label>
                 <input
                   type="date"
                   value={deliveryDate}
@@ -148,7 +151,7 @@ function GmMailPage() {
                   className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm"
                   required
                 />
-                <p className="mt-2 text-xs text-slate-500">Se escribira en FECHA_ENTREGA con formato DD-MM-YYYY.</p>
+                <p className="mt-2 text-xs text-slate-500">Se escribira en {dateField} con formato DD-MM-YYYY.</p>
               </div>
             )}
 
@@ -233,7 +236,7 @@ function GmMailPage() {
             <li>Las operaciones se cruzan por [fld_Agreement Number] en SQL Server.</li>
             <li>Si una operación no existe en la tabla, se conserva OPERACION y el resto de datos SQL queda vacío.</li>
             <li>Los campos fijos vienen desde config/gm_mail_templates.json.</li>
-            <li>GM_EXTENSION_84591 solicita fecha de entrega y la escribe como DD-MM-YYYY.</li>
+            <li>Las plantillas con fecha adicional solicitan datepicker y la escriben como DD-MM-YYYY.</li>
             <li>Se quitan RUT y correos duplicados conservando la primera fila encontrada.</li>
             <li>Si activas CRM, se descarga un ZIP con plantilla GM, carga CRM XLSX y carga CRM CSV.</li>
           </ul>

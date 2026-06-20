@@ -123,6 +123,12 @@ def validate_gm_mail_templates() -> None:
         "CORREO_EJECUTIVA",
     ]
     extension_columns = base_columns[:9] + ["FECHA_ENTREGA"] + base_columns[9:]
+    descuento_columns = base_columns[:8] + ["FECHA_VALIDA"] + base_columns[8:]
+    expected_by_key = {
+        "gm_comercial_84995": base_columns,
+        "gm_extension_84591": extension_columns,
+        "gm_descuento_98960": descuento_columns,
+    }
     for item in templates:
         if not isinstance(item, dict):
             raise AssertionError("template GM Mail invalido")
@@ -130,7 +136,7 @@ def validate_gm_mail_templates() -> None:
         if item["key"] in seen_keys:
             raise AssertionError(f"template GM Mail duplicado: {item['key']}")
         seen_keys.add(item["key"])
-        expected_columns = extension_columns if item.get("key") == "gm_extension_84591" else base_columns
+        expected_columns = expected_by_key.get(item.get("key"))
         if item.get("columns") != expected_columns:
             raise AssertionError("GM Mail columnas inesperadas")
         fixed = item.get("fixed_values")
@@ -147,6 +153,12 @@ def validate_gm_mail_templates() -> None:
             raise AssertionError("GM Extension debe usar message_id 84591")
         if item.get("key") == "gm_extension_84591" and not item.get("requires_delivery_date"):
             raise AssertionError("GM Extension debe requerir fecha entrega")
+        if item.get("key") == "gm_descuento_98960" and fixed.get("message_id") != 98960:
+            raise AssertionError("GM Descuento debe usar message_id 98960")
+        if item.get("key") == "gm_descuento_98960" and item.get("date_field") != "FECHA_VALIDA":
+            raise AssertionError("GM Descuento debe usar FECHA_VALIDA")
+        if item.get("key") == "gm_descuento_98960" and not item.get("requires_delivery_date"):
+            raise AssertionError("GM Descuento debe requerir fecha")
         seed_rows = item.get("seed_rows")
         if not isinstance(seed_rows, list) or len(seed_rows) != 2:
             raise AssertionError("GM Mail debe tener 2 semillas")

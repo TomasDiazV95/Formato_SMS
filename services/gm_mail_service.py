@@ -71,6 +71,15 @@ def _template_seed_rows(template: dict[str, Any]) -> list[dict[str, Any]]:
     return [item for item in seed_rows if isinstance(item, dict)]
 
 
+def _template_date_field(template: dict[str, Any], columns: list[str]) -> str:
+    configured = str(template.get("date_field") or "").strip()
+    if configured:
+        return configured
+    if "FECHA_ENTREGA" in columns:
+        return "FECHA_ENTREGA"
+    return ""
+
+
 def build_gm_mail_output(
     df_origin: pd.DataFrame,
     *,
@@ -84,6 +93,7 @@ def build_gm_mail_output(
     seed_rows = _template_seed_rows(template)
     today = today or date.today()
     delivery_date_text = delivery_date.strftime("%d-%m-%Y") if delivery_date else ""
+    date_field = _template_date_field(template, columns)
 
     operation_column = find_operation_column(list(df_origin.columns))
     operations = [normalize_operation(value) for value in df_origin[operation_column].tolist()]
@@ -99,8 +109,8 @@ def build_gm_mail_output(
         if "FECHA_VENCIMIENTO_CUOTA" in row and not str(row["FECHA_VENCIMIENTO_CUOTA"] or "").strip():
             row["FECHA_VENCIMIENTO_CUOTA"] = today.strftime("%d-%m-%Y")
         row["FECHA_ARCHIVO"] = today.strftime("%d-%m-%Y")
-        if "FECHA_ENTREGA" in row:
-            row["FECHA_ENTREGA"] = delivery_date_text
+        if date_field in row:
+            row[date_field] = delivery_date_text
         output_rows.append(row)
 
     for operation in operations:
@@ -115,8 +125,8 @@ def build_gm_mail_output(
         row["FECHA_VENCIMIENTO_CUOTA"] = _format_date(source_row.get("FECHA_VENCIMIENTO_CUOTA"))
         row["MONTO_CUOTA"] = source_row.get("MONTO_CUOTA") or ""
         row["FECHA_ARCHIVO"] = today.strftime("%d-%m-%Y")
-        if "FECHA_ENTREGA" in row:
-            row["FECHA_ENTREGA"] = delivery_date_text
+        if date_field in row:
+            row[date_field] = delivery_date_text
         row["dest_email"] = str(source_row.get("dest_email") or "").strip()
         output_rows.append(row)
 

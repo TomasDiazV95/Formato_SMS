@@ -59,6 +59,8 @@ def gm_mail_templates():
                 "label": item.get("label"),
                 "filename_prefix": item.get("filename_prefix") or item.get("label"),
                 "requires_delivery_date": bool(item.get("requires_delivery_date")),
+                "date_field": item.get("date_field") or ("FECHA_ENTREGA" if item.get("requires_delivery_date") else ""),
+                "date_label": item.get("date_label") or "Fecha entrega",
             }
             for item in templates
         ]

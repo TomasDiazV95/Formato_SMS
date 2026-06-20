@@ -326,6 +326,18 @@ def validate_gm_mail() -> None:
             today=date(2026, 6, 17),
             delivery_date=date(2026, 6, 25),
         )
+        descuento = build_gm_mail_output(
+            pd.DataFrame({"OPERACION": ["OP1", "OP2", "OP3", "OP4"]}),
+            template_key="gm_descuento_98960",
+            today=date(2026, 6, 17),
+            delivery_date=date(2026, 6, 30),
+        )
+        descuento_crm = build_gm_mail_crm_output(
+            descuento,
+            fecha=date(2026, 6, 18),
+            hora_inicio="10:00",
+            hora_fin="11:00",
+        )
     finally:
         gm_mail_sources.fetch_tmp_asig_gm_rows = original_fetch
 
@@ -372,6 +384,34 @@ def validate_gm_mail() -> None:
     assert extension.loc[0, "message_id"] == 84591, "GM Extension no aplica message_id"
     assert extension.loc[0, "FECHA_ENTREGA"] == "25-06-2026", "GM Extension no aplica FECHA_ENTREGA"
     assert list(extension["dest_email"].astype(str).head(2)) == ["pipe5550@gmail.com", "cfuentes@phoenixservice.cl"], "GM Extension no mantiene semillas"
+    expected_descuento_columns = [
+        "INSTITUCIÓN",
+        "SEGMENTOINSTITUCIÓN",
+        "message_id",
+        "NOMBRE",
+        "RUT",
+        "OPERACION",
+        "FECHA_VENCIMIENTO_CUOTA",
+        "MONTO_CUOTA",
+        "FECHA_VALIDA",
+        "FECHA_ARCHIVO",
+        "FONO_EJECUTIVA",
+        "dest_email",
+        "name_from",
+        "mail_from",
+        "CORREO_EJECUTIVA",
+    ]
+    assert list(descuento.columns) == expected_descuento_columns, "GM Descuento columnas inesperadas"
+    assert descuento.loc[0, "message_id"] == 98960, "GM Descuento no aplica message_id"
+    assert descuento.loc[0, "FECHA_VALIDA"] == "30-06-2026", "GM Descuento no aplica FECHA_VALIDA en semillas"
+    assert descuento.loc[2, "FECHA_VALIDA"] == "30-06-2026", "GM Descuento no aplica FECHA_VALIDA en datos SQL"
+    assert descuento.loc[0, "FECHA_ARCHIVO"] == "17-06-2026", "GM Descuento no aplica FECHA_ARCHIVO"
+    assert list(descuento["dest_email"].astype(str).head(2)) == ["pipe5550@gmail.com", "cfuentes@phoenixservice.cl"], "GM Descuento no mantiene semillas"
+    assert list(descuento["OPERACION"].astype(str)) == ["1234", "1234", "OP1", "OP4"], "GM Descuento no deduplico RUT/email"
+    assert "PRIMERO@EXAMPLE.COM" not in set(descuento["dest_email"].astype(str)), "GM Descuento no deduplico email normalizado"
+    assert len(descuento_crm) == 1, "GM Descuento CRM debe excluir semillas y operaciones sin datos"
+    assert descuento_crm.loc[0, "NRO_DOCUMENTO"] == "OP1", "GM Descuento CRM no conserva operacion"
+    assert descuento_crm.loc[0, "CORREO"] == "primero@example.com", "GM Descuento CRM no conserva correo"
     print("GM_MAIL_OK")
 
 
