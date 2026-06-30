@@ -20,7 +20,7 @@ from services.sc_telefonia_mail_service import build_sc_telefonia_mail_output
 from services.ivr_service import build_ivr_output
 from services.sant_hipotecario_masividad_service import generar_masividad
 from services.sant_hipotecario_service import generar_crm
-from services.santander_consumer_service import OUTPUT_COLUMNS, build_santander_consumer_terreno_output
+from services.santander_consumer_service import MEDIOS_PAGO_COLUMNS, OUTPUT_COLUMNS, build_santander_consumer_terreno_output
 from services.sms_service import build_athenas_output, build_axia_output, build_crm_output as build_sms_crm_output
 
 
@@ -519,9 +519,35 @@ def validate_santander_consumer() -> None:
                 "fld_REGION": "REGION METROPOLITANA",
                 "fld_FECHA": "20260616",
                 "fecha_carga": "20260616",
+            },
+            "123457": {
+                "fld_RUT": "11111111-1",
+                "fld_OPERACION": "123457",
+                "fld_NOMBRE": "CLIENTE DUP RUT",
+                "fld_COBRADOR": "Ariel Silva",
+                "fld_MARCA": "MARCA",
+                "fld_PATENTE": "AA1112",
+                "fld_DEUDA_INI": "100000",
+                "fld_COMUNA": "SANTIAGO",
+                "fld_REGION": "REGION METROPOLITANA",
+                "fld_FECHA": "20260616",
+                "fecha_carga": "20260616",
+            },
+            "123458": {
+                "fld_RUT": "22222222-2",
+                "fld_OPERACION": "123458",
+                "fld_NOMBRE": "CLIENTE DUP MAIL",
+                "fld_COBRADOR": "Ariel Silva",
+                "fld_MARCA": "MARCA",
+                "fld_PATENTE": "AA1113",
+                "fld_DEUDA_INI": "100000",
+                "fld_COMUNA": "SANTIAGO",
+                "fld_REGION": "REGION METROPOLITANA",
+                "fld_FECHA": "20260616",
+                "fecha_carga": "20260616",
             }
         }
-        sc_sources.fetch_emails_by_rut = lambda ruts: {"111111111": "cliente.sc@example.com"}
+        sc_sources.fetch_emails_by_rut = lambda ruts: {"111111111": "cliente.sc@example.com", "222222222": "CLIENTE.SC@EXAMPLE.COM"}
         sc_assignments.ejecutivos_repo.fetch_by_mandante_and_nombre = lambda mandante, nombre: _fake_ejecutivo(nombre)
         sc_assignments.ejecutivos_repo.list_ejecutivos = lambda mandante=None, activos=True: [_fake_ejecutivo()]
         output = build_santander_consumer_terreno_output(
@@ -538,6 +564,10 @@ def validate_santander_consumer() -> None:
             template_key="susceptible",
             offer_deadline=date(2026, 6, 22),
         )
+        medios_pago = build_santander_consumer_terreno_output(
+            pd.DataFrame({"OPERACION": ["123456", "123457", "123458", "999999"]}),
+            template_key="medios_pago",
+        )
     finally:
         sc_sources.fetch_tmp_bench_rows = original_bench
         sc_sources.fetch_emails_by_rut = original_emails
@@ -551,6 +581,18 @@ def validate_santander_consumer() -> None:
     assert output_offer.loc[0, "DIA_OFERTA"] == "22", "Santander Consumer no asigno DIA_OFERTA"
     assert output_offer.loc[0, "MES_OFERTA"] == "Junio", "Santander Consumer no asigno MES_OFERTA"
     assert output_offer.loc[0, "ANO_OFERTA"] == "2026", "Santander Consumer no asigno ANO_OFERTA"
+    assert list(medios_pago.columns) == MEDIOS_PAGO_COLUMNS, "Santander Consumer medios pago columnas inesperadas"
+    assert medios_pago.loc[0, "RUT"] == "4444444", "Santander Consumer medios pago sin semilla"
+    assert medios_pago.loc[0, "dest_email"] == "pipe5550@gmail.com", "Santander Consumer medios pago semilla email invalida"
+    assert medios_pago.loc[0, "message_id"] == "85636", "Santander Consumer medios pago message_id invalido"
+    assert medios_pago.loc[0, "PLANTILLA"] == "TEMPRANA", "Santander Consumer medios pago PLANTILLA invalida"
+    assert medios_pago.loc[0, "name_from"] == "Atencion Cliente Consumer", "Santander Consumer medios pago name_from invalido"
+    assert medios_pago.loc[0, "mail_from"] == "atencionclientes@estandar.phoenixserviceinfo.cl", "Santander Consumer medios pago mail_from invalido"
+    assert medios_pago.loc[0, "CORREO"] == "mgalvez@phoenixservice.cl", "Santander Consumer medios pago CORREO invalido"
+    assert list(medios_pago["NRO_OPERACION"].astype(str)) == ["", "123456", "999999"], "Santander Consumer medios pago no deduplico/conservo operacion esperada"
+    assert medios_pago.loc[1, "RUT"] == "11111111-1", "Santander Consumer medios pago no mapea RUT"
+    assert medios_pago.loc[2, "RUT"] == "", "Santander Consumer medios pago sin match debe dejar RUT vacio"
+    assert medios_pago.loc[2, "dest_email"] == "", "Santander Consumer medios pago sin match debe dejar email vacio"
     print("SANTANDER_CONSUMER_OK")
 
 

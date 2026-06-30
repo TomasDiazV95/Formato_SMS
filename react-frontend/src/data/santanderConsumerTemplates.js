@@ -6,4 +6,5 @@ export const santanderConsumerTemplates = [
   { key: 'castigo', label: 'Castigo', messageId: 80465, nroCuotas: '' },
   { key: '3_cuotas', label: '3 cuotas', messageId: 90818, nroCuotas: '3 cuotas' },
   { key: '2_cuotas', label: '2 cuotas', messageId: 90818, nroCuotas: '2 cuotas' },
+  { key: 'medios_pago', label: 'Medios de Pago', messageId: 85636, nroCuotas: '' },
 ]

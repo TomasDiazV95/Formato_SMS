@@ -92,6 +92,11 @@ def validate_santander_consumer() -> None:
             raise AssertionError(f"template Santander duplicado: {item['key']}")
         seen_keys.add(item["key"])
         int(item["message_id"])
+    if "medios_pago" not in seen_keys:
+        raise AssertionError("Santander Consumer debe incluir medios_pago")
+    medios_pago = next(item for item in templates if item.get("key") == "medios_pago")
+    if int(medios_pago.get("message_id")) != 85636:
+        raise AssertionError("Santander Consumer medios_pago debe usar message_id 85636")
 
     supervisors = _load_json("santander_consumer_supervisors.json")
     for key in ["supervisor_regiones", "supervisor_rm"]:

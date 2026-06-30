@@ -40,5 +40,11 @@
     "label": "2 cuotas",
     "message_id": 90818,
     "nro_cuotas": "2 cuotas"
+  },
+  {
+    "key": "medios_pago",
+    "label": "Medios de Pago",
+    "message_id": 85636,
+    "nro_cuotas": ""
   }
 ]
