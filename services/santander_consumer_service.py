@@ -64,7 +64,7 @@ MEDIOS_PAGO_FIXED = {
 
 MEDIOS_PAGO_SEED = {
     "RUT": "4444444",
-    "NRO_OPERACION": "",
+    "NRO_OPERACION": "12345",
     "dest_email": "pipe5550@gmail.com",
 }
 

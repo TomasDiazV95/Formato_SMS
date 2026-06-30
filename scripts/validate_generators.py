@@ -589,7 +589,7 @@ def validate_santander_consumer() -> None:
     assert medios_pago.loc[0, "name_from"] == "Atencion Cliente Consumer", "Santander Consumer medios pago name_from invalido"
     assert medios_pago.loc[0, "mail_from"] == "atencionclientes@estandar.phoenixserviceinfo.cl", "Santander Consumer medios pago mail_from invalido"
     assert medios_pago.loc[0, "CORREO"] == "mgalvez@phoenixservice.cl", "Santander Consumer medios pago CORREO invalido"
-    assert list(medios_pago["NRO_OPERACION"].astype(str)) == ["", "123456", "999999"], "Santander Consumer medios pago no deduplico/conservo operacion esperada"
+    assert list(medios_pago["NRO_OPERACION"].astype(str)) == ["12345", "123456", "999999"], "Santander Consumer medios pago no deduplico/conservo operacion esperada"
     assert medios_pago.loc[1, "RUT"] == "11111111-1", "Santander Consumer medios pago no mapea RUT"
     assert medios_pago.loc[2, "RUT"] == "", "Santander Consumer medios pago sin match debe dejar RUT vacio"
     assert medios_pago.loc[2, "dest_email"] == "", "Santander Consumer medios pago sin match debe dejar email vacio"
