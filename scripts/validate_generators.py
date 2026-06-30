@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
 
 from repositories.ejecutivos_repo import Ejecutivo
 from services.mail_service import build_mail_crm_output
-from services.mail_templates import TEMPLATE_COLUMNS_BIT, TEMPLATE_COLUMNS_ITAU_CASTIGO, TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
+from services.mail_templates import TEMPLATE_COLUMNS_ARAUCANA, TEMPLATE_COLUMNS_BIT, TEMPLATE_COLUMNS_ITAU_CASTIGO, TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
 from services.gm_mail_service import build_gm_mail_crm_output, build_gm_mail_output
 from services.sc_telefonia_mail_service import build_sc_telefonia_mail_output
 from services.ivr_service import build_ivr_output
@@ -239,6 +239,33 @@ def validate_bit_mail() -> None:
     assert castigo.loc[0, "MAIL_AGENTE"] == "cfuentes@phoenixservice.cl", "BIT MAIL_AGENTE invalido"
     assert "PRIMERO.BIT@EXAMPLE.COM" not in set(castigo["dest_email"].astype(str)), "BIT no deduplico email normalizado"
     print("BIT_MAIL_OK")
+
+
+def validate_araucana_mail() -> None:
+    base = pd.DataFrame(
+        {
+            "RUT": ["10117748", "10117748", "10237218", "10333333"],
+            "NOMBRE": ["MILTON EDUARDO JARA CIFUENTES", "CLIENTE DUP RUT", "CLIENTE DUP MAIL", "CLIENTE TRES"],
+            "EMAIL": ["jaracifuentesmilton@gmail.com", "duplicado-rut@example.com", "JARACIFUENTESMILTON@GMAIL.COM", "cliente3@example.com"],
+        }
+    )
+    cesantes = build_mail_template(base, "ARAUCANA_CESANTES_86391", mandante="La Araucana")
+    medio_pago = build_mail_template(base, "ARAUCANA_MEDIO_PAGO_93887", mandante="La Araucana")
+
+    assert list(cesantes.columns) == TEMPLATE_COLUMNS_ARAUCANA, "Araucana columnas inesperadas"
+    assert list(cesantes["NOMBRE"].astype(str)) == ["Melanie", "Felipe", "MILTON EDUARDO JARA CIFUENTES", "CLIENTE TRES"], "Araucana no deduplico por RUT/email"
+    assert list(cesantes["dest_email"].astype(str).head(2)) == ["mmondiglio@phoenixservice.cl", "pipe5550@gmail.com"], "Araucana sin semillas"
+    assert list(cesantes["RUT"].astype(str).head(2)) == ["1", "2"], "Araucana semillas sin RUT esperado"
+    assert cesantes.loc[0, "INSTITUCIÓN"] == "CAJA LA ARAUCANA", "Araucana INSTITUCIÓN invalida"
+    assert cesantes.loc[0, "SEGMENTOINSTITUCIÓN"] == "ARAUCANA", "Araucana SEGMENTOINSTITUCIÓN invalida"
+    assert cesantes.loc[0, "message_id"] == 86391, "Araucana Cesantes message_id invalido"
+    assert medio_pago.loc[0, "message_id"] == 93887, "Araucana Medio Pago message_id invalido"
+    assert cesantes.loc[0, "name_from"] == "CAJA LA ARAUCANA", "Araucana name_from invalido"
+    assert cesantes.loc[0, "mail_from"] == "atencionclientes@estandar.phoenixserviceinfo.cl", "Araucana mail_from invalido"
+    assert cesantes.loc[0, "CORREO"] == "mmondiglio@phoenixservice.cl", "Araucana CORREO invalido"
+    assert "duplicado-rut@example.com" not in set(cesantes["dest_email"].astype(str)), "Araucana no deduplico RUT"
+    assert "JARACIFUENTESMILTON@GMAIL.COM" not in set(cesantes["dest_email"].astype(str)), "Araucana no deduplico email normalizado"
+    print("ARAUCANA_MAIL_OK")
 
 
 def validate_crm_dedupe() -> None:
@@ -578,6 +605,7 @@ def main() -> None:
     validate_mail_template_dedupe()
     validate_itau_castigo_mail()
     validate_bit_mail()
+    validate_araucana_mail()
     validate_crm_dedupe()
     validate_gm_mail()
     validate_sc_telefonia_mail()

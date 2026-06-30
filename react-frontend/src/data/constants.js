@@ -67,6 +67,22 @@ export const mailTemplates = [
     segmento: 'BANCO INTERNACIONAL',
   },
   {
+    code: 'ARAUCANA_CESANTES_86391',
+    label: 'La Araucana - Cesantes',
+    messageId: 86391,
+    mandante: 'La Araucana',
+    institucion: 'CAJA LA ARAUCANA',
+    segmento: 'ARAUCANA',
+  },
+  {
+    code: 'ARAUCANA_MEDIO_PAGO_93887',
+    label: 'La Araucana - Medio de Pago',
+    messageId: 93887,
+    mandante: 'La Araucana',
+    institucion: 'CAJA LA ARAUCANA',
+    segmento: 'ARAUCANA',
+  },
+  {
     code: 'TANNER_MEDIOS_PAGO',
     label: 'Tanner - Medios de Pago',
     messageId: 91869,

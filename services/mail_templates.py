@@ -131,6 +131,18 @@ TEMPLATE_COLUMNS_BIT = [
     "MAIL_AGENTE",
 ]
 
+TEMPLATE_COLUMNS_ARAUCANA = [
+    "INSTITUCIÓN",
+    "SEGMENTOINSTITUCIÓN",
+    "message_id",
+    "NOMBRE",
+    "dest_email",
+    "RUT",
+    "name_from",
+    "mail_from",
+    "CORREO",
+]
+
 SPANISH_MONTHS = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
@@ -340,6 +352,8 @@ def build_mail_template(df: pd.DataFrame, template_code: str, mandante: Optional
         return _build_itau_castigo(df, template)
     if template_code in BIT_TEMPLATE_CODES:
         return _build_bit_mail(df, template)
+    if template_code in ARAUCANA_TEMPLATE_CODES:
+        return _build_araucana_mail(df, template)
     if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
         return _build_tanner_medios_pago(df, template, mandante)
     if template_code == "SCJ_COBRANZA":
@@ -392,6 +406,13 @@ def sample_mail_template(template_code: str) -> pd.DataFrame:
             "MAIL": ["primero.bit@example.com", "duplicado-rut@example.com", "PRIMERO.BIT@EXAMPLE.COM", "tercero.bit@example.com"],
         })
         return build_mail_template(sample_df, template_code, mandante="Banco Internacional")
+    if template_code in ARAUCANA_TEMPLATE_CODES:
+        sample_df = pd.DataFrame({
+            "RUT": ["10117748", "10117748", "10237218", "10333333"],
+            "NOMBRE": ["MILTON EDUARDO JARA CIFUENTES", "CLIENTE DUP RUT", "CLIENTE DUP MAIL", "CLIENTE TRES"],
+            "EMAIL": ["jaracifuentesmilton@gmail.com", "duplicado-rut@example.com", "JARACIFUENTESMILTON@GMAIL.COM", "cliente3@example.com"],
+        })
+        return build_mail_template(sample_df, template_code, mandante="La Araucana")
     if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
         sample_df = pd.DataFrame({
             "RUT+DV": ["11.111.111-1", "22.222.222-2"],
@@ -605,6 +626,15 @@ BIT_SEEDS = [
     {"RUT": "1-2", "OPERACION": "1234", "CLIENTE": "PRB", "dest_email": "cfuentes@phoenixservice.cl"},
 ]
 
+ARAUCANA_TEMPLATE_CODES = {"ARAUCANA_CESANTES_86391", "ARAUCANA_MEDIO_PAGO_93887"}
+ARAUCANA_NAME_FROM = "CAJA LA ARAUCANA"
+ARAUCANA_MAIL_FROM = "atencionclientes@estandar.phoenixserviceinfo.cl"
+ARAUCANA_CORREO = "mmondiglio@phoenixservice.cl"
+ARAUCANA_SEEDS = [
+    {"NOMBRE": "Melanie", "dest_email": "mmondiglio@phoenixservice.cl", "RUT": "1"},
+    {"NOMBRE": "Felipe", "dest_email": "pipe5550@gmail.com", "RUT": "2"},
+]
+
 
 def _build_itau_castigo(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
     base = df.copy()
@@ -711,6 +741,57 @@ def _build_bit_mail(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
         )
     seed_df = pd.DataFrame(seed_rows).reindex(columns=TEMPLATE_COLUMNS_BIT)
     return pd.concat([seed_df, output.reindex(columns=TEMPLATE_COLUMNS_BIT)], ignore_index=True)
+
+
+def _build_araucana_mail(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
+    base = df.copy()
+    base.columns = [str(col).strip() for col in base.columns]
+
+    rut_col = _find_column(base, RUT_COLUMN_ALIASES)
+    nombre_col = _find_column(base, {"nombre", "cliente", "nombre_cliente", "contacto"})
+    dest_col = _find_column(base, EMAIL_COLUMN_ALIASES)
+
+    missing = [
+        name
+        for name, col in (("RUT", rut_col), ("NOMBRE", nombre_col), ("dest_email", dest_col))
+        if col is None
+    ]
+    if missing:
+        raise ValueError("Faltan columnas requeridas para La Araucana: " + ", ".join(missing))
+
+    base = dedupe_by_column_keep_first(base, rut_col).reset_index(drop=True)
+    base = dedupe_by_column_keep_first_normalized(base, dest_col).reset_index(drop=True)
+
+    output = pd.DataFrame(
+        {
+            "INSTITUCIÓN": [template.institucion] * len(base),
+            "SEGMENTOINSTITUCIÓN": [template.segmentoinstitucion] * len(base),
+            "message_id": [template.message_id] * len(base),
+            "NOMBRE": base[nombre_col].fillna("").astype(str).str.strip().tolist(),
+            "dest_email": base[dest_col].fillna("").astype(str).str.strip().tolist(),
+            "RUT": base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+            "name_from": [ARAUCANA_NAME_FROM] * len(base),
+            "mail_from": [ARAUCANA_MAIL_FROM] * len(base),
+            "CORREO": [ARAUCANA_CORREO] * len(base),
+        }
+    )
+    seed_rows = []
+    for seed in ARAUCANA_SEEDS:
+        seed_rows.append(
+            {
+                "INSTITUCIÓN": template.institucion,
+                "SEGMENTOINSTITUCIÓN": template.segmentoinstitucion,
+                "message_id": template.message_id,
+                "NOMBRE": seed["NOMBRE"],
+                "dest_email": seed["dest_email"],
+                "RUT": seed["RUT"],
+                "name_from": ARAUCANA_NAME_FROM,
+                "mail_from": ARAUCANA_MAIL_FROM,
+                "CORREO": ARAUCANA_CORREO,
+            }
+        )
+    seed_df = pd.DataFrame(seed_rows).reindex(columns=TEMPLATE_COLUMNS_ARAUCANA)
+    return pd.concat([seed_df, output.reindex(columns=TEMPLATE_COLUMNS_ARAUCANA)], ignore_index=True)
 
 
 ITAU_SUPERVISOR = "Karen Avendaño"
