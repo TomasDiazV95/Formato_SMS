@@ -1,0 +1,150 @@
+[
+  {
+    "key": "gm_comercial_84995",
+    "label": "GM_COMERCIAL_84995",
+    "filename_prefix": "GM_COMERCIAL_84995",
+    "sheet_name": "GeneralMotors",
+    "columns": [
+      "INSTITUCIÓN",
+      "SEGMENTOINSTITUCIÓN",
+      "message_id",
+      "NOMBRE",
+      "RUT",
+      "OPERACION",
+      "FECHA_VENCIMIENTO_CUOTA",
+      "MONTO_CUOTA",
+      "FECHA_ARCHIVO",
+      "FONO_EJECUTIVA",
+      "dest_email",
+      "name_from",
+      "mail_from",
+      "CORREO_EJECUTIVA"
+    ],
+    "fixed_values": {
+      "INSTITUCIÓN": "GENERAL MOTORS",
+      "SEGMENTOINSTITUCIÓN": "GENERAL MOTORS",
+      "message_id": 84995,
+      "FONO_EJECUTIVA": 962487407,
+      "name_from": "Jesabel Jeldez Fuentez",
+      "mail_from": "jjeldez@info.phoenixserviceinfo.cl",
+      "CORREO_EJECUTIVA": "Jjeldez@phoenixservice.cl"
+    },
+    "seed_rows": [
+      {
+        "NOMBRE": "PRB",
+        "RUT": "1-1",
+        "OPERACION": "1234",
+        "MONTO_CUOTA": 0,
+        "dest_email": "pipe5550@gmail.com"
+      },
+      {
+        "NOMBRE": "PRB",
+        "RUT": "1-2",
+        "OPERACION": "1234",
+        "MONTO_CUOTA": 0,
+        "dest_email": "cfuentes@phoenixservice.cl"
+      }
+    ]
+  },
+  {
+    "key": "gm_extension_84591",
+    "label": "GM_EXTENSION_84591",
+    "filename_prefix": "GM_EXTENSION_84591",
+    "sheet_name": "GeneralMotors",
+    "requires_delivery_date": true,
+    "date_label": "Fecha Maxima",
+    "columns": [
+      "INSTITUCIÓN",
+      "SEGMENTOINSTITUCIÓN",
+      "message_id",
+      "NOMBRE",
+      "RUT",
+      "OPERACION",
+      "FECHA_VENCIMIENTO_CUOTA",
+      "MONTO_CUOTA",
+      "FECHA_ARCHIVO",
+      "FECHA_ENTREGA",
+      "FONO_EJECUTIVA",
+      "dest_email",
+      "name_from",
+      "mail_from",
+      "CORREO_EJECUTIVA"
+    ],
+    "fixed_values": {
+      "INSTITUCIÓN": "GENERAL MOTORS",
+      "SEGMENTOINSTITUCIÓN": "GENERAL MOTORS",
+      "message_id": 84591,
+      "FONO_EJECUTIVA": 962487407,
+      "name_from": "Jesabel Jeldez Fuentez",
+      "mail_from": "jjeldez@info.phoenixserviceinfo.cl",
+      "CORREO_EJECUTIVA": "Jjeldez@phoenixservice.cl"
+    },
+    "seed_rows": [
+      {
+        "NOMBRE": "PRB",
+        "RUT": "1-1",
+        "OPERACION": "1234",
+        "MONTO_CUOTA": 0,
+        "dest_email": "pipe5550@gmail.com"
+      },
+      {
+        "NOMBRE": "PRB",
+        "RUT": "1-2",
+        "OPERACION": "1234",
+        "MONTO_CUOTA": 0,
+        "dest_email": "cfuentes@phoenixservice.cl"
+      }
+    ]
+  },
+  {
+    "key": "gm_descuento_98960",
+    "label": "GM_DESCUENTO_98960",
+    "filename_prefix": "GM_DESCUENTO_98960",
+    "sheet_name": "GeneralMotors",
+    "requires_delivery_date": true,
+    "date_field": "FECHA_VALIDA",
+    "date_label": "Fecha maxima oferta",
+    "columns": [
+      "INSTITUCIÓN",
+      "SEGMENTOINSTITUCIÓN",
+      "message_id",
+      "NOMBRE",
+      "RUT",
+      "OPERACION",
+      "FECHA_VENCIMIENTO_CUOTA",
+      "MONTO_CUOTA",
+      "FECHA_VALIDA",
+      "FECHA_ARCHIVO",
+      "FONO_EJECUTIVA",
+      "dest_email",
+      "name_from",
+      "mail_from",
+      "CORREO_EJECUTIVA"
+    ],
+    "fixed_values": {
+      "INSTITUCIÓN": "GENERAL MOTORS",
+      "SEGMENTOINSTITUCIÓN": "GENERAL MOTORS",
+      "message_id": 98960,
+      "FONO_EJECUTIVA": 962487407,
+      "name_from": "Jesabel Jeldez Fuentez",
+      "mail_from": "jjeldez@info.phoenixserviceinfo.cl",
+      "CORREO_EJECUTIVA": "Jjeldez@phoenixservice.cl"
+    },
+    "seed_rows": [
+      {
+        "NOMBRE": "PRB",
+        "RUT": "1-1",
+        "OPERACION": "1234",
+        "MONTO_CUOTA": 0,
+        "dest_email": "pipe5550@gmail.com"
+      },
+      {
+        "NOMBRE": "PRB",
+        "RUT": "1-2",
+        "OPERACION": "1234",
+        "MONTO_CUOTA": 0,
+        "dest_email": "cfuentes@phoenixservice.cl"
+      }
+    ]
+  }
+]

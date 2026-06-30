@@ -14,7 +14,7 @@ from openpyxl import load_workbook
 
 from repositories import ejecutivos_repo
 from services import config_store
-from services.contact_dedupe import dedupe_by_column_keep_first
+from services.contact_dedupe import dedupe_by_column_keep_first, dedupe_by_column_keep_first_normalized
 from utils.paths import archive_path, config_path, PROJECT_ROOT
 
 TEMPLATE_COLUMNS_TANNER = [
@@ -105,6 +105,44 @@ TEMPLATE_COLUMNS_ITAU_VENCIDA = [
     "MARCA WEB Y SUCURSAL",
 ]
 
+TEMPLATE_COLUMNS_ITAU_CASTIGO = [
+    "INSTITUCIÓN",
+    "SEGMENTOINSTITUCIÓN",
+    "message_id",
+    "PLANTILLA",
+    "RUT",
+    "OPERACION",
+    "dest_email",
+    "name_from",
+    "mail_from",
+    "CORREO",
+]
+
+TEMPLATE_COLUMNS_BIT = [
+    "INSTITUCIÓN",
+    "SEGMENTOINSTITUCIÓN",
+    "message_id",
+    "RUT",
+    "OPERACION",
+    "CLIENTE",
+    "dest_email",
+    "name_from",
+    "mail_from",
+    "MAIL_AGENTE",
+]
+
+TEMPLATE_COLUMNS_ARAUCANA = [
+    "INSTITUCIÓN",
+    "SEGMENTOINSTITUCIÓN",
+    "message_id",
+    "NOMBRE",
+    "dest_email",
+    "RUT",
+    "name_from",
+    "mail_from",
+    "CORREO",
+]
+
 SPANISH_MONTHS = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
@@ -122,10 +160,59 @@ AGENTE_COLUMN_ALIASES = {
     "nombre agente",
 }
 
+RUT_COLUMN_ALIASES = {
+    "rut",
+    "rutdv",
+    "rut+dv",
+    "rut-dv",
+    "rut dv",
+    "rut_dv",
+    "rut cliente",
+    "rut_cliente",
+    "id_cliente",
+}
+
+OPERATION_COLUMN_ALIASES = {
+    "operacion",
+    "operación",
+    "ope",
+    "op",
+    "nro_operacion",
+    "nro operación",
+    "nro_operación",
+    "nro ope",
+    "nro_ope",
+    "n operación",
+    "n_operacion",
+    "n_operación",
+    "numero_operacion",
+    "numero operación",
+    "número operación",
+    "número_operación",
+    "num_op",
+    "nro documento",
+    "nro_documento",
+    "id_credito",
+    "contrato",
+}
+
+EMAIL_COLUMN_ALIASES = {
+    "dest_email",
+    "email",
+    "e-mail",
+    "correo",
+    "correo electronico",
+    "correo electrónico",
+    "mail",
+    "dest_mail",
+    "email_cliente",
+    "mail_cliente",
+}
+
 TANNER_REQUIRED_COLUMN_LABELS = {
-    "RUT+DV": {"rut+dv", "rut-dv", "rut"},
-    "OPERACION": {"nro_operacion", "operacion", "operación", "op", "id_credito"},
-    "dest_email": {"dest_email", "email", "correo", "mail", "dest_mail"},
+    "RUT+DV": RUT_COLUMN_ALIASES,
+    "OPERACION": OPERATION_COLUMN_ALIASES,
+    "dest_email": EMAIL_COLUMN_ALIASES,
     "NOMBRE_AGENTE": AGENTE_COLUMN_ALIASES,
 }
 
@@ -261,6 +348,12 @@ def build_mail_template(df: pd.DataFrame, template_code: str, mandante: Optional
         from services.mail_itau_vencida import build_itau_vencida
 
         return build_itau_vencida(df, template, mandante)
+    if template_code in ITAU_CASTIGO_SENDERS:
+        return _build_itau_castigo(df, template)
+    if template_code in BIT_TEMPLATE_CODES:
+        return _build_bit_mail(df, template)
+    if template_code in ARAUCANA_TEMPLATE_CODES:
+        return _build_araucana_mail(df, template)
     if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
         return _build_tanner_medios_pago(df, template, mandante)
     if template_code == "SCJ_COBRANZA":
@@ -298,6 +391,28 @@ def sample_mail_template(template_code: str) -> pd.DataFrame:
             "CARTERIZADO ABRIL": ["Jessica Carolina Diaz Mata", "Veronica Margarita Vega Bustos"],
         })
         return build_mail_template(sample_df, template_code, mandante="Itau Vencida")
+    if template_code in ITAU_CASTIGO_SENDERS:
+        sample_df = pd.DataFrame({
+            "RUT": ["11111111-1", "11111111-1", "22222222-2"],
+            "OPERACION": ["IC1", "IC2", "IC3"],
+            "MAIL": ["primero@example.com", "duplicado-rut@example.com", "PRIMERO@EXAMPLE.COM"],
+        })
+        return build_mail_template(sample_df, template_code, mandante="Itau Castigo")
+    if template_code in BIT_TEMPLATE_CODES:
+        sample_df = pd.DataFrame({
+            "RUT": ["11111111-1", "11111111-1", "22222222-2", "33333333-3"],
+            "OPERACION": ["BIT1", "BIT2", "BIT3", "BIT4"],
+            "CLIENTE": ["CLIENTE UNO", "CLIENTE DUP RUT", "CLIENTE DUP MAIL", "CLIENTE TRES"],
+            "MAIL": ["primero.bit@example.com", "duplicado-rut@example.com", "PRIMERO.BIT@EXAMPLE.COM", "tercero.bit@example.com"],
+        })
+        return build_mail_template(sample_df, template_code, mandante="Banco Internacional")
+    if template_code in ARAUCANA_TEMPLATE_CODES:
+        sample_df = pd.DataFrame({
+            "RUT": ["10117748", "10117748", "10237218", "10333333"],
+            "NOMBRE": ["MILTON EDUARDO JARA CIFUENTES", "CLIENTE DUP RUT", "CLIENTE DUP MAIL", "CLIENTE TRES"],
+            "EMAIL": ["jaracifuentesmilton@gmail.com", "duplicado-rut@example.com", "JARACIFUENTESMILTON@GMAIL.COM", "cliente3@example.com"],
+        })
+        return build_mail_template(sample_df, template_code, mandante="La Araucana")
     if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
         sample_df = pd.DataFrame({
             "RUT+DV": ["11.111.111-1", "22.222.222-2"],
@@ -477,6 +592,206 @@ def _build_tanner_medios_pago(df: pd.DataFrame, template: MailTemplate, mandante
 
     output = pd.DataFrame(data)
     return output.reindex(columns=TEMPLATE_COLUMNS_TANNER)
+
+
+ITAU_CASTIGO_SENDERS = {
+    "ITAU_CASTIGO_SIN_DIRECCION_INGRID": {
+        "name_from": "Ingrid Del Carmen Retamal Garrido",
+        "mail_from": "iretamal@info.phoenixserviceinfo.cl",
+        "CORREO": "iretamal@phoenixservice.cl",
+    },
+    "ITAU_CASTIGO_CON_DIRECCION_INGRID": {
+        "name_from": "Ingrid Del Carmen Retamal Garrido",
+        "mail_from": "iretamal@info.phoenixserviceinfo.cl",
+        "CORREO": "iretamal@phoenixservice.cl",
+    },
+    "ITAU_CASTIGO_JL": {
+        "name_from": "Jorge Francisco Lopez Cornejo",
+        "mail_from": "jlopez@info.phoenixserviceinfo.cl",
+        "CORREO": "jlopez@phoenixservice.cl",
+    },
+}
+
+ITAU_CASTIGO_SEEDS = [
+    {"RUT": "1-1", "OPERACION": "1234", "dest_email": "pipe5550@gmail.com"},
+    {"RUT": "1-2", "OPERACION": "1234", "dest_email": "jriveros@phoenixservice.cl"},
+]
+
+BIT_TEMPLATE_CODES = {"BIT_CASTIGO", "BIT_VIGENTE"}
+BIT_NAME_FROM = "Claudia Andrea Fuentes Fuentes"
+BIT_MAIL_FROM = "cfuentes@info.phoenixserviceinfo.cl"
+BIT_MAIL_AGENTE = "cfuentes@phoenixservice.cl"
+BIT_SEEDS = [
+    {"RUT": "1-1", "OPERACION": "1234", "CLIENTE": "PRB", "dest_email": "pipe5550@gmail.com"},
+    {"RUT": "1-2", "OPERACION": "1234", "CLIENTE": "PRB", "dest_email": "cfuentes@phoenixservice.cl"},
+]
+
+ARAUCANA_TEMPLATE_CODES = {"ARAUCANA_CESANTES_86391", "ARAUCANA_MEDIO_PAGO_93887"}
+ARAUCANA_NAME_FROM = "CAJA LA ARAUCANA"
+ARAUCANA_MAIL_FROM = "atencionclientes@estandar.phoenixserviceinfo.cl"
+ARAUCANA_CORREO = "mmondiglio@phoenixservice.cl"
+ARAUCANA_SEEDS = [
+    {"NOMBRE": "Melanie", "dest_email": "mmondiglio@phoenixservice.cl", "RUT": "1"},
+    {"NOMBRE": "Felipe", "dest_email": "pipe5550@gmail.com", "RUT": "2"},
+]
+
+
+def _build_itau_castigo(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
+    base = df.copy()
+    base.columns = [str(col).strip() for col in base.columns]
+
+    rut_col = _find_column(base, RUT_COLUMN_ALIASES)
+    oper_col = _find_column(base, OPERATION_COLUMN_ALIASES)
+    dest_col = _find_column(base, EMAIL_COLUMN_ALIASES)
+
+    missing = [
+        name
+        for name, col in (("RUT", rut_col), ("OPERACION", oper_col), ("dest_email", dest_col))
+        if col is None
+    ]
+    if missing:
+        raise ValueError("Faltan columnas requeridas para Itau Castigo: " + ", ".join(missing))
+
+    base = dedupe_by_column_keep_first(base, rut_col).reset_index(drop=True)
+    base = dedupe_by_column_keep_first_normalized(base, dest_col).reset_index(drop=True)
+
+    sender = ITAU_CASTIGO_SENDERS.get(template.code, {})
+    output = pd.DataFrame(
+        {
+            "INSTITUCIÓN": [template.institucion] * len(base),
+            "SEGMENTOINSTITUCIÓN": [template.segmentoinstitucion] * len(base),
+            "message_id": [template.message_id] * len(base),
+            "PLANTILLA": ["CASTIGO"] * len(base),
+            "RUT": base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+            "OPERACION": base[oper_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+            "dest_email": base[dest_col].fillna("").astype(str).str.strip().tolist(),
+            "name_from": [sender.get("name_from", "")] * len(base),
+            "mail_from": [sender.get("mail_from", "")] * len(base),
+            "CORREO": [sender.get("CORREO", "")] * len(base),
+        }
+    )
+    seed_rows = []
+    for seed in ITAU_CASTIGO_SEEDS:
+        seed_row = {
+            "INSTITUCIÓN": template.institucion,
+            "SEGMENTOINSTITUCIÓN": template.segmentoinstitucion,
+            "message_id": template.message_id,
+            "PLANTILLA": "CASTIGO",
+            "RUT": seed["RUT"],
+            "OPERACION": seed["OPERACION"],
+            "dest_email": seed["dest_email"],
+            "name_from": sender.get("name_from", ""),
+            "mail_from": sender.get("mail_from", ""),
+            "CORREO": sender.get("CORREO", ""),
+        }
+        seed_rows.append(seed_row)
+    seed_df = pd.DataFrame(seed_rows).reindex(columns=TEMPLATE_COLUMNS_ITAU_CASTIGO)
+    return pd.concat([seed_df, output.reindex(columns=TEMPLATE_COLUMNS_ITAU_CASTIGO)], ignore_index=True)
+
+
+def _build_bit_mail(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
+    base = df.copy()
+    base.columns = [str(col).strip() for col in base.columns]
+
+    rut_col = _find_column(base, RUT_COLUMN_ALIASES)
+    oper_col = _find_column(base, OPERATION_COLUMN_ALIASES)
+    cliente_col = _find_column(base, {"cliente", "nombre", "nombre_cliente", "contacto"})
+    dest_col = _find_column(base, EMAIL_COLUMN_ALIASES)
+
+    missing = [
+        name
+        for name, col in (("RUT", rut_col), ("OPERACION", oper_col), ("CLIENTE", cliente_col), ("dest_email", dest_col))
+        if col is None
+    ]
+    if missing:
+        raise ValueError("Faltan columnas requeridas para BIT: " + ", ".join(missing))
+
+    base = dedupe_by_column_keep_first(base, rut_col).reset_index(drop=True)
+    base = dedupe_by_column_keep_first_normalized(base, dest_col).reset_index(drop=True)
+
+    output = pd.DataFrame(
+        {
+            "INSTITUCIÓN": [template.institucion] * len(base),
+            "SEGMENTOINSTITUCIÓN": [template.segmentoinstitucion] * len(base),
+            "message_id": [template.message_id] * len(base),
+            "RUT": base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+            "OPERACION": base[oper_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+            "CLIENTE": base[cliente_col].fillna("").astype(str).str.strip().tolist(),
+            "dest_email": base[dest_col].fillna("").astype(str).str.strip().tolist(),
+            "name_from": [BIT_NAME_FROM] * len(base),
+            "mail_from": [BIT_MAIL_FROM] * len(base),
+            "MAIL_AGENTE": [BIT_MAIL_AGENTE] * len(base),
+        }
+    )
+    seed_rows = []
+    for seed in BIT_SEEDS:
+        seed_rows.append(
+            {
+                "INSTITUCIÓN": template.institucion,
+                "SEGMENTOINSTITUCIÓN": template.segmentoinstitucion,
+                "message_id": template.message_id,
+                "RUT": seed["RUT"],
+                "OPERACION": seed["OPERACION"],
+                "CLIENTE": seed["CLIENTE"],
+                "dest_email": seed["dest_email"],
+                "name_from": BIT_NAME_FROM,
+                "mail_from": BIT_MAIL_FROM,
+                "MAIL_AGENTE": BIT_MAIL_AGENTE,
+            }
+        )
+    seed_df = pd.DataFrame(seed_rows).reindex(columns=TEMPLATE_COLUMNS_BIT)
+    return pd.concat([seed_df, output.reindex(columns=TEMPLATE_COLUMNS_BIT)], ignore_index=True)
+
+
+def _build_araucana_mail(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
+    base = df.copy()
+    base.columns = [str(col).strip() for col in base.columns]
+
+    rut_col = _find_column(base, RUT_COLUMN_ALIASES)
+    nombre_col = _find_column(base, {"nombre", "cliente", "nombre_cliente", "contacto"})
+    dest_col = _find_column(base, EMAIL_COLUMN_ALIASES)
+
+    missing = [
+        name
+        for name, col in (("RUT", rut_col), ("NOMBRE", nombre_col), ("dest_email", dest_col))
+        if col is None
+    ]
+    if missing:
+        raise ValueError("Faltan columnas requeridas para La Araucana: " + ", ".join(missing))
+
+    base = dedupe_by_column_keep_first(base, rut_col).reset_index(drop=True)
+    base = dedupe_by_column_keep_first_normalized(base, dest_col).reset_index(drop=True)
+
+    output = pd.DataFrame(
+        {
+            "INSTITUCIÓN": [template.institucion] * len(base),
+            "SEGMENTOINSTITUCIÓN": [template.segmentoinstitucion] * len(base),
+            "message_id": [template.message_id] * len(base),
+            "NOMBRE": base[nombre_col].fillna("").astype(str).str.strip().tolist(),
+            "dest_email": base[dest_col].fillna("").astype(str).str.strip().tolist(),
+            "RUT": base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+            "name_from": [ARAUCANA_NAME_FROM] * len(base),
+            "mail_from": [ARAUCANA_MAIL_FROM] * len(base),
+            "CORREO": [ARAUCANA_CORREO] * len(base),
+        }
+    )
+    seed_rows = []
+    for seed in ARAUCANA_SEEDS:
+        seed_rows.append(
+            {
+                "INSTITUCIÓN": template.institucion,
+                "SEGMENTOINSTITUCIÓN": template.segmentoinstitucion,
+                "message_id": template.message_id,
+                "NOMBRE": seed["NOMBRE"],
+                "dest_email": seed["dest_email"],
+                "RUT": seed["RUT"],
+                "name_from": ARAUCANA_NAME_FROM,
+                "mail_from": ARAUCANA_MAIL_FROM,
+                "CORREO": ARAUCANA_CORREO,
+            }
+        )
+    seed_df = pd.DataFrame(seed_rows).reindex(columns=TEMPLATE_COLUMNS_ARAUCANA)
+    return pd.concat([seed_df, output.reindex(columns=TEMPLATE_COLUMNS_ARAUCANA)], ignore_index=True)
 
 
 ITAU_SUPERVISOR = "Karen Avendaño"
@@ -664,12 +979,12 @@ def _build_scj_cobranza(df: pd.DataFrame, template: MailTemplate, mandante: Opti
     base = df.copy()
     base.columns = [str(col).strip() for col in base.columns]
 
-    rut_col = _find_column(base, {"rut+dv", "rut", "rut_cliente", "id_cliente"})
+    rut_col = _find_column(base, RUT_COLUMN_ALIASES)
     dv_col = None
     if rut_col and "rut+dv" not in rut_col.lower().replace(" ", ""):
         dv_col = _find_column(base, {"dv", "digito", "dígito", "dv_rut"})
-    op_col = _find_column(base, {"num_op", "nro_operacion", "operacion", "operación", "op", "id_credito"})
-    dest_col = _find_column(base, {"dest_email", "email", "correo", "mail", "dest_mail"})
+    op_col = _find_column(base, OPERATION_COLUMN_ALIASES)
+    dest_col = _find_column(base, EMAIL_COLUMN_ALIASES)
     name_from_col = _find_column(base, {"name_from", "nombre_remitente"})
     mail_agente_col = _find_column(base, {"mail_agente", "correo_agente"})
     nombre_agente_col = _find_column(base, AGENTE_COLUMN_ALIASES)
@@ -807,8 +1122,8 @@ def _build_sc_telefonia_descuento(df: pd.DataFrame, template: MailTemplate) -> p
     base.columns = [str(col).strip() for col in base.columns]
 
     cliente_col = _find_column(base, {"nombre_cliente", "cliente", "nombre"})
-    oper_col = _find_column(base, {"nro_operacion", "operacion", "operación", "op", "num_op"})
-    email_col = _find_column(base, {"mail", "email", "correo", "dest_email", "dest_mail"})
+    oper_col = _find_column(base, OPERATION_COLUMN_ALIASES)
+    email_col = _find_column(base, EMAIL_COLUMN_ALIASES)
 
     if not (cliente_col and oper_col and email_col):
         raise ValueError("Faltan columnas requeridas para Santander Consumer Telefonía (cliente, operacion, mail).")
@@ -841,8 +1156,8 @@ def _build_sc_telefonia_medios_pago(df: pd.DataFrame, template: MailTemplate) ->
     base = df.copy()
     base.columns = [str(col).strip() for col in base.columns]
 
-    rut_col = _find_column(base, {"rut", "rut_cliente", "id_cliente"})
-    email_col = _find_column(base, {"mail", "email", "correo", "dest_email", "dest_mail"})
+    rut_col = _find_column(base, RUT_COLUMN_ALIASES)
+    email_col = _find_column(base, EMAIL_COLUMN_ALIASES)
 
     if not (rut_col and email_col):
         raise ValueError("Faltan columnas requeridas para Medios de Pago Telefonía (RUT y MAIL).")

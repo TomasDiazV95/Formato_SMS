@@ -24,6 +24,62 @@
     "mandante": "Itau Vencida"
   },
   {
+    "code": "ITAU_CASTIGO_SIN_DIRECCION_INGRID",
+    "label": "Itau Castigo - Sin Direccion Ingrid",
+    "message_id": 97032,
+    "institucion": "BANCO ITAÚ",
+    "segmentoinstitucion": "BANCO ITAÚ",
+    "mandante": "Itau Castigo"
+  },
+  {
+    "code": "ITAU_CASTIGO_CON_DIRECCION_INGRID",
+    "label": "Itau Castigo - Con Direccion Ingrid",
+    "message_id": 98681,
+    "institucion": "BANCO ITAÚ",
+    "segmentoinstitucion": "BANCO ITAÚ",
+    "mandante": "Itau Castigo"
+  },
+  {
+    "code": "ITAU_CASTIGO_JL",
+    "label": "Itau Castigo - JL",
+    "message_id": 98798,
+    "institucion": "BANCO ITAÚ",
+    "segmentoinstitucion": "BANCO ITAÚ",
+    "mandante": "Itau Castigo"
+  },
+  {
+    "code": "BIT_CASTIGO",
+    "label": "Banco Internacional - Castigo",
+    "message_id": 91957,
+    "institucion": "BANCO INTERNACIONAL",
+    "segmentoinstitucion": "BANCO INTERNACIONAL",
+    "mandante": "Banco Internacional"
+  },
+  {
+    "code": "BIT_VIGENTE",
+    "label": "Banco Internacional - Vigente",
+    "message_id": 97737,
+    "institucion": "BANCO INTERNACIONAL",
+    "segmentoinstitucion": "BANCO INTERNACIONAL",
+    "mandante": "Banco Internacional"
+  },
+  {
+    "code": "ARAUCANA_CESANTES_86391",
+    "label": "La Araucana - Cesantes",
+    "message_id": 86391,
+    "institucion": "CAJA LA ARAUCANA",
+    "segmentoinstitucion": "ARAUCANA",
+    "mandante": "La Araucana"
+  },
+  {
+    "code": "ARAUCANA_MEDIO_PAGO_93887",
+    "label": "La Araucana - Medio de Pago",
+    "message_id": 93887,
+    "institucion": "CAJA LA ARAUCANA",
+    "segmentoinstitucion": "ARAUCANA",
+    "mandante": "La Araucana"
+  },
+  {
     "code": "TANNER_MEDIOS_PAGO",
     "label": "Tanner - Medios de Pago",
     "message_id": 91869,

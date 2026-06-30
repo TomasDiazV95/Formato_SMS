@@ -92,6 +92,11 @@ def validate_santander_consumer() -> None:
             raise AssertionError(f"template Santander duplicado: {item['key']}")
         seen_keys.add(item["key"])
         int(item["message_id"])
+    if "medios_pago" not in seen_keys:
+        raise AssertionError("Santander Consumer debe incluir medios_pago")
+    medios_pago = next(item for item in templates if item.get("key") == "medios_pago")
+    if int(medios_pago.get("message_id")) != 85636:
+        raise AssertionError("Santander Consumer medios_pago debe usar message_id 85636")
 
     supervisors = _load_json("santander_consumer_supervisors.json")
     for key in ["supervisor_regiones", "supervisor_rm"]:
@@ -101,8 +106,147 @@ def validate_santander_consumer() -> None:
         _require_fields(item, ["name_from", "mail_from", "CORREO", "CELULAR"], label=key)
 
 
+def validate_gm_mail_templates() -> None:
+    templates = _load_json("gm_mail_templates.json")
+    if not isinstance(templates, list) or not templates:
+        raise AssertionError("gm_mail_templates.json debe ser una lista no vacia")
+    seen_keys = set()
+    base_columns = [
+        "INSTITUCIÓN",
+        "SEGMENTOINSTITUCIÓN",
+        "message_id",
+        "NOMBRE",
+        "RUT",
+        "OPERACION",
+        "FECHA_VENCIMIENTO_CUOTA",
+        "MONTO_CUOTA",
+        "FECHA_ARCHIVO",
+        "FONO_EJECUTIVA",
+        "dest_email",
+        "name_from",
+        "mail_from",
+        "CORREO_EJECUTIVA",
+    ]
+    extension_columns = base_columns[:9] + ["FECHA_ENTREGA"] + base_columns[9:]
+    descuento_columns = base_columns[:8] + ["FECHA_VALIDA"] + base_columns[8:]
+    expected_by_key = {
+        "gm_comercial_84995": base_columns,
+        "gm_extension_84591": extension_columns,
+        "gm_descuento_98960": descuento_columns,
+    }
+    for item in templates:
+        if not isinstance(item, dict):
+            raise AssertionError("template GM Mail invalido")
+        _require_fields(item, ["key", "label", "filename_prefix", "sheet_name"], label="template GM Mail")
+        if item["key"] in seen_keys:
+            raise AssertionError(f"template GM Mail duplicado: {item['key']}")
+        seen_keys.add(item["key"])
+        expected_columns = expected_by_key.get(item.get("key"))
+        if item.get("columns") != expected_columns:
+            raise AssertionError("GM Mail columnas inesperadas")
+        fixed = item.get("fixed_values")
+        if not isinstance(fixed, dict):
+            raise AssertionError("GM Mail fixed_values invalido")
+        _require_fields(
+            fixed,
+            ["INSTITUCIÓN", "SEGMENTOINSTITUCIÓN", "message_id", "FONO_EJECUTIVA", "name_from", "mail_from", "CORREO_EJECUTIVA"],
+            label="GM Mail fixed_values",
+        )
+        int(fixed["message_id"])
+        int(fixed["FONO_EJECUTIVA"])
+        if item.get("key") == "gm_extension_84591" and fixed.get("message_id") != 84591:
+            raise AssertionError("GM Extension debe usar message_id 84591")
+        if item.get("key") == "gm_extension_84591" and not item.get("requires_delivery_date"):
+            raise AssertionError("GM Extension debe requerir fecha entrega")
+        if item.get("key") == "gm_descuento_98960" and fixed.get("message_id") != 98960:
+            raise AssertionError("GM Descuento debe usar message_id 98960")
+        if item.get("key") == "gm_descuento_98960" and item.get("date_field") != "FECHA_VALIDA":
+            raise AssertionError("GM Descuento debe usar FECHA_VALIDA")
+        if item.get("key") == "gm_descuento_98960" and not item.get("requires_delivery_date"):
+            raise AssertionError("GM Descuento debe requerir fecha")
+        seed_rows = item.get("seed_rows")
+        if not isinstance(seed_rows, list) or len(seed_rows) != 2:
+            raise AssertionError("GM Mail debe tener 2 semillas")
+        expected_seeds = {
+            "pipe5550@gmail.com": "1-1",
+            "cfuentes@phoenixservice.cl": "1-2",
+        }
+        seen_seed_emails = set()
+        for seed in seed_rows:
+            if not isinstance(seed, dict):
+                raise AssertionError("GM Mail semilla invalida")
+            for field in ["NOMBRE", "RUT", "OPERACION", "MONTO_CUOTA", "dest_email"]:
+                if seed.get(field) in (None, ""):
+                    raise AssertionError(f"GM Mail semilla sin {field}")
+            email = str(seed.get("dest_email") or "").strip().lower()
+            seen_seed_emails.add(email)
+            if expected_seeds.get(email) != seed.get("RUT"):
+                raise AssertionError(f"GM Mail semilla con RUT inesperado: {email}")
+            if seed.get("NOMBRE") != "PRB" or str(seed.get("OPERACION")) != "1234":
+                raise AssertionError(f"GM Mail semilla neutral invalida: {email}")
+        if seen_seed_emails != set(expected_seeds):
+            raise AssertionError("GM Mail semillas requeridas incompletas")
+
+
+def validate_sc_telefonia_mail_templates() -> None:
+    templates = _load_json("sc_telefonia_mail_templates.json")
+    if not isinstance(templates, list) or len(templates) != 3:
+        raise AssertionError("sc_telefonia_mail_templates.json debe tener 3 plantillas")
+    expected = {
+        "sc_telefonia_descuento_95008": [
+            "INSTITUCIÓN", "SEGMENTOINSTITUCIÓN", "message_id", "PLANTILLA", "RUT", "CLIENTE", "NRO_OPERACION", "dest_email", "name_from", "mail_from", "CORREO", "DIA", "MES", "ANO",
+        ],
+        "sc_telefonia_medios_pago_96706": [
+            "INSTITUCIÓN", "SEGMENTOINSTITUCIÓN", "message_id", "PLANTILLA", "RUT", "NOMBRE", "N_OPERACION", "dest_email", "name_from", "mail_from", "CORREO",
+        ],
+        "sc_telefonia_novacion_93500": [
+            "INSTITUCIÓN", "SEGMENTOINSTITUCIÓN", "message_id", "PLANTILLA", "RUT", "NOMBRE", "OPERACION", "dest_email", "name_from", "mail_from", "CORREO", "EJECU", "FONO_EJECUTIVO", "CORREO_EJE", "DIA", "MES", "ANO",
+        ],
+    }
+    seen = set()
+    for item in templates:
+        if not isinstance(item, dict):
+            raise AssertionError("template SC Telefonia invalido")
+        _require_fields(item, ["key", "label", "filename_prefix", "sheet_name"], label="template SC Telefonia")
+        key = item["key"]
+        if key in seen:
+            raise AssertionError(f"template SC Telefonia duplicado: {key}")
+        seen.add(key)
+        if item.get("columns") != expected.get(key):
+            raise AssertionError(f"SC Telefonia columnas inesperadas: {key}")
+        fixed = item.get("fixed_values")
+        source_map = item.get("source_map")
+        seed_rows = item.get("seed_rows")
+        if not isinstance(fixed, dict) or not isinstance(source_map, dict):
+            raise AssertionError(f"SC Telefonia config invalida: {key}")
+        if not isinstance(seed_rows, list) or not seed_rows:
+            raise AssertionError(f"SC Telefonia sin semillas: {key}")
+        if len(seed_rows) != 1 or not isinstance(seed_rows[0], dict):
+            raise AssertionError(f"SC Telefonia debe tener 1 semilla: {key}")
+        seed = seed_rows[0]
+        if str(seed.get("dest_email") or "").strip().lower() != "pipe5550@gmail.com":
+            raise AssertionError(f"SC Telefonia debe tener solo semilla pipe5550: {key}")
+        for field in ["RUT", "dest_email"]:
+            if seed.get(field) in (None, ""):
+                raise AssertionError(f"SC Telefonia semilla sin {field}: {key}")
+        if key == "sc_telefonia_descuento_95008" and (not seed.get("CLIENTE") or not seed.get("NRO_OPERACION")):
+            raise AssertionError("SC Telefonia descuento semilla incompleta")
+        if key == "sc_telefonia_medios_pago_96706" and (not seed.get("NOMBRE") or not seed.get("N_OPERACION")):
+            raise AssertionError("SC Telefonia medios pago semilla incompleta")
+        if key == "sc_telefonia_novacion_93500" and (not seed.get("NOMBRE") or not seed.get("OPERACION")):
+            raise AssertionError("SC Telefonia novacion semilla incompleta")
+        int(fixed["message_id"])
+        if key == "sc_telefonia_medios_pago_96706" and item.get("dedupe_columns") != ["RUT", "dest_email"]:
+            raise AssertionError("SC Telefonia 96706 debe deduplicar por RUT y dest_email")
+        if key == "sc_telefonia_novacion_93500":
+            if not item.get("requires_executive") or fixed.get("FONO_EJECUTIVO") != 967280344:
+                raise AssertionError("SC Telefonia novacion ejecutiva/fono invalido")
+
+
 def main() -> None:
     validate_mail_templates()
+    validate_gm_mail_templates()
+    validate_sc_telefonia_mail_templates()
     validate_sms_itau()
     validate_mail_itau_seeds()
     validate_santander_consumer()

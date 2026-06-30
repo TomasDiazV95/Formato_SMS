@@ -1,0 +1,150 @@
+[
+  {
+    "key": "sc_telefonia_descuento_95008",
+    "label": "SC_TELEFONIA_DESCUENTO_95008",
+    "filename_prefix": "SC_TELEFONIA_DESCUENTO_95008",
+    "sheet_name": "PlantillaMail",
+    "requires_date": true,
+    "columns": [
+      "INSTITUCIÓN",
+      "SEGMENTOINSTITUCIÓN",
+      "message_id",
+      "PLANTILLA",
+      "RUT",
+      "CLIENTE",
+      "NRO_OPERACION",
+      "dest_email",
+      "name_from",
+      "mail_from",
+      "CORREO",
+      "DIA",
+      "MES",
+      "ANO"
+    ],
+    "source_map": {
+      "RUT": "RUT",
+      "CLIENTE": "NOMBRE",
+      "NRO_OPERACION": "OPERACION",
+      "dest_email": "EMAIL"
+    },
+    "fixed_values": {
+      "INSTITUCIÓN": "Santander Consumer",
+      "SEGMENTOINSTITUCIÓN": "Santander Consumer",
+      "message_id": 95008,
+      "PLANTILLA": "TEMPRANA",
+      "name_from": "Atencion Cliente Consumer",
+      "mail_from": "tfernandez@info.phoenixserviceinfo.cl",
+      "CORREO": "tfernandez@phoenixservice.cl"
+    },
+    "seed_rows": [
+      {
+        "RUT": "1-1",
+        "CLIENTE": "PRB",
+        "NRO_OPERACION": "1234",
+        "dest_email": "pipe5550@gmail.com"
+      }
+    ]
+  },
+  {
+    "key": "sc_telefonia_medios_pago_96706",
+    "label": "SC_TELEFONIA_MEDIOS_PAGO_96706",
+    "filename_prefix": "SC_TELEFONIA_MEDIOS_PAGO_96706",
+    "sheet_name": "PlantillaMail",
+    "dedupe_columns": ["RUT", "dest_email"],
+    "columns": [
+      "INSTITUCIÓN",
+      "SEGMENTOINSTITUCIÓN",
+      "message_id",
+      "PLANTILLA",
+      "RUT",
+      "NOMBRE",
+      "N_OPERACION",
+      "dest_email",
+      "name_from",
+      "mail_from",
+      "CORREO"
+    ],
+    "source_map": {
+      "RUT": "RUT",
+      "NOMBRE": "NOMBRE",
+      "N_OPERACION": "OPERACION",
+      "dest_email": "EMAIL"
+    },
+    "fixed_values": {
+      "INSTITUCIÓN": "Santander Consumer",
+      "SEGMENTOINSTITUCIÓN": "Santander Consumer",
+      "message_id": 96706,
+      "PLANTILLA": "TEMPRANA",
+      "name_from": "Atencion Cliente Consumer",
+      "mail_from": "atencionclientes@estandar.phoenixserviceinfo.cl",
+      "CORREO": "tfernandez@phoenixservice.cl"
+    },
+    "seed_rows": [
+      {
+        "RUT": "1-1",
+        "NOMBRE": "PRB",
+        "N_OPERACION": "1234",
+        "dest_email": "pipe5550@gmail.com"
+      }
+    ]
+  },
+  {
+    "key": "sc_telefonia_novacion_93500",
+    "label": "SC_TELEFONIA_NOVACION_93500",
+    "filename_prefix": "SC_TELEFONIA_NOVACION_93500",
+    "sheet_name": "CONSOLIDADO",
+    "requires_date": true,
+    "requires_executive": true,
+    "columns": [
+      "INSTITUCIÓN",
+      "SEGMENTOINSTITUCIÓN",
+      "message_id",
+      "PLANTILLA",
+      "RUT",
+      "NOMBRE",
+      "OPERACION",
+      "dest_email",
+      "name_from",
+      "mail_from",
+      "CORREO",
+      "EJECU",
+      "FONO_EJECUTIVO",
+      "CORREO_EJE",
+      "DIA",
+      "MES",
+      "ANO"
+    ],
+    "source_map": {
+      "RUT": "RUT",
+      "NOMBRE": "NOMBRE",
+      "OPERACION": "OPERACION",
+      "dest_email": "EMAIL"
+    },
+    "fixed_values": {
+      "INSTITUCIÓN": "Santander Consumer",
+      "SEGMENTOINSTITUCIÓN": "Santander Consumer",
+      "message_id": 93500,
+      "PLANTILLA": "TEMPRANA",
+      "name_from": "Atención al Cliente Santander Consumer",
+      "FONO_EJECUTIVO": 967280344
+    },
+    "executive_fields": {
+      "mail_from": "reenviador",
+      "CORREO": "correo",
+      "EJECU": "nombre_mostrar",
+      "CORREO_EJE": "correo"
+    },
+    "allowed_executives": [
+      "Alejandra Carolina Diaz Fuentes",
+      "Tamara Haydee Fernandez Viera"
+    ],
+    "seed_rows": [
+      {
+        "RUT": "1-1",
+        "NOMBRE": "PRB",
+        "OPERACION": "1234",
+        "dest_email": "pipe5550@gmail.com"
+      }
+    ]
+  }
+]
