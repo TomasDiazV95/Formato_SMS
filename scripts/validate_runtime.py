@@ -31,6 +31,8 @@ def main() -> None:
     from services import gm_mail_templates
     from services import sc_telefonia_mail_templates
     from services import santander_consumer_templates
+    from modules.procesos.sms.routes import _crm_rule_for_sms
+    from modules.procesos.ivr.routes import _crm_rule_for_ivr
     from utils import paths
 
     assert all(
@@ -64,6 +66,11 @@ def main() -> None:
     sms_config = sms_itau_vencida.load_itau_sms_config()
     assert sms_config and sms_config.get("templates"), "Sin config SMS Itau"
     assert sms_itau_vencida.load_itau_seed_rows(), "Sin semillas SMS Itau"
+    assert _crm_rule_for_sms("General Motors") == ("jriveros", "SMS"), "Regla CRM SMS GM invalida"
+    assert _crm_rule_for_sms("CAJA18") is None, "CAJA18 no debe tener regla CRM SMS"
+    assert _crm_rule_for_sms("Itau Vencida") == ("VDAD", "ENVIO SIN RESPUESTA"), "Regla CRM SMS Itau invalida"
+    assert _crm_rule_for_ivr("Santander Consumer Telefonía") == ("jriveros", ""), "Regla CRM IVR Santander invalida"
+    assert _crm_rule_for_ivr("General Motors") == ("jriveros", "IVR"), "Regla CRM IVR GM invalida"
 
     assert hasattr(ejecutivos_repo, "fetch_by_mandante_and_nombre")
     assert hasattr(resultantes_repo, "fetch_tanner_resultantes")

@@ -1,9 +1,8 @@
 import { useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { mandantes, formatoSalida } from '../../../data/constants'
 import { submitSmsMasivo, downloadSmsSample } from '../../../api/sms'
-import { createCrmSession } from '../../../api/crm'
-import { triggerDownload, assertExcelResponse } from '../../../utils/download'
+import { triggerDownload, assertExcelResponse, ZIP_MIME } from '../../../utils/download'
 import InlineAlert from '../../../components/InlineAlert'
 
 const initialMasivoState = {
@@ -12,15 +11,32 @@ const initialMasivoState = {
   mandante: '',
 }
 
+const smsCrmRules = {
+  'Itau Vencida': { usuario: 'VDAD', observacion: 'ENVIO SIN RESPUESTA' },
+  'Itau Castigo': { usuario: 'VDAD', observacion: 'ENVIO SIN RESPUESTA' },
+  'Banco Internacional': { usuario: 'VDAD', observacion: '' },
+  'Santander Hipotecario': { usuario: 'VDAD', observacion: '' },
+  'Santander Consumer Terreno': { usuario: 'jriveros', observacion: '' },
+  'Santander Consumer Telefonía': { usuario: 'jriveros', observacion: '' },
+  'Santander Consumer Judicial': { usuario: 'jriveros', observacion: '' },
+  'General Motors': { usuario: 'jriveros', observacion: 'SMS' },
+  'La Araucana': { usuario: 'VDAD', observacion: '' },
+  Tanner: { usuario: 'VDAD', observacion: '' },
+}
+
 function SmsPage() {
-  const navigate = useNavigate()
   const [masivoData, setMasivoData] = useState(initialMasivoState)
   const [mensajesPersonalizados, setMensajesPersonalizados] = useState(false)
   const [itauCarterizado, setItauCarterizado] = useState(false)
+  const [includeCrm, setIncludeCrm] = useState(false)
+  const [crmDate, setCrmDate] = useState('')
+  const [crmStartTime, setCrmStartTime] = useState('10:00')
+  const [crmEndTime, setCrmEndTime] = useState('18:00')
   const [status, setStatus] = useState({ type: 'info', message: '' })
-  const [crmSeedFile, setCrmSeedFile] = useState(null)
   const [loading, setLoading] = useState(false)
   const masivoFileRef = useRef(null)
+  const crmRule = smsCrmRules[masivoData.mandante]
+  const crmDisabled = masivoData.mandante === 'CAJA18' || !crmRule
 
   const updateStatus = (type, message) => {
     setStatus({ type, message })
@@ -43,13 +59,31 @@ function SmsPage() {
     }
   }
 
+  const resetForm = () => {
+    setMasivoData(initialMasivoState)
+    setMensajesPersonalizados(false)
+    setItauCarterizado(false)
+    setIncludeCrm(false)
+    setCrmDate('')
+    setCrmStartTime('10:00')
+    setCrmEndTime('18:00')
+    if (masivoFileRef.current) masivoFileRef.current.value = ''
+  }
+
   const handleSubmitMasivo = async e => {
     e.preventDefault()
     if (!masivoFileRef.current?.files?.[0]) {
       updateStatus('danger', 'Debes adjuntar un archivo Excel para masividad SMS.')
       return
     }
-    const selectedFile = masivoFileRef.current.files[0]
+    if (includeCrm && crmDisabled) {
+      updateStatus('danger', masivoData.mandante === 'CAJA18' ? 'CAJA18 no genera CRM desde SMS.' : 'No hay regla CRM configurada para este mandante.')
+      return
+    }
+    if (includeCrm && (!crmDate || !crmStartTime || !crmEndTime)) {
+      updateStatus('danger', 'Debes completar fecha, hora inicio y hora fin para CRM.')
+      return
+    }
 
     const formData = new FormData()
     formData.append('file', masivoFileRef.current.files[0])
@@ -60,37 +94,24 @@ function SmsPage() {
       formData.append('modo_carterizado_itau', 'on')
     }
     if (mensajesPersonalizados) formData.append('mensajes_personalizados', 'on')
+    if (includeCrm) {
+      formData.append('include_crm', 'on')
+      formData.append('crm_fecha', crmDate)
+      formData.append('crm_hora_inicio', crmStartTime)
+      formData.append('crm_hora_fin', crmEndTime)
+    }
 
     try {
       setLoading(true)
       const response = await submitSmsMasivo(formData)
-      await assertExcelResponse(response, 'Error generando la carga SMS.')
+      await assertExcelResponse(response, 'Error generando la carga SMS.', [ZIP_MIME])
       const filename = response.headers['content-disposition']?.split('filename=')[1]?.replaceAll('"', '') || 'masivo_sms.xlsx'
       triggerDownload(response.data, filename)
       updateStatus('success', 'Archivo generado correctamente.')
-      setCrmSeedFile(selectedFile)
+      resetForm()
     } catch (err) {
       const message = err?.message || err?.response?.data || 'Error generando el archivo.'
       updateStatus('danger', message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleContinueCrm = async () => {
-    if (!crmSeedFile) {
-      updateStatus('danger', 'Primero genera un archivo de masividad para continuar en CRM.')
-      return
-    }
-    try {
-      setLoading(true)
-      const response = await createCrmSession({ file: crmSeedFile, mode: 'sms_ivr', source: 'sms' })
-      if (response.status >= 400 || !response.data?.token) {
-        throw new Error(response.data?.message || 'No se pudo crear la sesión de CRM.')
-      }
-      navigate(`/procesos/crm?token=${encodeURIComponent(response.data.token)}&mode=sms_ivr`)
-    } catch (err) {
-      updateStatus('danger', err?.message || 'No se pudo abrir CRM unificado.')
     } finally {
       setLoading(false)
     }
@@ -104,7 +125,7 @@ function SmsPage() {
             <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Proceso SMS</p>
             <h1 className="text-3xl font-semibold text-slate-900">Masividades Athenas / AXIA</h1>
             <p className="mt-2 max-w-2xl text-slate-600">
-              Este módulo genera la carga SMS y permite continuar al CRM unificado con el mismo archivo de origen.
+              Este módulo genera la carga SMS y opcionalmente entrega el CRM listo en el mismo ZIP.
             </p>
           </div>
           <Link to="/procesos" className="text-sm text-indigo-600 hover:text-indigo-500">← Volver</Link>
@@ -223,23 +244,42 @@ function SmsPage() {
               <button className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500" type="submit" disabled={loading}>
                 {loading ? 'Procesando…' : 'Generar archivo'}
               </button>
-              <button
-                type="button"
-                className="rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={handleContinueCrm}
-                disabled={loading || !crmSeedFile}
-              >
-                Continuar en CRM
-              </button>
               <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={() => {
-                setMasivoData(initialMasivoState)
-                setMensajesPersonalizados(false)
-                setItauCarterizado(false)
-                setCrmSeedFile(null)
-                if (masivoFileRef.current) masivoFileRef.current.value = ''
+                resetForm()
               }}>
                 Limpiar campos
               </button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includeCrm}
+                  onChange={e => setIncludeCrm(e.target.checked)}
+                  disabled={crmDisabled}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                Generar archivo CRM junto con SMS
+              </label>
+              {masivoData.mandante === 'CAJA18' && <p className="mt-2 text-xs text-amber-600">CAJA18 no genera CRM desde SMS.</p>}
+              {crmRule && <p className="mt-2 text-xs text-slate-500">Usuario CRM fijo: {crmRule.usuario}. Observacion fija: {crmRule.observacion || 'vacia'}.</p>}
+              {includeCrm && (
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Fecha gestion</label>
+                    <input type="date" value={crmDate} onChange={e => setCrmDate(e.target.value)} className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required={includeCrm} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Hora inicio</label>
+                    <input type="time" value={crmStartTime} onChange={e => setCrmStartTime(e.target.value)} className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required={includeCrm} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Hora fin</label>
+                    <input type="time" value={crmEndTime} onChange={e => setCrmEndTime(e.target.value)} className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required={includeCrm} />
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         </section>
