@@ -169,20 +169,6 @@ function IvrPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500" type="submit" disabled={loading}>
-                {loading ? 'Procesando…' : 'Generar archivo'}
-              </button>
-              <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={() => {
-                resetForm()
-              }}>
-                Limpiar campos
-              </button>
-              <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={handleSample}>
-                Descargar ejemplo
-              </button>
-            </div>
-
             <div className="rounded-2xl border border-slate-200 p-4">
               <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
                 <input
@@ -212,6 +198,20 @@ function IvrPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500" type="submit" disabled={loading}>
+                {loading ? 'Procesando…' : 'Generar archivo'}
+              </button>
+              <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={() => {
+                resetForm()
+              }}>
+                Limpiar campos
+              </button>
+              <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={handleSample}>
+                Descargar ejemplo
+              </button>
             </div>
           </form>
         </section>
