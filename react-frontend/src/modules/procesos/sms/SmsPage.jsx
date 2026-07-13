@@ -195,7 +195,7 @@ function SmsPage() {
                 {itauCarterizado && (
                   <div className="mt-2 rounded-2xl border border-indigo-100 bg-white px-3 py-3">
                     <p className="text-sm font-medium text-slate-700">Tipo de SMS automático por columna MASIVIDAD</p>
-                    <p className="mt-1 text-xs text-slate-500">Valores esperados en MASIVIDAD: SMS MOROSIDAD, SMS COMPROMISO DE PAGO y SMS COMPROMISO ROTO. El mensaje final agrega el número del ejecutivo según CARTERIZADO.</p>
+                    <p className="mt-1 text-xs text-slate-500">Valores esperados en MASIVIDAD: SMS MOROSIDAD, SMS COMPROMISO DE PAGO, SMS COMPROMISO ROTO y SMS CAMPAÑA. El mensaje final agrega el número del ejecutivo según CARTERIZADO.</p>
                   </div>
                 )}
               </div>

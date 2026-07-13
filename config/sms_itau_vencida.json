@@ -11,6 +11,10 @@
     "COMPROMISO_ROTO": {
       "masividad_values": ["SMS COMPROMISO ROTO"],
       "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está pendiente. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    "CAMPANA": {
+      "masividad_values": ["SMS CAMPAÑA"],
+      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
     }
   },
   "seeds": [
@@ -103,6 +107,36 @@
       "type": "COMPROMISO_ROTO",
       "phone_local": "957545177",
       "message": "Estimado, por encargo de Itau, informa que tu compromiso de pago está pendiente. Evita cargos por gastos de cobranza. Mas info llama al +56228401534"
+    },
+    {
+      "type": "CAMPANA",
+      "phone_local": "985881361",
+      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+    },
+    {
+      "type": "CAMPANA",
+      "phone_local": "938731034",
+      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+    },
+    {
+      "type": "CAMPANA",
+      "phone_local": "976900353",
+      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+    },
+    {
+      "type": "CAMPANA",
+      "phone_local": "961035031",
+      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+    },
+    {
+      "type": "CAMPANA",
+      "phone_local": "979131901",
+      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+    },
+    {
+      "type": "CAMPANA",
+      "phone_local": "957545177",
+      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
     }
   ]
 }

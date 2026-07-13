@@ -48,8 +48,8 @@ def validate_sms_itau() -> None:
         sms_itau_vencida.ejecutivos_repo.list_ejecutivos = lambda mandante=None, activos=True: [_fake_ejecutivo()]
         df = pd.DataFrame(
             {
-                "CARTERIZADO": ["Ariel Silva"],
-                "MASIVIDAD": ["SMS MOROSIDAD"],
+                "CARTERIZADO": ["Ariel Silva", "Ariel Silva"],
+                "MASIVIDAD": ["SMS MOROSIDAD", "SMS CAMPAÑA"],
             }
         )
         messages = sms_itau_vencida.build_itau_carterizado_messages(df, "Itau Vencida")
@@ -61,9 +61,11 @@ def validate_sms_itau() -> None:
         sms_itau_vencida.ejecutivos_repo.fetch_by_mandante_and_nombre = original_fetch
         sms_itau_vencida.ejecutivos_repo.list_ejecutivos = original_list
 
-    assert len(messages) == 1, "SMS Itau debe generar un mensaje"
+    assert len(messages) == 2, "SMS Itau debe generar mensajes"
     assert "Itau" in messages.iloc[0], "SMS Itau no contiene texto esperado"
     assert "56912345678" in messages.iloc[0], "SMS Itau no agrega telefono de ejecutivo"
+    assert "tenemos una oferta para ti" in messages.iloc[1], "SMS Campaña no contiene texto esperado"
+    assert "56912345678" in messages.iloc[1], "SMS Campaña no agrega telefono de ejecutivo"
     assert axia_seed_count > 0 and len(axia_seeded) > len(axia), "SMS Itau AXIA no agrega semillas"
     assert athenas_seed_count > 0 and len(athenas_seeded) > len(athenas), "SMS Itau Athenas no agrega semillas"
     print("SMS_ITAU_OK")
