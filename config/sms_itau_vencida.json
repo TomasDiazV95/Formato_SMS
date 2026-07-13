@@ -14,7 +14,7 @@
     },
     "CAMPANA": {
       "masividad_values": ["SMS CAMPAÑA"],
-      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
     }
   },
   "seeds": [
@@ -111,32 +111,32 @@
     {
       "type": "CAMPANA",
       "phone_local": "985881361",
-      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
     },
     {
       "type": "CAMPANA",
       "phone_local": "938731034",
-      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
     },
     {
       "type": "CAMPANA",
       "phone_local": "976900353",
-      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
     },
     {
       "type": "CAMPANA",
       "phone_local": "961035031",
-      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
     },
     {
       "type": "CAMPANA",
       "phone_local": "979131901",
-      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
     },
     {
       "type": "CAMPANA",
       "phone_local": "957545177",
-      "message": "Phoenix, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
+      "message": "Estimado, por encargo de Itau informa que tu deuda está en mora y tenemos una oferta para ti. Para más información llama al"
     }
   ]
 }
