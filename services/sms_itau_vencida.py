@@ -23,6 +23,7 @@ ITAU_SMS_TEMPLATE_FILES = {
     "MOROSIDAD": "SMS NORMAL-MOROSIDAD.txt",
     "COMPROMISO_PAGO": "SMS VIGENTE-COMPROMISO DE PAGO.txt",
     "COMPROMISO_ROTO": "SMS VENCIDO-COMPROMISO ROTO.txt",
+    "CAMPANA": "SMS CAMPANA.txt",
 }
 
 ITAU_SEED_FILE = "SEMILLA ITAU VENCIDA.txt"
@@ -31,6 +32,8 @@ ITAU_MASIVIDAD_TO_TEMPLATE = {
     "SMS MOROSIDAD": "MOROSIDAD",
     "SMS COMPROMISO DE PAGO": "COMPROMISO_PAGO",
     "SMS COMPROMISO ROTO": "COMPROMISO_ROTO",
+    "SMS CAMPANA": "CAMPANA",
+    "SMS CAMPAÑA": "CAMPANA",
 }
 
 
@@ -275,6 +278,8 @@ def _seed_type_from_message(message: str) -> str | None:
     text = ascii_fold(normalize_spaces(message)).upper()
     if not text:
         return None
+    if "OFERTA PARA TI" in text or "TENEMOS UNA OFERTA" in text:
+        return "CAMPANA"
     if "MORA" in text:
         return "MOROSIDAD"
     if "PROXIMO" in text and "VENC" in text:

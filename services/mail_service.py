@@ -7,7 +7,7 @@ from services.contact_dedupe import dedupe_by_column_keep_first
 REQUIRED_COLUMNS = {
     "RUT": {"rut", "id_cliente", "id cliente"},
     "NOMBRE": {"nombre", "cliente", "contacto"},
-    "OPERACION": {"operacion", "operación", "op", "ope", "oper", "nro_documento", "nro documento", "documento", "id_credito"},
+    "OPERACION": {"operacion", "operación", "operaciones", "operaciones ", "op", "ope", "oper", "num_op", "n_operacion", "n operación", "nro_operacion", "nro operación", "nro_documento", "nro documento", "documento", "id_credito"},
     "MAIL": {"mail", "correo", "email", "e-mail", "dest_email", "dest_mail", "mail_cliente", "email_cliente"},
 }
 
@@ -73,19 +73,23 @@ def build_mail_crm_output(
     usuario_value: str,
     observacion_value: str,
     intervalo_segundos: int | None = None,
+    require_operacion: bool = True,
 ) -> pd.DataFrame:
     base = df.copy()
     rut_col = _find_col(base, "RUT")
     op_col = _find_col(base, "OPERACION")
     mail_col = _find_col(base, "MAIL", exclude_keywords={"agente"})
 
-    faltantes = [name for name, col in (("RUT", rut_col), ("OPERACION", op_col), ("MAIL", mail_col)) if col is None]
+    required_pairs = [("RUT", rut_col), ("MAIL", mail_col)]
+    if require_operacion:
+        required_pairs.append(("OPERACION", op_col))
+    faltantes = [name for name, col in required_pairs if col is None]
     if faltantes:
         raise ValueError("Faltan columnas requeridas en el Excel base: " + ", ".join(faltantes))
     base = dedupe_by_column_keep_first(base, rut_col)
 
     rut = _normalize_series(base.loc[:, rut_col])
-    operacion = _normalize_series(base.loc[:, op_col])
+    operacion = _normalize_series(base.loc[:, op_col]) if op_col else pd.Series([""] * len(base), index=base.index)
     correo = _normalize_series(base.loc[:, mail_col])
 
     fechas = _generate_schedule(len(base), fecha, hora_inicio, hora_fin, intervalo_segundos)

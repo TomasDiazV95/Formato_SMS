@@ -1,24 +1,40 @@
 import { useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import InlineAlert from '../../../components/InlineAlert'
 import { mandantes, mailTemplates } from '../../../data/constants'
 import { submitMailTemplate, downloadMailTemplateSample } from '../../../api/mail'
-import { createCrmSession } from '../../../api/crm'
-import { triggerDownload, assertExcelResponse } from '../../../utils/download'
+import { triggerDownload, assertExcelResponse, ZIP_MIME } from '../../../utils/download'
 
 const initialTemplateState = {
   mandante_template: '',
   template_code: '',
 }
 
+const mailCrmRules = {
+  'Itau Vencida': { usuario: 'VDAD', observacion: 'ENVIO SIN RESPUESTA' },
+  'Itau Castigo': { usuario: 'VDAD', observacion: 'ENVIO SIN RESPUESTA' },
+  'Banco Internacional': { usuario: 'VDAD', observacion: '' },
+  'La Araucana': { usuario: 'VDAD', observacion: '' },
+  Tanner: { usuario: 'VDAD', observacion: '' },
+  'Santander Consumer Judicial': { usuario: 'jriveros', observacion: '' },
+  'General Motors': { usuario: 'jriveros', observacion: 'ENVIO MAIL' },
+}
+
 function MailPage() {
-  const navigate = useNavigate()
   const templateFileRef = useRef(null)
 
   const [templateForm, setTemplateForm] = useState(initialTemplateState)
   const [status, setStatus] = useState({ type: 'info', message: '' })
-  const [crmSeedFile, setCrmSeedFile] = useState(null)
+  const [includeCrm, setIncludeCrm] = useState(false)
+  const [templateDate, setTemplateDate] = useState('')
+  const [crmDate, setCrmDate] = useState('')
+  const [crmStartTime, setCrmStartTime] = useState('10:00')
+  const [crmEndTime, setCrmEndTime] = useState('18:00')
   const [loadingTemplate, setLoadingTemplate] = useState(false)
+
+  const crmRule = mailCrmRules[templateForm.mandante_template]
+  const crmDisabled = !crmRule
+  const requiresTemplateDate = templateForm.template_code === 'ARAUCANA_ALTERNATIVAS_PAGO_86256'
 
   const filteredTemplates = useMemo(() => {
     if (!templateForm.mandante_template) return []
@@ -34,7 +50,11 @@ function MailPage() {
 
   const resetTemplateForm = () => {
     setTemplateForm(initialTemplateState)
-    setCrmSeedFile(null)
+    setIncludeCrm(false)
+    setTemplateDate('')
+    setCrmDate('')
+    setCrmStartTime('10:00')
+    setCrmEndTime('18:00')
     if (templateFileRef.current) templateFileRef.current.value = ''
   }
 
@@ -42,7 +62,12 @@ function MailPage() {
     const { name, value } = e.target
     if (name === 'mandante_template') {
       setTemplateForm({ ...initialTemplateState, mandante_template: value })
+      setIncludeCrm(false)
+      setTemplateDate('')
       return
+    }
+    if (name === 'template_code' && value !== 'ARAUCANA_ALTERNATIVAS_PAGO_86256') {
+      setTemplateDate('')
     }
     setTemplateForm(prev => ({ ...prev, [name]: value }))
   }
@@ -61,42 +86,43 @@ function MailPage() {
       updateStatus('danger', 'Selecciona la plantilla a generar.')
       return
     }
+    if (requiresTemplateDate && !templateDate) {
+      updateStatus('danger', 'Debes indicar FECHA_VCTO para La Araucana Alternativas de Pago.')
+      return
+    }
+    if (includeCrm && crmDisabled) {
+      updateStatus('danger', 'Este mandante no sube CRM desde el modulo Mail.')
+      return
+    }
+    if (includeCrm && (!crmDate || !crmStartTime || !crmEndTime)) {
+      updateStatus('danger', 'Debes indicar fecha, hora inicio y hora fin para generar CRM.')
+      return
+    }
 
     const formData = new FormData()
-    const selectedFile = templateFileRef.current.files[0]
-    formData.append('file', selectedFile)
+    formData.append('file', templateFileRef.current.files[0])
     formData.append('mandante_template', templateForm.mandante_template)
     formData.append('template_code', templateForm.template_code)
+    if (requiresTemplateDate) {
+      formData.append('template_fecha', templateDate)
+    }
+    if (includeCrm) {
+      formData.append('include_crm', 'on')
+      formData.append('crm_fecha', crmDate)
+      formData.append('crm_hora_inicio', crmStartTime)
+      formData.append('crm_hora_fin', crmEndTime)
+    }
 
     try {
       setLoadingTemplate(true)
       const response = await submitMailTemplate(formData)
-      await assertExcelResponse(response, 'Error generando la plantilla.')
+      await assertExcelResponse(response, 'Error generando la plantilla.', [ZIP_MIME])
       const filename = response.headers['content-disposition']?.split('filename=')[1]?.replaceAll('"', '') || 'plantilla_mail.xlsx'
       triggerDownload(response.data, filename)
-      updateStatus('success', 'Plantilla generada correctamente.')
-      setCrmSeedFile(selectedFile)
+      updateStatus('success', includeCrm ? 'Plantilla y CRM generados correctamente.' : 'Plantilla generada correctamente.')
+      resetTemplateForm()
     } catch (error) {
       updateStatus('danger', error?.message || 'Error generando la plantilla.')
-    } finally {
-      setLoadingTemplate(false)
-    }
-  }
-
-  const handleContinueCrm = async () => {
-    if (!crmSeedFile) {
-      updateStatus('danger', 'Primero genera una plantilla para continuar en CRM.')
-      return
-    }
-    try {
-      setLoadingTemplate(true)
-      const response = await createCrmSession({ file: crmSeedFile, mode: 'mail', source: 'mail_template' })
-      if (response.status >= 400 || !response.data?.token) {
-        throw new Error(response.data?.message || 'No se pudo crear la sesión de CRM.')
-      }
-      navigate(`/procesos/crm?token=${encodeURIComponent(response.data.token)}&mode=mail`)
-    } catch (error) {
-      updateStatus('danger', error?.message || 'No se pudo abrir CRM unificado.')
     } finally {
       setLoadingTemplate(false)
     }
@@ -188,17 +214,54 @@ function MailPage() {
               </div>
             </div>
 
+            {requiresTemplateDate && (
+              <div>
+                <label className="text-sm font-medium text-slate-700">FECHA_VCTO</label>
+                <input
+                  type="date"
+                  value={templateDate}
+                  onChange={e => setTemplateDate(e.target.value)}
+                  className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm"
+                  required={requiresTemplateDate}
+                />
+                <p className="mt-2 text-xs text-slate-500">Se escribira en la columna FECHA_VCTO con formato DD-MM-YYYY.</p>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includeCrm}
+                  onChange={e => setIncludeCrm(e.target.checked)}
+                  disabled={crmDisabled}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                Generar archivo CRM junto con Mail
+              </label>
+              {crmRule && <p className="mt-2 text-xs text-slate-500">Usuario CRM fijo: {crmRule.usuario}. Observacion fija: {crmRule.observacion || 'vacia'}.</p>}
+              {!crmRule && templateForm.mandante_template && <p className="mt-2 text-xs text-amber-600">Este mandante no sube CRM desde el modulo Mail.</p>}
+              {includeCrm && (
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600">Fecha gestion</label>
+                    <input type="date" value={crmDate} onChange={e => setCrmDate(e.target.value)} className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required={includeCrm} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600">Hora inicio</label>
+                    <input type="time" value={crmStartTime} onChange={e => setCrmStartTime(e.target.value)} className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required={includeCrm} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600">Hora fin</label>
+                    <input type="time" value={crmEndTime} onChange={e => setCrmEndTime(e.target.value)} className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm" required={includeCrm} />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex flex-wrap gap-3">
               <button type="submit" className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500" disabled={loadingTemplate}>
                 {loadingTemplate ? 'Procesando…' : 'Generar plantilla'}
-              </button>
-              <button
-                type="button"
-                className="rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={handleContinueCrm}
-                disabled={loadingTemplate || !crmSeedFile}
-              >
-                Continuar en CRM
               </button>
               <button type="button" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600" onClick={resetTemplateForm}>
                 Limpiar campos
