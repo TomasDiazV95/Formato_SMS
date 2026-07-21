@@ -33,6 +33,7 @@ def main() -> None:
     from services import santander_consumer_templates
     from modules.procesos.sms.routes import _crm_rule_for_sms
     from modules.procesos.ivr.routes import _crm_rule_for_ivr
+    from modules.procesos.mail.routes import _crm_rule_for_mail
     from utils import paths
 
     assert all(
@@ -71,6 +72,10 @@ def main() -> None:
     assert _crm_rule_for_sms("Itau Vencida") == ("VDAD", "ENVIO SIN RESPUESTA"), "Regla CRM SMS Itau invalida"
     assert _crm_rule_for_ivr("Santander Consumer Telefonía") == ("jriveros", ""), "Regla CRM IVR Santander invalida"
     assert _crm_rule_for_ivr("General Motors") == ("jriveros", "IVR"), "Regla CRM IVR GM invalida"
+    assert _crm_rule_for_mail("Itau Vencida") == ("VDAD", "ENVIO SIN RESPUESTA"), "Regla CRM Mail Itau invalida"
+    assert _crm_rule_for_mail("Santander Consumer Judicial") == ("jriveros", ""), "Regla CRM Mail SCJ invalida"
+    assert _crm_rule_for_mail("General Motors") == ("jriveros", "ENVIO MAIL"), "Regla CRM Mail GM invalida"
+    assert _crm_rule_for_mail("Santander Consumer Telefonía") is None, "Telefonia no debe generar CRM Mail"
 
     assert hasattr(ejecutivos_repo, "fetch_by_mandante_and_nombre")
     assert hasattr(resultantes_repo, "fetch_tanner_resultantes")

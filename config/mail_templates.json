@@ -80,6 +80,38 @@
     "mandante": "La Araucana"
   },
   {
+    "code": "ARAUCANA_ALTERNATIVAS_PAGO_86256",
+    "label": "La Araucana - Alternativas de Pago",
+    "message_id": 86256,
+    "institucion": "CAJA LA ARAUCANA",
+    "segmentoinstitucion": "ARAUCANA",
+    "mandante": "La Araucana"
+  },
+  {
+    "code": "GM_COMERCIAL_84995",
+    "label": "General Motors - Comercial",
+    "message_id": 84995,
+    "institucion": "GENERAL MOTORS",
+    "segmentoinstitucion": "GENERAL MOTORS",
+    "mandante": "General Motors"
+  },
+  {
+    "code": "GM_EXTENSION_84591",
+    "label": "General Motors - Extension",
+    "message_id": 84591,
+    "institucion": "GENERAL MOTORS",
+    "segmentoinstitucion": "GENERAL MOTORS",
+    "mandante": "General Motors"
+  },
+  {
+    "code": "GM_DESCUENTO_98960",
+    "label": "General Motors - Descuento",
+    "message_id": 98960,
+    "institucion": "GENERAL MOTORS",
+    "segmentoinstitucion": "GENERAL MOTORS",
+    "mandante": "General Motors"
+  },
+  {
     "code": "TANNER_MEDIOS_PAGO",
     "label": "Tanner - Medios de Pago",
     "message_id": 91869,

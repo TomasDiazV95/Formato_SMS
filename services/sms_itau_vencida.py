@@ -278,6 +278,8 @@ def _seed_type_from_message(message: str) -> str | None:
     text = ascii_fold(normalize_spaces(message)).upper()
     if not text:
         return None
+    if "OFERTA PARA TI" in text or "TENEMOS UNA OFERTA" in text:
+        return "CAMPANA"
     if "MORA" in text:
         return "MOROSIDAD"
     if "PROXIMO" in text and "VENC" in text:

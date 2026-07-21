@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
 
 from repositories.ejecutivos_repo import Ejecutivo
 from services.mail_service import build_mail_crm_output
-from services.mail_templates import TEMPLATE_COLUMNS_ARAUCANA, TEMPLATE_COLUMNS_BIT, TEMPLATE_COLUMNS_ITAU_CASTIGO, TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
+from services.mail_templates import TEMPLATE_COLUMNS_ARAUCANA, TEMPLATE_COLUMNS_ARAUCANA_ALTERNATIVAS, TEMPLATE_COLUMNS_BIT, TEMPLATE_COLUMNS_ITAU_CASTIGO, TEMPLATE_COLUMNS_ITAU_VENCIDA, build_mail_template
 from services.gm_mail_service import build_gm_mail_crm_output, build_gm_mail_output
 from services.sc_telefonia_mail_service import build_sc_telefonia_mail_output
 from services.ivr_service import build_ivr_output
@@ -48,8 +48,8 @@ def validate_sms_itau() -> None:
         sms_itau_vencida.ejecutivos_repo.list_ejecutivos = lambda mandante=None, activos=True: [_fake_ejecutivo()]
         df = pd.DataFrame(
             {
-                "CARTERIZADO": ["Ariel Silva", "Ariel Silva"],
-                "MASIVIDAD": ["SMS MOROSIDAD", "SMS CAMPAÑA"],
+                "CARTERIZADO": ["Ariel Silva", "Ariel Silva", "Ariel Silva", "Ariel Silva"],
+                "MASIVIDAD": ["SMS MOROSIDAD", "SMS COMPROMISO DE PAGO", "SMS COMPROMISO ROTO", "SMS CAMPAÑA"],
             }
         )
         messages = sms_itau_vencida.build_itau_carterizado_messages(df, "Itau Vencida")
@@ -61,13 +61,13 @@ def validate_sms_itau() -> None:
         sms_itau_vencida.ejecutivos_repo.fetch_by_mandante_and_nombre = original_fetch
         sms_itau_vencida.ejecutivos_repo.list_ejecutivos = original_list
 
-    assert len(messages) == 2, "SMS Itau debe generar mensajes"
+    assert len(messages) == 4, "SMS Itau debe generar mensajes"
     assert "Itau" in messages.iloc[0], "SMS Itau no contiene texto esperado"
     assert "56912345678" in messages.iloc[0], "SMS Itau no agrega telefono de ejecutivo"
-    assert "tenemos una oferta para ti" in messages.iloc[1], "SMS Campaña no contiene texto esperado"
-    assert "56912345678" in messages.iloc[1], "SMS Campaña no agrega telefono de ejecutivo"
-    assert axia_seed_count > 0 and len(axia_seeded) > len(axia), "SMS Itau AXIA no agrega semillas"
-    assert athenas_seed_count > 0 and len(athenas_seeded) > len(athenas), "SMS Itau Athenas no agrega semillas"
+    assert "tenemos una oferta para ti" in messages.iloc[3], "SMS Campaña no contiene texto esperado"
+    assert "56912345678" in messages.iloc[3], "SMS Campaña no agrega telefono de ejecutivo"
+    assert axia_seed_count == 24 and len(axia_seeded) == len(axia) - 1 + 24, "SMS Itau AXIA debe agregar 24 semillas"
+    assert athenas_seed_count == 24 and len(athenas_seeded) == len(athenas) - 1 + 24, "SMS Itau Athenas debe agregar 24 semillas"
     print("SMS_ITAU_OK")
 
 
@@ -267,7 +267,45 @@ def validate_araucana_mail() -> None:
     assert cesantes.loc[0, "CORREO"] == "mmondiglio@phoenixservice.cl", "Araucana CORREO invalido"
     assert "duplicado-rut@example.com" not in set(cesantes["dest_email"].astype(str)), "Araucana no deduplico RUT"
     assert "JARACIFUENTESMILTON@GMAIL.COM" not in set(cesantes["dest_email"].astype(str)), "Araucana no deduplico email normalizado"
+
+    origen_alternativas = pd.read_excel(
+        ROOT / "archive" / "plantillas_mail_legacy" / "ARAUCANA" / "Alternativas_de_Pago_86256_ORIGEN_ARCH.xlsx",
+        dtype=str,
+    )
+    alternativas = build_mail_template(
+        origen_alternativas,
+        "ARAUCANA_ALTERNATIVAS_PAGO_86256",
+        mandante="La Araucana",
+        template_date=date(2026, 7, 24),
+    )
+    assert list(alternativas.columns) == TEMPLATE_COLUMNS_ARAUCANA_ALTERNATIVAS, "Araucana Alternativas columnas inesperadas"
+    assert list(alternativas["NOMBRE"].astype(str).head(4)) == ["Melanie", "Felipe", "PRB", "PRB"], "Araucana Alternativas sin semillas esperadas"
+    assert list(alternativas["RUT"].astype(str).head(4)) == ["1", "2", "3", "4"], "Araucana Alternativas semillas sin RUT esperado"
+    assert list(alternativas["N_OPERACION"].astype(str).head(4)) == ["1", "2", "3", "4"], "Araucana Alternativas semillas sin operacion esperada"
+    assert list(alternativas["dest_email"].astype(str).head(4)) == ["mmondiglio@phoenixservice.cl", "pipe5550@gmail.com", "djaraz@laaraucana.cl", "cquintanillar@laaraucana.cl"], "Araucana Alternativas semillas sin correos esperados"
+    assert alternativas.loc[0, "FECHA_VCTO"] == "24-07-2026", "Araucana Alternativas fecha vcto invalida"
+    assert alternativas.loc[4, "N_OPERACION"] == "001027701522", "Araucana Alternativas no mapea OP"
     print("ARAUCANA_MAIL_OK")
+
+
+def validate_gm_mail_general_templates() -> None:
+    base = ROOT / "archive" / "plantillas_mail_legacy" / "GENERAL MOTORS"
+    comercial = build_mail_template(pd.read_excel(base / "Comercial.xlsx", dtype=str), "GM_COMERCIAL_84995", mandante="General Motors")
+    extension = build_mail_template(pd.read_excel(base / "Extension.xlsx", dtype=str), "GM_EXTENSION_84591", mandante="General Motors")
+    descuento = build_mail_template(pd.read_excel(base / "DESCUENTOS.xlsx", dtype=str), "GM_DESCUENTO_98960", mandante="General Motors")
+
+    assert not comercial.empty, "GM Comercial Mail general no genero filas"
+    assert not extension.empty, "GM Extension Mail general no genero filas"
+    assert not descuento.empty, "GM Descuento Mail general no genero filas"
+    assert comercial.loc[0, "message_id"] == 84995, "GM Comercial message_id invalido"
+    assert extension.loc[0, "message_id"] == 84591, "GM Extension message_id invalido"
+    assert descuento.loc[0, "message_id"] == 98960, "GM Descuento message_id invalido"
+    assert list(comercial["dest_email"].astype(str).head(2)) == ["pipe5550@gmail.com", "cfuentes@phoenixservice.cl"], "GM Comercial sin semillas"
+    assert "FECHA_ENTREGA" in extension.columns and extension.loc[2, "FECHA_ENTREGA"], "GM Extension no mapea fecha de oferta"
+    assert "FECHA_VALIDA" in descuento.columns and descuento.loc[2, "FECHA_VALIDA"], "GM Descuento no mapea valido hasta"
+    assert descuento.loc[2, "FECHA_VENCIMIENTO_CUOTA"] == "", "GM Descuento debe dejar fecha vencimiento vacia desde origen"
+    assert descuento.loc[2, "MONTO_CUOTA"] == "", "GM Descuento debe dejar monto vacio desde origen"
+    print("GM_MAIL_GENERAL_OK")
 
 
 def validate_crm_dedupe() -> None:
@@ -305,6 +343,49 @@ def validate_crm_dedupe() -> None:
     assert len(crm_mail) == 1, "CRM Mail debe deduplicar por RUT"
     assert crm_mail.loc[0, "NRO_DOCUMENTO"] == "MAIL1", "CRM Mail no conservo la primera fila"
     assert crm_mail.loc[0, "CORREO"] == "primero@example.com", "CRM Mail no conservo el primer correo"
+
+    crm_mail_itau = build_mail_crm_output(
+        pd.DataFrame(
+            {
+                "RUT ": ["33333333-3"],
+                "OPERACIONES ": ["ITAU1"],
+                "dest_email": ["itau@example.com"],
+            }
+        ),
+        fecha=date(2026, 6, 22),
+        hora_inicio="10:00",
+        hora_fin="11:00",
+        usuario_value="VDAD",
+        observacion_value="ENVIO SIN RESPUESTA",
+    )
+    assert crm_mail_itau.loc[0, "NRO_DOCUMENTO"] == "ITAU1", "CRM Mail no reconoce OPERACIONES"
+
+    crm_mail_scj = build_mail_crm_output(
+        pd.DataFrame(
+            {
+                "RUT": ["44444444-4"],
+                "NUM_OP": ["SCJ1"],
+                "dest_email": ["scj@example.com"],
+            }
+        ),
+        fecha=date(2026, 6, 22),
+        hora_inicio="10:00",
+        hora_fin="11:00",
+        usuario_value="jriveros",
+        observacion_value="",
+    )
+    assert crm_mail_scj.loc[0, "NRO_DOCUMENTO"] == "SCJ1", "CRM Mail no reconoce NUM_OP"
+
+    crm_mail_sin_operacion = build_mail_crm_output(
+        pd.DataFrame({"RUT": ["55555555-5"], "dest_email": ["sinop@example.com"]}),
+        fecha=date(2026, 6, 22),
+        hora_inicio="10:00",
+        hora_fin="11:00",
+        usuario_value="VDAD",
+        observacion_value="",
+        require_operacion=False,
+    )
+    assert crm_mail_sin_operacion.loc[0, "NRO_DOCUMENTO"] == "", "CRM Mail sin operacion debe dejar NRO_DOCUMENTO vacio"
     print("CRM_DEDUPE_OK")
 
 
@@ -650,6 +731,7 @@ def main() -> None:
     validate_itau_castigo_mail()
     validate_bit_mail()
     validate_araucana_mail()
+    validate_gm_mail_general_templates()
     validate_crm_dedupe()
     validate_gm_mail()
     validate_sc_telefonia_mail()

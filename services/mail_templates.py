@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 from difflib import SequenceMatcher
 import re
@@ -15,6 +15,7 @@ from openpyxl import load_workbook
 from repositories import ejecutivos_repo
 from services import config_store
 from services.contact_dedupe import dedupe_by_column_keep_first, dedupe_by_column_keep_first_normalized
+from services.gm_mail_templates import get_gm_mail_template
 from utils.paths import archive_path, config_path, PROJECT_ROOT
 
 TEMPLATE_COLUMNS_TANNER = [
@@ -138,6 +139,20 @@ TEMPLATE_COLUMNS_ARAUCANA = [
     "NOMBRE",
     "dest_email",
     "RUT",
+    "name_from",
+    "mail_from",
+    "CORREO",
+]
+
+TEMPLATE_COLUMNS_ARAUCANA_ALTERNATIVAS = [
+    "INSTITUCIÓN",
+    "SEGMENTOINSTITUCIÓN",
+    "message_id",
+    "NOMBRE",
+    "RUT",
+    "N_OPERACION",
+    "FECHA_VCTO",
+    "dest_email",
     "name_from",
     "mail_from",
     "CORREO",
@@ -335,7 +350,7 @@ def get_template(code: str) -> Optional[MailTemplate]:
     return None
 
 
-def build_mail_template(df: pd.DataFrame, template_code: str, mandante: Optional[str] = None) -> pd.DataFrame:
+def build_mail_template(df: pd.DataFrame, template_code: str, mandante: Optional[str] = None, template_date: date | None = None) -> pd.DataFrame:
     template = get_template(template_code)
     if not template:
         raise ValueError("Plantilla no soportada.")
@@ -353,7 +368,9 @@ def build_mail_template(df: pd.DataFrame, template_code: str, mandante: Optional
     if template_code in BIT_TEMPLATE_CODES:
         return _build_bit_mail(df, template)
     if template_code in ARAUCANA_TEMPLATE_CODES:
-        return _build_araucana_mail(df, template)
+        return _build_araucana_mail(df, template, template_date=template_date)
+    if template_code in GM_TEMPLATE_CODE_TO_KEY:
+        return _build_gm_mail_from_origin(df, template)
     if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
         return _build_tanner_medios_pago(df, template, mandante)
     if template_code == "SCJ_COBRANZA":
@@ -406,6 +423,14 @@ def sample_mail_template(template_code: str) -> pd.DataFrame:
             "MAIL": ["primero.bit@example.com", "duplicado-rut@example.com", "PRIMERO.BIT@EXAMPLE.COM", "tercero.bit@example.com"],
         })
         return build_mail_template(sample_df, template_code, mandante="Banco Internacional")
+    if template_code == ARAUCANA_ALTERNATIVAS_CODE:
+        sample_df = pd.DataFrame({
+            "RUT": ["18975671", "19604651"],
+            "NOMBRE": ["CLAUDIA PAZ POBLETE SALAS", "Manuel Ignacio Urra Castro"],
+            "MAIL": ["claupazpobletesalas@gmail.com", "manuelurra2497@gmail.com"],
+            "OP": ["001027701522", "001027707311"],
+        })
+        return build_mail_template(sample_df, template_code, mandante="La Araucana", template_date=date.today())
     if template_code in ARAUCANA_TEMPLATE_CODES:
         sample_df = pd.DataFrame({
             "RUT": ["10117748", "10117748", "10237218", "10333333"],
@@ -413,6 +438,36 @@ def sample_mail_template(template_code: str) -> pd.DataFrame:
             "EMAIL": ["jaracifuentesmilton@gmail.com", "duplicado-rut@example.com", "JARACIFUENTESMILTON@GMAIL.COM", "cliente3@example.com"],
         })
         return build_mail_template(sample_df, template_code, mandante="La Araucana")
+    if template_code == "GM_COMERCIAL_84995":
+        sample_df = pd.DataFrame({
+            "RUT": ["11111111", "22222222"],
+            "NOMBRE CLIENTE": ["CLIENTE GM UNO", "CLIENTE GM DOS"],
+            "OPERACION": ["970000000001", "970000000002"],
+            "VENCIMIENTO CUOTA": ["2026-05-23", "2026-05-27"],
+            "MONTO CUOTA": ["301489", "224801"],
+            "mail": ["gm1@example.com", "gm2@example.com"],
+        })
+        return build_mail_template(sample_df, template_code, mandante="General Motors")
+    if template_code == "GM_EXTENSION_84591":
+        sample_df = pd.DataFrame({
+            "RUT": ["33333333", "44444444"],
+            "NOMBRE": ["CLIENTE EXT UNO", "CLIENTE EXT DOS"],
+            "OPERACION": ["970000000003", "970000000004"],
+            "FECHA DE OFERTA": ["2026-07-20", "2026-07-20"],
+            "FECHA VCTO CUOTA": ["2026-03-22", "2026-04-28"],
+            "MONTO CUOTA": ["205266", "355620"],
+            "MAIL": ["gmext1@example.com", "gmext2@example.com"],
+        })
+        return build_mail_template(sample_df, template_code, mandante="General Motors")
+    if template_code == "GM_DESCUENTO_98960":
+        sample_df = pd.DataFrame({
+            "OP": ["970000000005", "970000000006"],
+            "RUT": ["55555555", "66666666"],
+            "NOMBRE": ["CLIENTE DESC UNO", "CLIENTE DESC DOS"],
+            "VALIDO HASTA": ["2026-07-22", "2026-07-22"],
+            "MAIL": ["gmdesc1@example.com", "gmdesc2@example.com"],
+        })
+        return build_mail_template(sample_df, template_code, mandante="General Motors")
     if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
         sample_df = pd.DataFrame({
             "RUT+DV": ["11.111.111-1", "22.222.222-2"],
@@ -626,7 +681,8 @@ BIT_SEEDS = [
     {"RUT": "1-2", "OPERACION": "1234", "CLIENTE": "PRB", "dest_email": "cfuentes@phoenixservice.cl"},
 ]
 
-ARAUCANA_TEMPLATE_CODES = {"ARAUCANA_CESANTES_86391", "ARAUCANA_MEDIO_PAGO_93887"}
+ARAUCANA_TEMPLATE_CODES = {"ARAUCANA_CESANTES_86391", "ARAUCANA_MEDIO_PAGO_93887", "ARAUCANA_ALTERNATIVAS_PAGO_86256"}
+ARAUCANA_ALTERNATIVAS_CODE = "ARAUCANA_ALTERNATIVAS_PAGO_86256"
 ARAUCANA_NAME_FROM = "CAJA LA ARAUCANA"
 ARAUCANA_MAIL_FROM = "atencionclientes@estandar.phoenixserviceinfo.cl"
 ARAUCANA_CORREO = "mmondiglio@phoenixservice.cl"
@@ -634,6 +690,108 @@ ARAUCANA_SEEDS = [
     {"NOMBRE": "Melanie", "dest_email": "mmondiglio@phoenixservice.cl", "RUT": "1"},
     {"NOMBRE": "Felipe", "dest_email": "pipe5550@gmail.com", "RUT": "2"},
 ]
+ARAUCANA_ALTERNATIVAS_SEEDS = [
+    {"NOMBRE": "Melanie", "dest_email": "mmondiglio@phoenixservice.cl", "RUT": "1", "N_OPERACION": "1"},
+    {"NOMBRE": "Felipe", "dest_email": "pipe5550@gmail.com", "RUT": "2", "N_OPERACION": "2"},
+    {"NOMBRE": "PRB", "dest_email": "djaraz@laaraucana.cl", "RUT": "3", "N_OPERACION": "3"},
+    {"NOMBRE": "PRB", "dest_email": "cquintanillar@laaraucana.cl", "RUT": "4", "N_OPERACION": "4"},
+]
+
+GM_TEMPLATE_CODE_TO_KEY = {
+    "GM_COMERCIAL_84995": "gm_comercial_84995",
+    "GM_EXTENSION_84591": "gm_extension_84591",
+    "GM_DESCUENTO_98960": "gm_descuento_98960",
+}
+
+
+def _format_gm_date(value: object) -> str:
+    if value in (None, ""):
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime("%d-%m-%Y")
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed):
+        return str(value).strip()
+    return parsed.strftime("%d-%m-%Y")
+
+
+def _find_gm_column(df: pd.DataFrame, candidates: set[str]) -> Optional[str]:
+    normalized = {_normalize_key(col): col for col in df.columns}
+    for candidate in candidates:
+        key = _normalize_key(candidate)
+        if key in normalized:
+            return normalized[key]
+    return None
+
+
+def _build_gm_mail_from_origin(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
+    template_key = GM_TEMPLATE_CODE_TO_KEY.get(template.code)
+    gm_template = get_gm_mail_template(template_key or "")
+    if not gm_template:
+        raise ValueError("Plantilla GM Mail no configurada.")
+
+    columns = [str(column) for column in gm_template.get("columns") or []]
+    fixed_values = gm_template.get("fixed_values") if isinstance(gm_template.get("fixed_values"), dict) else {}
+    seed_rows = gm_template.get("seed_rows") if isinstance(gm_template.get("seed_rows"), list) else []
+    if not columns:
+        raise ValueError("Plantilla GM Mail sin columnas configuradas.")
+
+    base = df.copy()
+    base.columns = [str(col).strip() for col in base.columns]
+
+    rut_col = _find_gm_column(base, {"rut"})
+    nombre_col = _find_gm_column(base, {"nombre", "nombre cliente", "cliente", "nombre_cliente"})
+    oper_col = _find_gm_column(base, {"operacion", "operación", "op"})
+    email_col = _find_gm_column(base, EMAIL_COLUMN_ALIASES)
+    monto_col = _find_gm_column(base, {"monto cuota", "monto_cuota", "monto"})
+    vencimiento_col = _find_gm_column(base, {"vencimiento cuota", "fecha vcto cuota", "fecha vencimiento cuota", "fecha_vencimiento_cuota"})
+    fecha_entrega_col = _find_gm_column(base, {"fecha de oferta", "fecha entrega", "fecha_entrega"})
+    fecha_valida_col = _find_gm_column(base, {"valido hasta", "válido hasta", "fecha valida", "fecha_valida"})
+
+    missing = [
+        name
+        for name, col in (("RUT", rut_col), ("NOMBRE", nombre_col), ("OPERACION", oper_col), ("MAIL", email_col))
+        if col is None
+    ]
+    if missing:
+        raise ValueError("Faltan columnas requeridas para General Motors Mail: " + ", ".join(missing))
+
+    today_text = datetime.now().strftime("%d-%m-%Y")
+    rows: list[dict[str, object]] = []
+    for seed in seed_rows:
+        if not isinstance(seed, dict):
+            continue
+        row = {column: "" for column in columns}
+        row.update(fixed_values)
+        row.update({key: value for key, value in seed.items() if key in row})
+        if "FECHA_ARCHIVO" in row:
+            row["FECHA_ARCHIVO"] = today_text
+        rows.append(row)
+
+    for _, item in base.iterrows():
+        row = {column: "" for column in columns}
+        row.update(fixed_values)
+        row["NOMBRE"] = str(item.get(nombre_col, "")).strip()
+        row["RUT"] = re.sub(r"\.0$", "", str(item.get(rut_col, ""))).strip()
+        row["OPERACION"] = re.sub(r"\.0$", "", str(item.get(oper_col, ""))).strip()
+        row["dest_email"] = str(item.get(email_col, "")).strip()
+        row["FECHA_ARCHIVO"] = today_text
+        if vencimiento_col and "FECHA_VENCIMIENTO_CUOTA" in row:
+            row["FECHA_VENCIMIENTO_CUOTA"] = _format_gm_date(item.get(vencimiento_col))
+        if monto_col and "MONTO_CUOTA" in row:
+            row["MONTO_CUOTA"] = re.sub(r"\.0$", "", str(item.get(monto_col, ""))).strip()
+        if fecha_entrega_col and "FECHA_ENTREGA" in row:
+            row["FECHA_ENTREGA"] = _format_gm_date(item.get(fecha_entrega_col))
+        if fecha_valida_col and "FECHA_VALIDA" in row:
+            row["FECHA_VALIDA"] = _format_gm_date(item.get(fecha_valida_col))
+        rows.append(row)
+
+    output = pd.DataFrame(rows).reindex(columns=columns).fillna("")
+    if output.empty:
+        return output
+    output = dedupe_by_column_keep_first(output, "RUT").reset_index(drop=True)
+    output = dedupe_by_column_keep_first_normalized(output, "dest_email").reset_index(drop=True)
+    return output.reindex(columns=columns)
 
 
 def _build_itau_castigo(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
@@ -743,13 +901,63 @@ def _build_bit_mail(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
     return pd.concat([seed_df, output.reindex(columns=TEMPLATE_COLUMNS_BIT)], ignore_index=True)
 
 
-def _build_araucana_mail(df: pd.DataFrame, template: MailTemplate) -> pd.DataFrame:
+def _build_araucana_mail(df: pd.DataFrame, template: MailTemplate, template_date: date | None = None) -> pd.DataFrame:
     base = df.copy()
     base.columns = [str(col).strip() for col in base.columns]
 
     rut_col = _find_column(base, RUT_COLUMN_ALIASES)
     nombre_col = _find_column(base, {"nombre", "cliente", "nombre_cliente", "contacto"})
     dest_col = _find_column(base, EMAIL_COLUMN_ALIASES)
+    oper_col = _find_column(base, OPERATION_COLUMN_ALIASES)
+
+    if template.code == ARAUCANA_ALTERNATIVAS_CODE:
+        missing = [
+            name
+            for name, col in (("RUT", rut_col), ("NOMBRE", nombre_col), ("N_OPERACION", oper_col), ("dest_email", dest_col))
+            if col is None
+        ]
+        if missing:
+            raise ValueError("Faltan columnas requeridas para La Araucana Alternativas de Pago: " + ", ".join(missing))
+        if template_date is None:
+            raise ValueError("Debes indicar FECHA_VCTO para La Araucana Alternativas de Pago.")
+
+        fecha_vcto = template_date.strftime("%d-%m-%Y")
+        base = dedupe_by_column_keep_first(base, rut_col).reset_index(drop=True)
+        base = dedupe_by_column_keep_first_normalized(base, dest_col).reset_index(drop=True)
+        output = pd.DataFrame(
+            {
+                "INSTITUCIÓN": [template.institucion] * len(base),
+                "SEGMENTOINSTITUCIÓN": [template.segmentoinstitucion] * len(base),
+                "message_id": [template.message_id] * len(base),
+                "NOMBRE": base[nombre_col].fillna("").astype(str).str.strip().tolist(),
+                "RUT": base[rut_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+                "N_OPERACION": base[oper_col].fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip().tolist(),
+                "FECHA_VCTO": [fecha_vcto] * len(base),
+                "dest_email": base[dest_col].fillna("").astype(str).str.strip().tolist(),
+                "name_from": [ARAUCANA_NAME_FROM] * len(base),
+                "mail_from": [ARAUCANA_MAIL_FROM] * len(base),
+                "CORREO": [ARAUCANA_CORREO] * len(base),
+            }
+        )
+        seed_rows = []
+        for seed in ARAUCANA_ALTERNATIVAS_SEEDS:
+            seed_rows.append(
+                {
+                    "INSTITUCIÓN": template.institucion,
+                    "SEGMENTOINSTITUCIÓN": template.segmentoinstitucion,
+                    "message_id": template.message_id,
+                    "NOMBRE": seed["NOMBRE"],
+                    "RUT": seed["RUT"],
+                    "N_OPERACION": seed["N_OPERACION"],
+                    "FECHA_VCTO": fecha_vcto,
+                    "dest_email": seed["dest_email"],
+                    "name_from": ARAUCANA_NAME_FROM,
+                    "mail_from": ARAUCANA_MAIL_FROM,
+                    "CORREO": ARAUCANA_CORREO,
+                }
+            )
+        seed_df = pd.DataFrame(seed_rows).reindex(columns=TEMPLATE_COLUMNS_ARAUCANA_ALTERNATIVAS)
+        return pd.concat([seed_df, output.reindex(columns=TEMPLATE_COLUMNS_ARAUCANA_ALTERNATIVAS)], ignore_index=True)
 
     missing = [
         name
