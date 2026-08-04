@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, date, time
 from services.contact_dedupe import dedupe_by_column_keep_first
 
 REQUIRED_COLUMNS = {
-    "RUT": {"rut", "id_cliente", "id cliente"},
+    "RUT": {"rut", "rut+dv", "rutdv", "rut-dv", "rut dv", "rut_dv", "id_cliente", "id cliente"},
     "NOMBRE": {"nombre", "cliente", "contacto"},
     "OPERACION": {"operacion", "operación", "operaciones", "operaciones ", "op", "ope", "oper", "num_op", "n_operacion", "n operación", "nro_operacion", "nro operación", "nro_documento", "nro documento", "documento", "id_credito"},
     "MAIL": {"mail", "correo", "email", "e-mail", "dest_email", "dest_mail", "mail_cliente", "email_cliente"},
@@ -25,6 +25,11 @@ def _find_col(df: pd.DataFrame, logical: str, *, exclude_keywords: set[str] | No
 
 def _normalize_series(series: pd.Series) -> pd.Series:
     return series.astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+
+
+def _rut_without_dv_series(series: pd.Series) -> pd.Series:
+    normalized = _normalize_series(series).str.replace(".", "", regex=False).str.replace(" ", "", regex=False)
+    return normalized.str.split("-", n=1).str[0].str.strip()
 
 
 def _parse_hora(value: str) -> time:
@@ -88,7 +93,7 @@ def build_mail_crm_output(
         raise ValueError("Faltan columnas requeridas en el Excel base: " + ", ".join(faltantes))
     base = dedupe_by_column_keep_first(base, rut_col)
 
-    rut = _normalize_series(base.loc[:, rut_col])
+    rut = _rut_without_dv_series(base.loc[:, rut_col])
     operacion = _normalize_series(base.loc[:, op_col]) if op_col else pd.Series([""] * len(base), index=base.index)
     correo = _normalize_series(base.loc[:, mail_col])
 

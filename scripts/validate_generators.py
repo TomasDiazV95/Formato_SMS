@@ -130,6 +130,21 @@ def validate_mail_itau() -> None:
     assert (output["MES_CURSO"].astype(str).str.strip() != "").any(), "Mail Itau sin MES_CURSO"
     assert "cliente@example.com" in set(output["dest_email"].astype(str)), "Mail Itau no conserva destinatario"
     assert "duplicado@example.com" not in set(output["dest_email"].astype(str)), "Mail Itau no deduplico por RUT"
+
+    from modules.procesos.mail.routes import _filter_mail_crm_seed_rows
+
+    crm_source = _filter_mail_crm_seed_rows(output)
+    crm_mail = build_mail_crm_output(
+        crm_source,
+        fecha=date(2026, 6, 22),
+        hora_inicio="10:00",
+        hora_fin="11:00",
+        usuario_value="VDAD",
+        observacion_value="ENVIO SIN RESPUESTA",
+        require_operacion=False,
+    )
+    crm_emails = {str(item).strip().lower() for item in crm_mail["CORREO"].tolist()}
+    assert crm_emails == {"cliente@example.com"}, "CRM Mail Itau debe excluir semillas"
     print("MAIL_ITAU_OK")
 
 
@@ -341,8 +356,25 @@ def validate_crm_dedupe() -> None:
         observacion_value="MAIL CRM",
     )
     assert len(crm_mail) == 1, "CRM Mail debe deduplicar por RUT"
+    assert crm_mail.loc[0, "RUT"] == "22222222", "CRM Mail debe quitar DV del RUT"
     assert crm_mail.loc[0, "NRO_DOCUMENTO"] == "MAIL1", "CRM Mail no conservo la primera fila"
     assert crm_mail.loc[0, "CORREO"] == "primero@example.com", "CRM Mail no conservo el primer correo"
+
+    crm_mail_tanner = build_mail_crm_output(
+        pd.DataFrame(
+            {
+                "RUT+DV": ["17.189.864-1"],
+                "OPERACION": ["TANNER1"],
+                "dest_email": ["tanner@example.com"],
+            }
+        ),
+        fecha=date(2026, 6, 22),
+        hora_inicio="10:00",
+        hora_fin="11:00",
+        usuario_value="VDAD",
+        observacion_value="",
+    )
+    assert crm_mail_tanner.loc[0, "RUT"] == "17189864", "CRM Mail no reconoce RUT+DV o no quita DV"
 
     crm_mail_itau = build_mail_crm_output(
         pd.DataFrame(
@@ -647,6 +679,10 @@ def validate_santander_consumer() -> None:
             template_key="susceptible",
             offer_deadline=date(2026, 6, 22),
         )
+        output_dacion_concesionario = build_santander_consumer_terreno_output(
+            pd.DataFrame({"OPERACION": ["123456"]}),
+            template_key="dacion_concesionario",
+        )
         medios_pago = build_santander_consumer_terreno_output(
             pd.DataFrame({"OPERACION": ["123456", "123457", "123458", "999999"]}),
             template_key="medios_pago",
@@ -664,6 +700,11 @@ def validate_santander_consumer() -> None:
     assert output_offer.loc[0, "DIA_OFERTA"] == "22", "Santander Consumer no asigno DIA_OFERTA"
     assert output_offer.loc[0, "MES_OFERTA"] == "Junio", "Santander Consumer no asigno MES_OFERTA"
     assert output_offer.loc[0, "ANO_OFERTA"] == "2026", "Santander Consumer no asigno ANO_OFERTA"
+    assert list(output_dacion_concesionario.columns) == OUTPUT_COLUMNS, "Santander Consumer Dacion Concesionario columnas inesperadas"
+    assert output_dacion_concesionario.loc[0, "message_id"] == "100017", "Santander Consumer Dacion Concesionario message_id invalido"
+    assert output_dacion_concesionario.loc[0, "CLIENTE"] == "CLIENTE SC", "Santander Consumer Dacion Concesionario no trae cliente"
+    assert output_dacion_concesionario.loc[0, "EJECUTIVO"] == "Ariel Silva", "Santander Consumer Dacion Concesionario no carteriza ejecutivo"
+    assert output_dacion_concesionario.loc[0, "CORREO"] == "agente@phoenixservice.cl", "Santander Consumer Dacion Concesionario no trae correo ejecutivo"
     assert list(medios_pago.columns) == MEDIOS_PAGO_COLUMNS, "Santander Consumer medios pago columnas inesperadas"
     assert medios_pago.loc[0, "RUT"] == "4444444", "Santander Consumer medios pago sin semilla"
     assert medios_pago.loc[0, "dest_email"] == "pipe5550@gmail.com", "Santander Consumer medios pago semilla email invalida"

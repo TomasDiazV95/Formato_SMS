@@ -101,9 +101,14 @@ def validate_santander_consumer() -> None:
         int(item["message_id"])
     if "medios_pago" not in seen_keys:
         raise AssertionError("Santander Consumer debe incluir medios_pago")
+    if "dacion_concesionario" not in seen_keys:
+        raise AssertionError("Santander Consumer debe incluir dacion_concesionario")
     medios_pago = next(item for item in templates if item.get("key") == "medios_pago")
     if int(medios_pago.get("message_id")) != 85636:
         raise AssertionError("Santander Consumer medios_pago debe usar message_id 85636")
+    dacion_concesionario = next(item for item in templates if item.get("key") == "dacion_concesionario")
+    if int(dacion_concesionario.get("message_id")) != 100017:
+        raise AssertionError("Santander Consumer dacion_concesionario debe usar message_id 100017")
 
     supervisors = _load_json("santander_consumer_supervisors.json")
     for key in ["supervisor_regiones", "supervisor_rm"]:
