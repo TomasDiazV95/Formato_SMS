@@ -18,6 +18,12 @@
     "nro_cuotas": ""
   },
   {
+    "key": "dacion_concesionario",
+    "label": "Dacion Concesionario",
+    "message_id": 100017,
+    "nro_cuotas": ""
+  },
+  {
     "key": "vigente",
     "label": "Vigente",
     "message_id": 80463,

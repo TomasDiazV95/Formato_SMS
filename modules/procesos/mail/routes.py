@@ -8,6 +8,7 @@ import unicodedata
 
 from services.mail_templates import MAIL_TEMPLATE_OPTIONS, build_mail_template, sample_mail_template
 from services.mail_service import build_mail_crm_output
+from services import config_store
 from services.mandante_rules import apply_mandante_rules
 from utils.excel_export import df_to_xlsx_bytes, df_to_xlsx_bytesio
 from utils import api_error_response
@@ -58,13 +59,75 @@ def _zip_mail_outputs(files: list[tuple[str, bytes]]) -> io.BytesIO:
     return zip_bio
 
 
+def _normalize_seed_value(value: object) -> str:
+    return str(value or '').strip().lower()
+
+
+def _mail_seed_exclusions() -> tuple[set[str], set[str]]:
+    rut_values = {'prb', '1', '2', '3', '4', '1-1', '1-2'}
+    email_values = {
+        'pipe5550@gmail.com',
+        'cfuentes@phoenixservice.cl',
+        'jriveros@phoenixservice.cl',
+        'mmondiglio@phoenixservice.cl',
+        'djaraz@laaraucana.cl',
+        'cquintanillar@laaraucana.cl',
+    }
+
+    try:
+        itau_seeds = config_store.read_json('mail_itau_vencida_seeds.json', default=[])
+    except Exception:
+        itau_seeds = []
+    if isinstance(itau_seeds, list):
+        for seed in itau_seeds:
+            if not isinstance(seed, dict):
+                continue
+            for key in ('RUT', 'RUT ', 'RUTDV'):
+                value = _normalize_seed_value(seed.get(key))
+                if value:
+                    rut_values.add(value)
+            email = _normalize_seed_value(seed.get('dest_email'))
+            if email:
+                email_values.add(email)
+
+    try:
+        gm_templates = config_store.read_json('gm_mail_templates.json', default=[])
+    except Exception:
+        gm_templates = []
+    if isinstance(gm_templates, list):
+        for template in gm_templates:
+            if not isinstance(template, dict):
+                continue
+            seed_rows = template.get('seed_rows')
+            if not isinstance(seed_rows, list):
+                continue
+            for seed in seed_rows:
+                if not isinstance(seed, dict):
+                    continue
+                rut = _normalize_seed_value(seed.get('RUT'))
+                if rut:
+                    rut_values.add(rut)
+                email = _normalize_seed_value(seed.get('dest_email'))
+                if email:
+                    email_values.add(email)
+
+    return rut_values, email_values
+
+
 def _filter_mail_crm_seed_rows(df: pd.DataFrame) -> pd.DataFrame:
-    rut_col = next((col for col in df.columns if str(col).strip().lower() in {'rut', 'rut ', 'rut+dv', 'rutdv'}), None)
-    if not rut_col:
+    rut_cols = [col for col in df.columns if str(col).strip().lower() in {'rut', 'rut ', 'rut+dv', 'rutdv', 'rut-dv', 'rut dv'}]
+    email_col = next((col for col in df.columns if str(col).strip().lower() in {'dest_email', 'email', 'mail', 'correo'}), None)
+    if not rut_cols and not email_col:
         return df
-    seed_values = {'prb', '1', '2', '3', '4', '1-1', '1-2'}
-    rut = df[rut_col].fillna('').astype(str).str.strip().str.lower()
-    return df.loc[~rut.isin(seed_values)].copy()
+    seed_ruts, seed_emails = _mail_seed_exclusions()
+    seed_mask = pd.Series(False, index=df.index)
+    for rut_col in rut_cols:
+        rut = df[rut_col].fillna('').astype(str).str.strip().str.lower()
+        seed_mask = seed_mask | rut.isin(seed_ruts)
+    if email_col:
+        email = df[email_col].fillna('').astype(str).str.strip().str.lower()
+        seed_mask = seed_mask | email.isin(seed_emails)
+    return df.loc[~seed_mask].copy()
 
 
 @mail_bp.get('/mail')
