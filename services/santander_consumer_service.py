@@ -58,7 +58,7 @@ MEDIOS_PAGO_FIXED = {
     "message_id": "85636",
     "PLANTILLA": "TEMPRANA",
     "name_from": "Atencion Cliente Consumer",
-    "mail_from": "atencionclientes@estandar.phoenixserviceinfo.cl",
+    "mail_from": "mgalvez@info.phoenixserviceinfo.cl",
     "CORREO": "mgalvez@phoenixservice.cl",
 }
 
@@ -83,6 +83,7 @@ OPERATION_COLUMN_ALIASES = {
     "numero operación",
     "nro_documento",
     "id_credito",
+    "ddas_id_numero_operac",
     "op",
 }
 

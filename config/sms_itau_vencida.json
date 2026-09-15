@@ -15,6 +15,10 @@
     "CAMPANA": {
       "masividad_values": ["SMS CAMPAÑA"],
       "message": "Estimado, por encargo de Itau informa que tu deuda esta en mora y tenemos una oferta para ti. Para mas informacion llama al"
+    },
+    "CAMPANA_NUEVO": {
+      "masividad_values": ["SMS CAMPAÑA NUEVO"],
+      "message": "Estimado, por encargo de Itau informa que tu deuda esta en mora. Evita cargos por gastos de cobranza. Tienes una campaña preaprobada sujeta a evaluacion. Informate al"
     }
   },
   "seeds": [
@@ -137,6 +141,36 @@
       "type": "CAMPANA",
       "phone_local": "957545177",
       "message": "Estimado, por encargo de Itau informa que tu deuda esta en mora y tenemos una oferta para ti. Para mas informacion llama al"
+    },
+    {
+      "type": "CAMPANA_NUEVO",
+      "phone_local": "985881361",
+      "message": "Estimado, por encargo de Itau informa que tu deuda esta en mora. Evita cargos por gastos de cobranza. Tienes una campaña preaprobada sujeta a evaluacion. Informate al"
+    },
+    {
+      "type": "CAMPANA_NUEVO",
+      "phone_local": "938731034",
+      "message": "Estimado, por encargo de Itau informa que tu deuda esta en mora. Evita cargos por gastos de cobranza. Tienes una campaña preaprobada sujeta a evaluacion. Informate al"
+    },
+    {
+      "type": "CAMPANA_NUEVO",
+      "phone_local": "976900353",
+      "message": "Estimado, por encargo de Itau informa que tu deuda esta en mora. Evita cargos por gastos de cobranza. Tienes una campaña preaprobada sujeta a evaluacion. Informate al"
+    },
+    {
+      "type": "CAMPANA_NUEVO",
+      "phone_local": "961035031",
+      "message": "Estimado, por encargo de Itau informa que tu deuda esta en mora. Evita cargos por gastos de cobranza. Tienes una campaña preaprobada sujeta a evaluacion. Informate al"
+    },
+    {
+      "type": "CAMPANA_NUEVO",
+      "phone_local": "979131901",
+      "message": "Estimado, por encargo de Itau informa que tu deuda esta en mora. Evita cargos por gastos de cobranza. Tienes una campaña preaprobada sujeta a evaluacion. Informate al"
+    },
+    {
+      "type": "CAMPANA_NUEVO",
+      "phone_local": "957545177",
+      "message": "Estimado, por encargo de Itau informa que tu deuda esta en mora. Evita cargos por gastos de cobranza. Tienes una campaña preaprobada sujeta a evaluacion. Informate al"
     }
   ]
 }

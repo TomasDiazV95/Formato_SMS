@@ -284,9 +284,25 @@ _DEFAULT_MAIL_TEMPLATE_OPTIONS: list[MailTemplate] = [
         mandante="Itau Vencida",
     ),
     MailTemplate(
+        code="ITAU_VENCIDA_MAIL_100998",
+        label="Itau Vencida - Mail 100998",
+        message_id=100998,
+        institucion="BANCO ITAÚ",
+        segmentoinstitucion="BANCO ITAÚ",
+        mandante="Itau Vencida",
+    ),
+    MailTemplate(
         code="TANNER_MEDIOS_PAGO",
         label="Tanner - Medios de Pago",
         message_id=91869,
+        institucion="TANNER SERVICIOS FINANCIEROS",
+        segmentoinstitucion="TANNER",
+        mandante="Tanner",
+    ),
+    MailTemplate(
+        code="TANNER_MEDIOS_PAGO_CASTIGO",
+        label="Tanner - Medios de Pago Castigo",
+        message_id=100941,
         institucion="TANNER SERVICIOS FINANCIEROS",
         segmentoinstitucion="TANNER",
         mandante="Tanner",
@@ -359,7 +375,7 @@ def build_mail_template(df: pd.DataFrame, template_code: str, mandante: Optional
         return _build_sc_telefonia_descuento(df, template)
     if template_code == "SC_TELEFONIA_MEDIOS_PAGO":
         return _build_sc_telefonia_medios_pago(df, template)
-    if template_code == "ITAU_VENCIDA_MAIL":
+    if template_code in ITAU_VENCIDA_TEMPLATE_CODES:
         from services.mail_itau_vencida import build_itau_vencida
 
         return build_itau_vencida(df, template, mandante)
@@ -371,7 +387,7 @@ def build_mail_template(df: pd.DataFrame, template_code: str, mandante: Optional
         return _build_araucana_mail(df, template, template_date=template_date)
     if template_code in GM_TEMPLATE_CODE_TO_KEY:
         return _build_gm_mail_from_origin(df, template)
-    if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
+    if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_MEDIOS_PAGO_CASTIGO", "TANNER_CASTIGO"}:
         return _build_tanner_medios_pago(df, template, mandante)
     if template_code == "SCJ_COBRANZA":
         return _build_scj_cobranza(df, template, mandante)
@@ -397,7 +413,7 @@ def sample_mail_template(template_code: str) -> pd.DataFrame:
             "MAIL": ["cliente1@example.com", "cliente2@example.com"],
         })
         return build_mail_template(sample_df, template_code, mandante="Santander Consumer Telefonía")
-    if template_code == "ITAU_VENCIDA_MAIL":
+    if template_code in ITAU_VENCIDA_TEMPLATE_CODES:
         sample_df = pd.DataFrame({
             "Oper": ["000000000000000002046954", "000000000000000002094727"],
             "RUT": ["13433958", "9561969"],
@@ -468,7 +484,7 @@ def sample_mail_template(template_code: str) -> pd.DataFrame:
             "MAIL": ["gmdesc1@example.com", "gmdesc2@example.com"],
         })
         return build_mail_template(sample_df, template_code, mandante="General Motors")
-    if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_CASTIGO"}:
+    if template_code in {"TANNER_MEDIOS_PAGO", "TANNER_MEDIOS_PAGO_CASTIGO", "TANNER_CASTIGO"}:
         sample_df = pd.DataFrame({
             "RUT+DV": ["11.111.111-1", "22.222.222-2"],
             "OPERACION": ["890123", "567890"],
@@ -645,8 +661,42 @@ def _build_tanner_medios_pago(df: pd.DataFrame, template: MailTemplate, mandante
         "ANO": [year_str] * count,
     }
 
-    output = pd.DataFrame(data)
-    return output.reindex(columns=TEMPLATE_COLUMNS_TANNER)
+    output = pd.DataFrame(data).reindex(columns=TEMPLATE_COLUMNS_TANNER)
+    seed_rows = []
+    for seed in TANNER_SEEDS:
+        seed_rows.append(
+            {
+                "INSTITUCIÓN": template.institucion,
+                "SEGMENTOINSTITUCIÓN": template.segmentoinstitucion,
+                "message_id": template.message_id,
+                "RUT+DV": seed["RUT+DV"],
+                "OPERACION": seed["OPERACION"],
+                "dest_email": seed["dest_email"],
+                "name_from": TANNER_SEED_AGENT["name_from"],
+                "mail_from": TANNER_SEED_AGENT["mail_from"],
+                "NOMBRE_AGENTE": TANNER_SEED_AGENT["NOMBRE_AGENTE"],
+                "MAIL_AGENTE": TANNER_SEED_AGENT["MAIL_AGENTE"],
+                "PHONO_AGENTE": TANNER_SEED_AGENT["PHONO_AGENTE"],
+                "MES": month_name,
+                "ANO": year_str,
+            }
+        )
+    seed_df = pd.DataFrame(seed_rows).reindex(columns=TEMPLATE_COLUMNS_TANNER)
+    return pd.concat([seed_df, output], ignore_index=True).reindex(columns=TEMPLATE_COLUMNS_TANNER)
+
+
+TANNER_SEED_AGENT = {
+    "name_from": "Marnolis Coromoto Perez Araujo",
+    "mail_from": "mperez@info.phoenixserviceinfo.cl",
+    "NOMBRE_AGENTE": "Marnolis Coromoto Perez Araujo",
+    "MAIL_AGENTE": "mperez@phlegal.cl",
+    "PHONO_AGENTE": "979289776",
+}
+
+TANNER_SEEDS = [
+    {"RUT+DV": "1-1", "OPERACION": "123", "dest_email": "cluco@phlegal.cl"},
+    {"RUT+DV": "1-2", "OPERACION": "321", "dest_email": "mperez@phlegal.cl"},
+]
 
 
 ITAU_CASTIGO_SENDERS = {
@@ -667,6 +717,8 @@ ITAU_CASTIGO_SENDERS = {
     },
 }
 
+ITAU_VENCIDA_TEMPLATE_CODES = {"ITAU_VENCIDA_MAIL", "ITAU_VENCIDA_MAIL_100998"}
+
 ITAU_CASTIGO_SEEDS = [
     {"RUT": "1-1", "OPERACION": "1234", "dest_email": "pipe5550@gmail.com"},
     {"RUT": "1-2", "OPERACION": "1234", "dest_email": "jriveros@phoenixservice.cl"},
@@ -684,7 +736,7 @@ BIT_SEEDS = [
 ARAUCANA_TEMPLATE_CODES = {"ARAUCANA_CESANTES_86391", "ARAUCANA_MEDIO_PAGO_93887", "ARAUCANA_ALTERNATIVAS_PAGO_86256"}
 ARAUCANA_ALTERNATIVAS_CODE = "ARAUCANA_ALTERNATIVAS_PAGO_86256"
 ARAUCANA_NAME_FROM = "CAJA LA ARAUCANA"
-ARAUCANA_MAIL_FROM = "atencionclientes@estandar.phoenixserviceinfo.cl"
+ARAUCANA_MAIL_FROM = "mmondiglio@info.phoenixserviceinfo.cl"
 ARAUCANA_CORREO = "mmondiglio@phoenixservice.cl"
 ARAUCANA_SEEDS = [
     {"NOMBRE": "Melanie", "dest_email": "mmondiglio@phoenixservice.cl", "RUT": "1"},
@@ -1181,6 +1233,16 @@ def _load_itau_seed_rows() -> list[dict[str, str]]:
 
 SCJ_PLANTILLA_VALUE = "CobranzaP"
 SCJ_TELEFONO = "930609666"
+SCJ_SEED_AGENT = {
+    "name_from": "Martina Antonia Parra Villar",
+    "mail_from": "mparra@info.phoenixserviceinfo.cl",
+    "MAIL_AGENTE": "mparra@phlegal.cl",
+    "PHONO_AGENTE": "930609666",
+    "NOMBRE_AGENTE": "Martina Antonia Parra Villar",
+}
+SCJ_SEEDS = [
+    {"RUT": "1-1", "NUM_OP": "123", "dest_email": "cluco@phlegal.cl"},
+]
 
 
 def _build_scj_cobranza(df: pd.DataFrame, template: MailTemplate, mandante: Optional[str]) -> pd.DataFrame:
@@ -1294,8 +1356,28 @@ def _build_scj_cobranza(df: pd.DataFrame, template: MailTemplate, mandante: Opti
         "NOMBRE_AGENTE": nombre_agente_values,
     }
 
-    output = pd.DataFrame(data)
-    return output.reindex(columns=TEMPLATE_COLUMNS_SCJ)
+    output = pd.DataFrame(data).reindex(columns=TEMPLATE_COLUMNS_SCJ)
+    seed_rows = []
+    for seed in SCJ_SEEDS:
+        seed_rows.append(
+            {
+                "INSTITUCIÓN": template.institucion,
+                "SEGMENTOINSTITUCIÓN": template.segmentoinstitucion,
+                "message_id": template.message_id,
+                "PLANTILLA": SCJ_PLANTILLA_VALUE,
+                "RUT": seed["RUT"],
+                "NUM_OP": seed["NUM_OP"],
+                "name_from": SCJ_SEED_AGENT["name_from"],
+                "dest_email": seed["dest_email"],
+                "mail_from": SCJ_SEED_AGENT["mail_from"],
+                "MAIL_AGENTE": SCJ_SEED_AGENT["MAIL_AGENTE"],
+                "PHONO_AGENTE": SCJ_SEED_AGENT["PHONO_AGENTE"],
+                "telefono": SCJ_TELEFONO,
+                "NOMBRE_AGENTE": SCJ_SEED_AGENT["NOMBRE_AGENTE"],
+            }
+        )
+    seed_df = pd.DataFrame(seed_rows).reindex(columns=TEMPLATE_COLUMNS_SCJ)
+    return pd.concat([seed_df, output], ignore_index=True).reindex(columns=TEMPLATE_COLUMNS_SCJ)
 
 
 SC_TELEFONIA_PLANTILLA = "TEMPRANA"

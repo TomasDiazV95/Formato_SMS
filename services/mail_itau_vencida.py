@@ -120,4 +120,5 @@ def build_itau_vencida(df: pd.DataFrame, template, mandante: Optional[str]) -> p
     if not seeds:
         return output
     seeds_df = pd.DataFrame(seeds).reindex(columns=mt.TEMPLATE_COLUMNS_ITAU_VENCIDA).fillna("")
+    seeds_df["message_id"] = str(template.message_id)
     return pd.concat([seeds_df, output], ignore_index=True)
