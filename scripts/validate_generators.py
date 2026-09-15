@@ -48,8 +48,8 @@ def validate_sms_itau() -> None:
         sms_itau_vencida.ejecutivos_repo.list_ejecutivos = lambda mandante=None, activos=True: [_fake_ejecutivo()]
         df = pd.DataFrame(
             {
-                "CARTERIZADO": ["Ariel Silva", "Ariel Silva", "Ariel Silva", "Ariel Silva"],
-                "MASIVIDAD": ["SMS MOROSIDAD", "SMS COMPROMISO DE PAGO", "SMS COMPROMISO ROTO", "SMS CAMPAÑA"],
+                "CARTERIZADO": ["Ariel Silva", "Ariel Silva", "Ariel Silva", "Ariel Silva", "Ariel Silva"],
+                "MASIVIDAD": ["SMS MOROSIDAD", "SMS COMPROMISO DE PAGO", "SMS COMPROMISO ROTO", "SMS CAMPAÑA", "SMS CAMPAÑA NUEVO"],
             }
         )
         messages = sms_itau_vencida.build_itau_carterizado_messages(df, "Itau Vencida")
@@ -61,13 +61,15 @@ def validate_sms_itau() -> None:
         sms_itau_vencida.ejecutivos_repo.fetch_by_mandante_and_nombre = original_fetch
         sms_itau_vencida.ejecutivos_repo.list_ejecutivos = original_list
 
-    assert len(messages) == 4, "SMS Itau debe generar mensajes"
+    assert len(messages) == 5, "SMS Itau debe generar mensajes"
     assert "Itau" in messages.iloc[0], "SMS Itau no contiene texto esperado"
     assert "56912345678" in messages.iloc[0], "SMS Itau no agrega telefono de ejecutivo"
     assert "tenemos una oferta para ti" in messages.iloc[3], "SMS Campaña no contiene texto esperado"
     assert "56912345678" in messages.iloc[3], "SMS Campaña no agrega telefono de ejecutivo"
-    assert axia_seed_count == 24 and len(axia_seeded) == len(axia) - 1 + 24, "SMS Itau AXIA debe agregar 24 semillas"
-    assert athenas_seed_count == 24 and len(athenas_seeded) == len(athenas) - 1 + 24, "SMS Itau Athenas debe agregar 24 semillas"
+    assert "campaña preaprobada" in messages.iloc[4], "SMS Campaña Nuevo no contiene texto esperado"
+    assert "56912345678" in messages.iloc[4], "SMS Campaña Nuevo no agrega telefono de ejecutivo"
+    assert axia_seed_count == 30 and len(axia_seeded) == len(axia) - 1 + 30, "SMS Itau AXIA debe agregar 30 semillas"
+    assert athenas_seed_count == 30 and len(athenas_seeded) == len(athenas) - 1 + 30, "SMS Itau Athenas debe agregar 30 semillas"
     print("SMS_ITAU_OK")
 
 
@@ -121,6 +123,7 @@ def validate_mail_itau() -> None:
             }
         )
         output = build_mail_template(df, "ITAU_VENCIDA_MAIL", mandante="Itau Vencida")
+        output_100998 = build_mail_template(df, "ITAU_VENCIDA_MAIL_100998", mandante="Itau Vencida")
     finally:
         mail_templates.ejecutivos_repo.fetch_by_mandante_and_nombre = original_fetch
         mail_templates.ejecutivos_repo.list_ejecutivos = original_list
@@ -130,6 +133,10 @@ def validate_mail_itau() -> None:
     assert (output["MES_CURSO"].astype(str).str.strip() != "").any(), "Mail Itau sin MES_CURSO"
     assert "cliente@example.com" in set(output["dest_email"].astype(str)), "Mail Itau no conserva destinatario"
     assert "duplicado@example.com" not in set(output["dest_email"].astype(str)), "Mail Itau no deduplico por RUT"
+    assert list(output_100998.columns) == TEMPLATE_COLUMNS_ITAU_VENCIDA, "Mail Itau 100998 columnas inesperadas"
+    assert set(output_100998["message_id"].astype(str)) == {"100998"}, "Mail Itau 100998 message_id invalido"
+    assert "cliente@example.com" in set(output_100998["dest_email"].astype(str)), "Mail Itau 100998 no conserva destinatario"
+    assert "duplicado@example.com" not in set(output_100998["dest_email"].astype(str)), "Mail Itau 100998 no deduplico por RUT"
 
     from modules.procesos.mail.routes import _filter_mail_crm_seed_rows
 
@@ -161,9 +168,16 @@ def validate_mail_template_dedupe() -> None:
         }
     )
     tanner_mp = build_mail_template(tanner_base, "TANNER_MEDIOS_PAGO", mandante=None)
+    tanner_mp_castigo = build_mail_template(tanner_base, "TANNER_MEDIOS_PAGO_CASTIGO", mandante=None)
     tanner_castigo = build_mail_template(tanner_base, "TANNER_CASTIGO", mandante=None)
-    assert len(tanner_mp) == 1 and tanner_mp.loc[0, "OPERACION"] == "OP1", "Tanner Medios Pago no deduplico por RUT"
-    assert len(tanner_castigo) == 1 and tanner_castigo.loc[0, "OPERACION"] == "OP1", "Tanner Castigo no deduplico por RUT"
+    assert len(tanner_mp) == 3 and tanner_mp.loc[2, "OPERACION"] == "OP1", "Tanner Medios Pago no deduplico por RUT"
+    assert list(tanner_mp["dest_email"].astype(str).head(2)) == ["cluco@phlegal.cl", "mperez@phlegal.cl"], "Tanner sin semillas esperadas"
+    assert list(tanner_mp["RUT+DV"].astype(str).head(2)) == ["1-1", "1-2"], "Tanner semillas sin RUT esperado"
+    assert list(tanner_mp["OPERACION"].astype(str).head(2)) == ["123", "321"], "Tanner semillas sin operacion esperada"
+    assert tanner_mp.loc[0, "mail_from"] == "mperez@info.phoenixserviceinfo.cl", "Tanner semilla mail_from invalido"
+    assert len(tanner_mp_castigo) == 3 and tanner_mp_castigo.loc[2, "OPERACION"] == "OP1", "Tanner Medios Pago Castigo no deduplico por RUT"
+    assert tanner_mp_castigo.loc[0, "message_id"] == 100941, "Tanner Medios Pago Castigo message_id invalido"
+    assert len(tanner_castigo) == 3 and tanner_castigo.loc[2, "OPERACION"] == "OP1", "Tanner Castigo no deduplico por RUT"
 
     scj = build_mail_template(
         pd.DataFrame(
@@ -180,7 +194,9 @@ def validate_mail_template_dedupe() -> None:
         "SCJ_COBRANZA",
         mandante="Santander Consumer Judicial",
     )
-    assert len(scj) == 1 and scj.loc[0, "NUM_OP"] == "SCJ1", "SCJ Cobranza no deduplico por RUT"
+    assert len(scj) == 2 and scj.loc[1, "NUM_OP"] == "SCJ1", "SCJ Cobranza no deduplico por RUT"
+    assert scj.loc[0, "dest_email"] == "cluco@phlegal.cl", "SCJ Cobranza sin semilla esperada"
+    assert scj.loc[0, "mail_from"] == "mparra@info.phoenixserviceinfo.cl", "SCJ Cobranza semilla mail_from invalido"
 
     sc_mp = build_mail_template(
         pd.DataFrame(
@@ -278,7 +294,7 @@ def validate_araucana_mail() -> None:
     assert cesantes.loc[0, "message_id"] == 86391, "Araucana Cesantes message_id invalido"
     assert medio_pago.loc[0, "message_id"] == 93887, "Araucana Medio Pago message_id invalido"
     assert cesantes.loc[0, "name_from"] == "CAJA LA ARAUCANA", "Araucana name_from invalido"
-    assert cesantes.loc[0, "mail_from"] == "atencionclientes@estandar.phoenixserviceinfo.cl", "Araucana mail_from invalido"
+    assert cesantes.loc[0, "mail_from"] == "mmondiglio@info.phoenixserviceinfo.cl", "Araucana mail_from invalido"
     assert cesantes.loc[0, "CORREO"] == "mmondiglio@phoenixservice.cl", "Araucana CORREO invalido"
     assert "duplicado-rut@example.com" not in set(cesantes["dest_email"].astype(str)), "Araucana no deduplico RUT"
     assert "JARACIFUENTESMILTON@GMAIL.COM" not in set(cesantes["dest_email"].astype(str)), "Araucana no deduplico email normalizado"
@@ -683,8 +699,12 @@ def validate_santander_consumer() -> None:
             pd.DataFrame({"OPERACION": ["123456"]}),
             template_key="dacion_concesionario",
         )
+        output_alias_operacion = build_santander_consumer_terreno_output(
+            pd.DataFrame({"DDAS_ID_NUMERO_OPERAC": ["123456"]}),
+            template_key="vigente",
+        )
         medios_pago = build_santander_consumer_terreno_output(
-            pd.DataFrame({"OPERACION": ["123456", "123457", "123458", "999999"]}),
+            pd.DataFrame({"DDAS_ID_NUMERO_OPERAC": ["123456", "123457", "123458", "999999"]}),
             template_key="medios_pago",
         )
     finally:
@@ -700,6 +720,7 @@ def validate_santander_consumer() -> None:
     assert output_offer.loc[0, "DIA_OFERTA"] == "22", "Santander Consumer no asigno DIA_OFERTA"
     assert output_offer.loc[0, "MES_OFERTA"] == "Junio", "Santander Consumer no asigno MES_OFERTA"
     assert output_offer.loc[0, "ANO_OFERTA"] == "2026", "Santander Consumer no asigno ANO_OFERTA"
+    assert output_alias_operacion.loc[0, "NRO_OPERACION"] == "123456", "Santander Consumer no reconoce DDAS_ID_NUMERO_OPERAC"
     assert list(output_dacion_concesionario.columns) == OUTPUT_COLUMNS, "Santander Consumer Dacion Concesionario columnas inesperadas"
     assert output_dacion_concesionario.loc[0, "message_id"] == "100017", "Santander Consumer Dacion Concesionario message_id invalido"
     assert output_dacion_concesionario.loc[0, "CLIENTE"] == "CLIENTE SC", "Santander Consumer Dacion Concesionario no trae cliente"
@@ -711,7 +732,7 @@ def validate_santander_consumer() -> None:
     assert medios_pago.loc[0, "message_id"] == "85636", "Santander Consumer medios pago message_id invalido"
     assert medios_pago.loc[0, "PLANTILLA"] == "TEMPRANA", "Santander Consumer medios pago PLANTILLA invalida"
     assert medios_pago.loc[0, "name_from"] == "Atencion Cliente Consumer", "Santander Consumer medios pago name_from invalido"
-    assert medios_pago.loc[0, "mail_from"] == "atencionclientes@estandar.phoenixserviceinfo.cl", "Santander Consumer medios pago mail_from invalido"
+    assert medios_pago.loc[0, "mail_from"] == "mgalvez@info.phoenixserviceinfo.cl", "Santander Consumer medios pago mail_from invalido"
     assert medios_pago.loc[0, "CORREO"] == "mgalvez@phoenixservice.cl", "Santander Consumer medios pago CORREO invalido"
     assert list(medios_pago["NRO_OPERACION"].astype(str)) == ["12345", "123456", "999999"], "Santander Consumer medios pago no deduplico/conservo operacion esperada"
     assert medios_pago.loc[1, "RUT"] == "11111111-1", "Santander Consumer medios pago no mapea RUT"

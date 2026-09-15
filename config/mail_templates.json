@@ -24,6 +24,14 @@
     "mandante": "Itau Vencida"
   },
   {
+    "code": "ITAU_VENCIDA_MAIL_100998",
+    "label": "Itau Vencida - Mail 100998",
+    "message_id": 100998,
+    "institucion": "BANCO ITAÚ",
+    "segmentoinstitucion": "BANCO ITAÚ",
+    "mandante": "Itau Vencida"
+  },
+  {
     "code": "ITAU_CASTIGO_SIN_DIRECCION_INGRID",
     "label": "Itau Castigo - Sin Direccion Ingrid",
     "message_id": 97032,
@@ -115,6 +123,14 @@
     "code": "TANNER_MEDIOS_PAGO",
     "label": "Tanner - Medios de Pago",
     "message_id": 91869,
+    "institucion": "TANNER SERVICIOS FINANCIEROS",
+    "segmentoinstitucion": "TANNER",
+    "mandante": "Tanner"
+  },
+  {
+    "code": "TANNER_MEDIOS_PAGO_CASTIGO",
+    "label": "Tanner - Medios de Pago Castigo",
+    "message_id": 100941,
     "institucion": "TANNER SERVICIOS FINANCIEROS",
     "segmentoinstitucion": "TANNER",
     "mandante": "Tanner"

@@ -69,6 +69,8 @@ def _mail_seed_exclusions() -> tuple[set[str], set[str]]:
         'pipe5550@gmail.com',
         'cfuentes@phoenixservice.cl',
         'jriveros@phoenixservice.cl',
+        'cluco@phlegal.cl',
+        'mperez@phlegal.cl',
         'mmondiglio@phoenixservice.cl',
         'djaraz@laaraucana.cl',
         'cquintanillar@laaraucana.cl',
