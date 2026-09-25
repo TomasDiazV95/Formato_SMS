@@ -5,6 +5,7 @@ import Cargas from './modules/cargas/CargasPage'
 import Resultantes from './modules/resultantes/ResultantesPage'
 import SmsPage from './modules/procesos/sms/SmsPage'
 import IvrPage from './modules/procesos/ivr/IvrPage'
+import ItauVencidaPage from './modules/procesos/itau_vencida/ItauVencidaPage'
 import MailPage from './modules/procesos/mail/MailPage'
 import CrmPage from './modules/procesos/crm/CrmPage'
 import GmMailPage from './modules/procesos/gm_mail/GmMailPage'
@@ -23,6 +24,7 @@ function App() {
       <Route path="/" element={<Portal />} />
       <Route path="/procesos" element={<Procesos />} />
       <Route path="/procesos/ivr" element={<IvrPage />} />
+      <Route path="/procesos/itau-vencida" element={<ItauVencidaPage />} />
       <Route path="/procesos/mail" element={<MailPage />} />
       <Route path="/procesos/crm" element={<CrmPage />} />
       <Route path="/procesos/gm-mail" element={<GmMailPage />} />

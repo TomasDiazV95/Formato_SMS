@@ -6,6 +6,28 @@ from datetime import date, datetime
 from utils.db_sqlserver import get_stc_connection
 
 
+SC_TERRENO_BLOCKED_EMAILS = frozenset(
+    {
+        "administracion@ingtm.net",
+        "aaa@gmail.com",
+        "aaaa@gmail.com",
+        "sdfd@gmail.com",
+        "abc@gmail.com",
+    }
+)
+SC_TERRENO_BLOCKED_EMAIL_DOMAINS = frozenset({"phoenixservice.cl"})
+
+
+def is_blocked_terreno_email(value: object) -> bool:
+    email = str(value or "").strip().lower()
+    if not email:
+        return False
+    if email in SC_TERRENO_BLOCKED_EMAILS:
+        return True
+    _, separator, domain = email.rpartition("@")
+    return bool(separator and domain in SC_TERRENO_BLOCKED_EMAIL_DOMAINS)
+
+
 def normalize_operation(value: object) -> str:
     text = str(value or "").strip()
     if not text:
@@ -94,34 +116,56 @@ def fetch_emails_by_rut(ruts: list[str]) -> dict[str, str]:
     if not ruts:
         return {}
 
+    today = date.today()
+    month_start = date(today.year, today.month, 1)
+    if today.month == 12:
+        next_month_start = date(today.year + 1, 1, 1)
+    else:
+        next_month_start = date(today.year, today.month + 1, 1)
+
     query_template = """
-    WITH ranked_emails AS (
-        SELECT
-            rut,
-            email,
-            ROW_NUMBER() OVER (
-                PARTITION BY LTRIM(RTRIM(CAST(rut AS nvarchar(64))))
-                ORDER BY fecha_carga DESC
-            ) AS rn
-        FROM dbo.emails_carga
-        WHERE LTRIM(RTRIM(CAST(rut AS nvarchar(64)))) IN ({placeholders})
-    )
-    SELECT rut, email
-    FROM ranked_emails
-    WHERE rn = 1
+    SELECT rut, email, ranking, fecha_carga
+    FROM dbo.emails_carga
+    WHERE cartera = ?
+      AND ranking IN (1, 2, 3)
+      AND fecha_carga >= ?
+      AND fecha_carga < ?
+      AND LTRIM(RTRIM(CAST(rut AS nvarchar(64)))) IN ({placeholders})
+    ORDER BY
+        LTRIM(RTRIM(CAST(rut AS nvarchar(64)))),
+        ranking ASC,
+        fecha_carga DESC
     """
 
     result: dict[str, str] = {}
     chunk_size = 1000
     with get_stc_connection() as conn:
         cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT COUNT(*)
+            FROM dbo.emails_carga
+            WHERE cartera = ?
+              AND fecha_carga >= ?
+              AND fecha_carga < ?
+            """,
+            ("525", month_start, next_month_start),
+        )
+        current_month_rows = int(cur.fetchone()[0] or 0)
+        if current_month_rows == 0:
+            raise ValueError("Los mails de Santander Consumer Terreno para el mes actual no están cargados.")
+
         for i in range(0, len(ruts), chunk_size):
             chunk = ruts[i:i + chunk_size]
             placeholders = ", ".join("?" for _ in chunk)
             query = query_template.format(placeholders=placeholders)
-            cur.execute(query, chunk)
+            cur.execute(query, ("525", month_start, next_month_start, *chunk))
             for row in cur.fetchall():
                 rut_key = rut_only_numbers(row[0])
-                if rut_key:
-                    result[rut_key] = str(row[1] or "").strip()
+                if not rut_key or rut_key in result:
+                    continue
+                email = str(row[1] or "").strip()
+                if is_blocked_terreno_email(email):
+                    continue
+                result[rut_key] = email
     return result

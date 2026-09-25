@@ -60,20 +60,13 @@ def validate_sms_itau() -> None:
         _require_fields(item, ["message", "masividad_values"], label=f"template SMS {key}")
         if not isinstance(item["masividad_values"], list) or not item["masividad_values"]:
             raise AssertionError(f"template SMS sin masividades: {key}")
-    if "CAMPANA" not in templates:
-        raise AssertionError("sms_itau_vencida.json debe incluir CAMPANA")
-    if "SMS CAMPAÑA" not in templates["CAMPANA"].get("masividad_values", []):
-        raise AssertionError("SMS Campaña debe aceptar MASIVIDAD SMS CAMPAÑA")
     if "CAMPANA_NUEVO" not in templates:
         raise AssertionError("sms_itau_vencida.json debe incluir CAMPANA_NUEVO")
-    if "SMS CAMPAÑA NUEVO" not in templates["CAMPANA_NUEVO"].get("masividad_values", []):
-        raise AssertionError("SMS Campaña Nuevo debe aceptar MASIVIDAD SMS CAMPAÑA NUEVO")
-    campana_seeds = [item for item in seeds if isinstance(item, dict) and item.get("type") == "CAMPANA"]
-    if len(campana_seeds) != 6:
-        raise AssertionError("SMS Campaña debe tener 6 semillas")
+    if "SMS CAMPAÑA" not in templates["CAMPANA_NUEVO"].get("masividad_values", []):
+        raise AssertionError("SMS Campaña debe aceptar MASIVIDAD SMS CAMPAÑA")
     campana_nuevo_seeds = [item for item in seeds if isinstance(item, dict) and item.get("type") == "CAMPANA_NUEVO"]
     if len(campana_nuevo_seeds) != 6:
-        raise AssertionError("SMS Campaña Nuevo debe tener 6 semillas")
+        raise AssertionError("SMS Campaña debe tener 6 semillas")
     for item in seeds:
         if not isinstance(item, dict):
             raise AssertionError("seed SMS invalida")

@@ -76,6 +76,38 @@ def _get_executive_value(ejecutivo, field: str) -> str:
     return str(getattr(ejecutivo, field, None) or "").strip()
 
 
+def _clean_dest_email(value: object) -> str:
+    email = str(value or "").strip()
+    if not email:
+        return ""
+    lower = email.lower()
+    if not EMAIL_RE.match(lower):
+        return ""
+    if lower.startswith(".") or lower.endswith(".") or ".." in lower:
+        return ""
+    local, domain = lower.rsplit("@", 1)
+    if len(local) < 3 or len(domain) < 4:
+        return ""
+    if local.startswith(".") or local.endswith(".") or ".." in local:
+        return ""
+    if domain.startswith(".") or domain.endswith(".") or ".." in domain:
+        return ""
+    if "." not in domain:
+        return ""
+    domain_name, extension = domain.rsplit(".", 1)
+    if len(domain_name) < 2 or len(extension) < 2:
+        return ""
+    compact_local = re.sub(r"[^a-z0-9]", "", local)
+    if compact_local and len(set(compact_local)) == 1:
+        return ""
+    garbage_tokens = {"test", "prueba", "correo", "email", "mail", "sinmail", "noemail", "nomail"}
+    if compact_local in garbage_tokens or domain_name in garbage_tokens:
+        return ""
+    if domain in {"test.com", "correo.com", "email.com", "mail.com", "prueba.com"}:
+        return ""
+    return email
+
+
 def build_sc_telefonia_mail_output(
     df_origin: pd.DataFrame,
     *,
@@ -143,12 +175,12 @@ def build_sc_telefonia_mail_output(
     if output.empty:
         return output
 
-    valid_email = output["dest_email"].astype(str).str.strip().str.match(EMAIL_RE, na=False)
-    empty_email = output["dest_email"].astype(str).str.strip() == ""
-    output = output[valid_email | empty_email].reset_index(drop=True)
+    output["dest_email"] = output["dest_email"].apply(_clean_dest_email)
     for column in dedupe_columns:
         if column == "dest_email":
-            output = dedupe_by_column_keep_first_normalized(output, column).reset_index(drop=True)
+            non_empty = output[column].astype(str).str.strip() != ""
+            with_email = dedupe_by_column_keep_first_normalized(output.loc[non_empty].copy(), column)
+            output = pd.concat([with_email, output.loc[~non_empty].copy()], ignore_index=True)
         else:
             output = dedupe_by_column_keep_first(output, column).reset_index(drop=True)
     return output[columns].reset_index(drop=True)
