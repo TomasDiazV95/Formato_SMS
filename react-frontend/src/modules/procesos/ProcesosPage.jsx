@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 
 const procesos = [
   { title: 'SMS', description: 'Masividades Athenas/AXIA + CRM', to: '/procesos/sms', icon: '📩', disabled: false },
+  { title: 'ITAU VENCIDA', description: 'SMS, Mail y CRM desde una base completa', to: '/procesos/itau-vencida', icon: '🏦', disabled: false },
   { title: 'IVR', description: 'Cargas Athenas y CRM', to: '/procesos/ivr', icon: '📞', disabled: false },
   { title: 'Mail', description: 'Plantillas y carga CRM', to: '/procesos/mail', icon: '✉️', disabled: false },
   { title: 'CRM (Formulario 2)', description: 'Creacion de archivo final CRM', to: '/procesos/crm', icon: '🧩', disabled: false },

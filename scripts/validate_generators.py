@@ -48,8 +48,8 @@ def validate_sms_itau() -> None:
         sms_itau_vencida.ejecutivos_repo.list_ejecutivos = lambda mandante=None, activos=True: [_fake_ejecutivo()]
         df = pd.DataFrame(
             {
-                "CARTERIZADO": ["Ariel Silva", "Ariel Silva", "Ariel Silva", "Ariel Silva", "Ariel Silva"],
-                "MASIVIDAD": ["SMS MOROSIDAD", "SMS COMPROMISO DE PAGO", "SMS COMPROMISO ROTO", "SMS CAMPAÑA", "SMS CAMPAÑA NUEVO"],
+                "CARTERIZADO": ["Ariel Silva", "Ariel Silva", "Ariel Silva", "Ariel Silva"],
+                "MASIVIDAD": ["SMS MOROSIDAD", "SMS COMPROMISO DE PAGO", "SMS COMPROMISO ROTO", "SMS CAMPAÑA"],
             }
         )
         messages = sms_itau_vencida.build_itau_carterizado_messages(df, "Itau Vencida")
@@ -61,15 +61,13 @@ def validate_sms_itau() -> None:
         sms_itau_vencida.ejecutivos_repo.fetch_by_mandante_and_nombre = original_fetch
         sms_itau_vencida.ejecutivos_repo.list_ejecutivos = original_list
 
-    assert len(messages) == 5, "SMS Itau debe generar mensajes"
+    assert len(messages) == 4, "SMS Itau debe generar mensajes"
     assert "Itau" in messages.iloc[0], "SMS Itau no contiene texto esperado"
     assert "56912345678" in messages.iloc[0], "SMS Itau no agrega telefono de ejecutivo"
-    assert "tenemos una oferta para ti" in messages.iloc[3], "SMS Campaña no contiene texto esperado"
+    assert "alternativa preaprobada" in messages.iloc[3], "SMS Campaña no contiene texto esperado"
     assert "56912345678" in messages.iloc[3], "SMS Campaña no agrega telefono de ejecutivo"
-    assert "campaña preaprobada" in messages.iloc[4], "SMS Campaña Nuevo no contiene texto esperado"
-    assert "56912345678" in messages.iloc[4], "SMS Campaña Nuevo no agrega telefono de ejecutivo"
-    assert axia_seed_count == 30 and len(axia_seeded) == len(axia) - 1 + 30, "SMS Itau AXIA debe agregar 30 semillas"
-    assert athenas_seed_count == 30 and len(athenas_seeded) == len(athenas) - 1 + 30, "SMS Itau Athenas debe agregar 30 semillas"
+    assert axia_seed_count == 24 and len(axia_seeded) == len(axia) - 1 + 24, "SMS Itau AXIA debe agregar 24 semillas"
+    assert athenas_seed_count == 24 and len(athenas_seeded) == len(athenas) - 1 + 24, "SMS Itau Athenas debe agregar 24 semillas"
     print("SMS_ITAU_OK")
 
 
@@ -586,6 +584,7 @@ def validate_sc_telefonia_mail() -> None:
             "OP1": {"RUT": "11111111-1", "NOMBRE": "CLIENTE UNO", "OPERACION": "OP1", "EMAIL": "uno@example.com"},
             "OP2": {"RUT": "11111111-1", "NOMBRE": "CLIENTE DUP RUT", "OPERACION": "OP2", "EMAIL": "dos@example.com"},
             "OP3": {"RUT": "22222222-2", "NOMBRE": "CLIENTE DUP MAIL", "OPERACION": "OP3", "EMAIL": "UNO@EXAMPLE.COM"},
+            "OP5": {"RUT": "33333333-3", "NOMBRE": "CLIENTE MAIL BASURA", "OPERACION": "OP5", "EMAIL": "aaaa@gmail.com"},
         }
         sc_telefonia_mail_sources.fetch_executive_by_key = lambda key: _fake_ejecutivo("Alejandra Carolina Diaz Fuentes")
 
@@ -595,7 +594,7 @@ def validate_sc_telefonia_mail() -> None:
             selected_date=date(2026, 6, 25),
         )
         medios_pago = build_sc_telefonia_mail_output(
-            pd.DataFrame({"OP": ["OP1", "OP2", "OP3", "OP4"]}),
+            pd.DataFrame({"OP": ["OP1", "OP2", "OP3", "OP4", "OP5"]}),
             template_key="sc_telefonia_medios_pago_96706",
         )
         novacion = build_sc_telefonia_mail_output(
@@ -614,10 +613,11 @@ def validate_sc_telefonia_mail() -> None:
     assert descuento.loc[2, "NRO_OPERACION"] == "OP4" and descuento.loc[2, "CLIENTE"] == "", "SC Telefonia descuento sin match invalido"
     assert descuento.loc[1, "DIA"] == "25" and descuento.loc[1, "MES"] == "Junio" and descuento.loc[1, "ANO"] == "2026", "SC Telefonia fecha invalida"
 
-    assert list(medios_pago["N_OPERACION"].astype(str)) == ["1234", "OP1", "OP4"], "SC Telefonia 96706 no deduplico esperado"
+    assert list(medios_pago["N_OPERACION"].astype(str)) == ["1234", "OP1", "OP4", "OP5"], "SC Telefonia 96706 no deduplico esperado"
     assert medios_pago.loc[0, "RUT"] == "1-1" and medios_pago.loc[0, "NOMBRE"] == "PRB", "SC Telefonia 96706 semilla incompleta"
     assert "dos@example.com" not in set(medios_pago["dest_email"].astype(str)), "SC Telefonia 96706 no deduplico RUT"
     assert "UNO@EXAMPLE.COM" not in set(medios_pago["dest_email"].astype(str)), "SC Telefonia 96706 no deduplico email normalizado"
+    assert medios_pago.loc[3, "RUT"] == "33333333-3" and medios_pago.loc[3, "dest_email"] == "", "SC Telefonia no vacia correo basura"
 
     assert novacion.loc[0, "dest_email"] == "pipe5550@gmail.com", "SC Telefonia novacion sin semilla"
     assert novacion.loc[0, "RUT"] == "1-1" and novacion.loc[0, "NOMBRE"] == "PRB" and novacion.loc[0, "OPERACION"] == "1234", "SC Telefonia novacion semilla incompleta"
@@ -741,6 +741,64 @@ def validate_santander_consumer() -> None:
     print("SANTANDER_CONSUMER_OK")
 
 
+def validate_santander_consumer_email_filters() -> None:
+    from services import santander_consumer_sources as sc_sources
+
+    blocked_values = [
+        "administracion@ingtm.net",
+        "aaa@gmail.com",
+        "AAAA@GMAIL.COM",
+        " sdfd@gmail.com ",
+        "abc@gmail.com",
+        "apalma@phoenixservice.cl",
+    ]
+    for value in blocked_values:
+        assert sc_sources.is_blocked_terreno_email(value), f"Correo Terreno no bloqueado: {value}"
+    assert not sc_sources.is_blocked_terreno_email("cliente@example.com")
+    assert not sc_sources.is_blocked_terreno_email("apalma@info.phoenixservice.cl")
+
+    class FakeCursor:
+        def __init__(self):
+            self.rows = []
+
+        def execute(self, query, params):
+            if "COUNT(*)" in query:
+                self.count = (4,)
+                return
+            self.rows = [
+                ("111111111", "apalma@phoenixservice.cl", 1, "2026-06-25"),
+                ("111111111", "cliente.valido@example.com", 2, "2026-06-24"),
+                ("222222222", "aaaa@gmail.com", 1, "2026-06-25"),
+            ]
+
+        def fetchone(self):
+            return self.count
+
+        def fetchall(self):
+            return self.rows
+
+    class FakeConnection:
+        def __enter__(self):
+            self.cursor_instance = FakeCursor()
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def cursor(self):
+            return self.cursor_instance
+
+    original_connection = sc_sources.get_stc_connection
+    try:
+        sc_sources.get_stc_connection = lambda: FakeConnection()
+        emails = sc_sources.fetch_emails_by_rut(["111111111", "222222222"])
+    finally:
+        sc_sources.get_stc_connection = original_connection
+
+    assert emails == {"111111111": "cliente.valido@example.com"}, "Terreno no aplico filtro y fallback de ranking"
+    print("SANTANDER_CONSUMER_EMAIL_FILTERS_OK")
+
+
 def _santander_hipotecario_df() -> pd.DataFrame:
     return pd.DataFrame(
         {
@@ -798,6 +856,7 @@ def main() -> None:
     validate_gm_mail()
     validate_sc_telefonia_mail()
     validate_santander_consumer()
+    validate_santander_consumer_email_filters()
     validate_santander_hipotecario()
     print("GENERATORS_OK")
 

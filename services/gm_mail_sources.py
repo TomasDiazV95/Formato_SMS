@@ -9,7 +9,11 @@ def fetch_tmp_asig_gm_rows(operations: list[str]) -> dict[str, dict[str, object]
         return {}
 
     query_template = """
-    WITH ranked AS (
+    WITH latest_load AS (
+        SELECT MAX(fecha_carga) AS fecha_carga
+        FROM dbo.tmp_asig_gm
+    ),
+    ranked AS (
         SELECT
             [fld_Customer Name],
             [fld_National Id],
@@ -19,10 +23,12 @@ def fetch_tmp_asig_gm_rows(operations: list[str]) -> dict[str, dict[str, object]
             [fld_Email],
             ROW_NUMBER() OVER (
                 PARTITION BY LTRIM(RTRIM(CAST([fld_Agreement Number] AS nvarchar(255))))
-                ORDER BY (SELECT 0)
+                ORDER BY gm.fecha_carga DESC, gm.ts_carga DESC, gm.id_tmp_asig_gm DESC
             ) AS rn
-        FROM dbo.tmp_asig_gm
-        WHERE LTRIM(RTRIM(CAST([fld_Agreement Number] AS nvarchar(255)))) IN ({placeholders})
+        FROM dbo.tmp_asig_gm gm
+        CROSS JOIN latest_load
+        WHERE gm.fecha_carga = latest_load.fecha_carga
+          AND LTRIM(RTRIM(CAST([fld_Agreement Number] AS nvarchar(255)))) IN ({placeholders})
     )
     SELECT [fld_Customer Name], [fld_National Id], [fld_Agreement Number], [fld_Due Date], [fld_EMI], [fld_Email]
     FROM ranked
